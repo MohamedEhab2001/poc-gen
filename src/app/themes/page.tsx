@@ -3,6 +3,7 @@ import Link from "next/link";
 import { themeMetaList } from "@/lib/poc/theme-meta";
 import type { ThemeMeta } from "@/lib/poc/theme-meta";
 import type { ThemePalette } from "@/lib/poc/types";
+import { requireOperator } from "@/server/auth/authorize";
 
 export const metadata: Metadata = {
   title: "Theme showroom · POC Gen",
@@ -232,7 +233,8 @@ function Swatches({ palette }: { palette: ThemePalette }) {
   );
 }
 
-export default function ThemesPage() {
+export default async function ThemesPage() {
+  await requireOperator("/themes");
   return (
     <main className="min-h-[100dvh] bg-[#101013] px-6 py-14 text-zinc-200">
       <div className="mx-auto max-w-6xl">

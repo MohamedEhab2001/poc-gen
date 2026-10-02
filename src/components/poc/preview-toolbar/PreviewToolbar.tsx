@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ThemeId } from "@/lib/poc/schema";
 import type { PlaceholderReport } from "@/lib/poc/placeholders";
+import { buildPreviewQuery, parsePreviewQuery } from "@/lib/poc/preview-query";
+import type { PreviewQueryState, PreviewViewport } from "@/lib/poc/preview-query";
 
-type Viewport = "desktop" | "tablet" | "mobile";
+type Viewport = PreviewViewport;
 
 const VIEWPORTS: Array<{ id: Viewport; label: string }> = [
   { id: "desktop", label: "Desktop" },
@@ -15,7 +17,9 @@ const VIEWPORTS: Array<{ id: Viewport; label: string }> = [
 
 /**
  * Internal-only preview chrome. Never rendered on /demo/[slug]. All state
- * lives in the URL (searchParams) so previews are shareable links.
+ * lives in the URL (searchParams) so previews are shareable links, and each
+ * control change merges into the CURRENT query so no setting (for example a
+ * theme override) is lost when another control changes.
  */
 export function PreviewToolbar({
   slug,
@@ -36,16 +40,11 @@ export function PreviewToolbar({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  function navigate(next: { theme?: string; viewport?: Viewport; overlay?: boolean }) {
-    const params = new URLSearchParams();
-    const theme = next.theme ?? activeTheme;
-    const view = next.viewport ?? viewport;
-    const showOverlay = next.overlay ?? overlay;
-    if (theme !== activeTheme) params.set("theme", theme);
-    if (view !== "desktop") params.set("viewport", view);
-    if (showOverlay) params.set("overlay", "source");
-    const query = params.toString();
+  function navigate(change: Partial<PreviewQueryState>) {
+    const current = parsePreviewQuery(searchParams);
+    const query = buildPreviewQuery(current, change);
     router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
@@ -110,6 +109,17 @@ export function PreviewToolbar({
         >
           Open clean demo ↗
         </Link>
+
+        <button
+          type="button"
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
+            window.location.href = "/login";
+          }}
+          className="rounded px-2.5 py-1 text-xs text-zinc-500 transition-colors hover:text-zinc-200"
+        >
+          Sign out
+        </button>
 
         <details className="ml-auto text-xs text-zinc-400">
           <summary className="cursor-pointer select-none py-1 hover:text-zinc-100">

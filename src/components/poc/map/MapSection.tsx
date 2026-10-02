@@ -1,5 +1,5 @@
 import type { ResolvedBusiness, ResolvedLocation } from "@/lib/poc/types";
-import { mapsQueryUrl } from "@/lib/poc/url";
+import { isTrustedMapEmbed, mapsQueryUrl } from "@/lib/poc/url";
 import { ActionLink } from "@/components/poc/ActionLink";
 
 /**
@@ -39,7 +39,11 @@ export function MapSection({
       ? `${location.latitude},${location.longitude}`
       : (location.formattedAddress ?? location.shortAddress ?? "");
 
-  const trustedEmbed = location.embedUrl;
+  // Defense in depth: even a record-level embedUrl must pass the trusted
+  // origin check again here before it can reach an iframe.
+  const trustedEmbed = location.embedUrl && isTrustedMapEmbed(location.embedUrl)
+    ? location.embedUrl
+    : null;
   const keyedEmbed = apiKey && q ? `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(q)}` : null;
   const embed = trustedEmbed ?? keyedEmbed;
 

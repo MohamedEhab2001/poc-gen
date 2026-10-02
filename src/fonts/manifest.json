@@ -1,0 +1,314 @@
+[
+  {
+    "theme": "heritage-bistro",
+    "family": "Cormorant Garamond",
+    "file": "src/fonts/heritage-bistro/cormorant-garamond-500-italic.woff2",
+    "style": "italic",
+    "weight": "500",
+    "variable": null
+  },
+  {
+    "theme": "heritage-bistro",
+    "family": "Cormorant Garamond",
+    "file": "src/fonts/heritage-bistro/cormorant-garamond-600-italic.woff2",
+    "style": "italic",
+    "weight": "600",
+    "variable": null
+  },
+  {
+    "theme": "heritage-bistro",
+    "family": "Cormorant Garamond",
+    "file": "src/fonts/heritage-bistro/cormorant-garamond-700-italic.woff2",
+    "style": "italic",
+    "weight": "700",
+    "variable": null
+  },
+  {
+    "theme": "heritage-bistro",
+    "family": "Cormorant Garamond",
+    "file": "src/fonts/heritage-bistro/cormorant-garamond-500.woff2",
+    "style": "normal",
+    "weight": "500",
+    "variable": null
+  },
+  {
+    "theme": "heritage-bistro",
+    "family": "Cormorant Garamond",
+    "file": "src/fonts/heritage-bistro/cormorant-garamond-600.woff2",
+    "style": "normal",
+    "weight": "600",
+    "variable": null
+  },
+  {
+    "theme": "heritage-bistro",
+    "family": "Cormorant Garamond",
+    "file": "src/fonts/heritage-bistro/cormorant-garamond-700.woff2",
+    "style": "normal",
+    "weight": "700",
+    "variable": null
+  },
+  {
+    "theme": "heritage-bistro",
+    "family": "Source Sans 3",
+    "file": "src/fonts/heritage-bistro/source-sans-3-400-700.woff2",
+    "style": "normal",
+    "weight": "400 700",
+    "variable": "400 700"
+  },
+  {
+    "theme": "neon-night",
+    "family": "Bebas Neue",
+    "file": "src/fonts/neon-night/bebas-neue-400.woff2",
+    "style": "normal",
+    "weight": "400",
+    "variable": null
+  },
+  {
+    "theme": "neon-night",
+    "family": "Manrope",
+    "file": "src/fonts/neon-night/manrope-200-800.woff2",
+    "style": "normal",
+    "weight": "200 800",
+    "variable": "200 800"
+  },
+  {
+    "theme": "minimal-japanese",
+    "family": "Shippori Mincho",
+    "file": "src/fonts/minimal-japanese/shippori-mincho-500.woff2",
+    "style": "normal",
+    "weight": "500",
+    "variable": null
+  },
+  {
+    "theme": "minimal-japanese",
+    "family": "Shippori Mincho",
+    "file": "src/fonts/minimal-japanese/shippori-mincho-600.woff2",
+    "style": "normal",
+    "weight": "600",
+    "variable": null
+  },
+  {
+    "theme": "minimal-japanese",
+    "family": "Zen Kaku Gothic New",
+    "file": "src/fonts/minimal-japanese/zen-kaku-gothic-new-400.woff2",
+    "style": "normal",
+    "weight": "400",
+    "variable": null
+  },
+  {
+    "theme": "minimal-japanese",
+    "family": "Zen Kaku Gothic New",
+    "file": "src/fonts/minimal-japanese/zen-kaku-gothic-new-500.woff2",
+    "style": "normal",
+    "weight": "500",
+    "variable": null
+  },
+  {
+    "theme": "minimal-japanese",
+    "family": "Zen Kaku Gothic New",
+    "file": "src/fonts/minimal-japanese/zen-kaku-gothic-new-700.woff2",
+    "style": "normal",
+    "weight": "700",
+    "variable": null
+  },
+  {
+    "theme": "mediterranean-sun",
+    "family": "Young Serif",
+    "file": "src/fonts/mediterranean-sun/young-serif-400.woff2",
+    "style": "normal",
+    "weight": "400",
+    "variable": null
+  },
+  {
+    "theme": "mediterranean-sun",
+    "family": "Nunito Sans",
+    "file": "src/fonts/mediterranean-sun/nunito-sans-400-1000.woff2",
+    "style": "normal",
+    "weight": "400 1000",
+    "variable": "400 1000"
+  },
+  {
+    "theme": "coffee-editorial",
+    "family": "Newsreader",
+    "file": "src/fonts/coffee-editorial/newsreader-400-700-italic.woff2",
+    "style": "italic",
+    "weight": "400 700",
+    "variable": "400 700"
+  },
+  {
+    "theme": "coffee-editorial",
+    "family": "Newsreader",
+    "file": "src/fonts/coffee-editorial/newsreader-400-700.woff2",
+    "style": "normal",
+    "weight": "400 700",
+    "variable": "400 700"
+  },
+  {
+    "theme": "coffee-editorial",
+    "family": "Archivo",
+    "file": "src/fonts/coffee-editorial/archivo-400-800.woff2",
+    "style": "normal",
+    "weight": "400 800",
+    "variable": "400 800"
+  },
+  {
+    "theme": "american-diner",
+    "family": "Alfa Slab One",
+    "file": "src/fonts/american-diner/alfa-slab-one-400.woff2",
+    "style": "normal",
+    "weight": "400",
+    "variable": null
+  },
+  {
+    "theme": "american-diner",
+    "family": "Karla",
+    "file": "src/fonts/american-diner/karla-400-800.woff2",
+    "style": "normal",
+    "weight": "400 800",
+    "variable": "400 800"
+  },
+  {
+    "theme": "luxury-fine-dining",
+    "family": "Marcellus",
+    "file": "src/fonts/luxury-fine-dining/marcellus-400.woff2",
+    "style": "normal",
+    "weight": "400",
+    "variable": null
+  },
+  {
+    "theme": "luxury-fine-dining",
+    "family": "Jost",
+    "file": "src/fonts/luxury-fine-dining/jost-300-700.woff2",
+    "style": "normal",
+    "weight": "300 700",
+    "variable": "300 700"
+  },
+  {
+    "theme": "street-food-poster",
+    "family": "Archivo Black",
+    "file": "src/fonts/street-food-poster/archivo-black-400.woff2",
+    "style": "normal",
+    "weight": "400",
+    "variable": null
+  },
+  {
+    "theme": "street-food-poster",
+    "family": "Work Sans",
+    "file": "src/fonts/street-food-poster/work-sans-300-900.woff2",
+    "style": "normal",
+    "weight": "300 900",
+    "variable": "300 900"
+  },
+  {
+    "theme": "botanical-brunch",
+    "family": "Lora",
+    "file": "src/fonts/botanical-brunch/lora-400-700-italic.woff2",
+    "style": "italic",
+    "weight": "400 700",
+    "variable": "400 700"
+  },
+  {
+    "theme": "botanical-brunch",
+    "family": "Lora",
+    "file": "src/fonts/botanical-brunch/lora-400-700.woff2",
+    "style": "normal",
+    "weight": "400 700",
+    "variable": "400 700"
+  },
+  {
+    "theme": "botanical-brunch",
+    "family": "Figtree",
+    "file": "src/fonts/botanical-brunch/figtree-300-900.woff2",
+    "style": "normal",
+    "weight": "300 900",
+    "variable": "300 900"
+  },
+  {
+    "theme": "modern-industrial",
+    "family": "Space Grotesk",
+    "file": "src/fonts/modern-industrial/space-grotesk-300-700.woff2",
+    "style": "normal",
+    "weight": "300 700",
+    "variable": "300 700"
+  },
+  {
+    "theme": "modern-industrial",
+    "family": "IBM Plex Mono",
+    "file": "src/fonts/modern-industrial/ibm-plex-mono-400.woff2",
+    "style": "normal",
+    "weight": "400",
+    "variable": null
+  },
+  {
+    "theme": "modern-industrial",
+    "family": "IBM Plex Mono",
+    "file": "src/fonts/modern-industrial/ibm-plex-mono-500.woff2",
+    "style": "normal",
+    "weight": "500",
+    "variable": null
+  },
+  {
+    "theme": "modern-industrial",
+    "family": "IBM Plex Mono",
+    "file": "src/fonts/modern-industrial/ibm-plex-mono-600.woff2",
+    "style": "normal",
+    "weight": "600",
+    "variable": null
+  },
+  {
+    "theme": "deco-supper-club",
+    "family": "Poiret One",
+    "file": "src/fonts/deco-supper-club/poiret-one-400.woff2",
+    "style": "normal",
+    "weight": "400",
+    "variable": null
+  },
+  {
+    "theme": "deco-supper-club",
+    "family": "Outfit",
+    "file": "src/fonts/deco-supper-club/outfit-100-900.woff2",
+    "style": "normal",
+    "weight": "100 900",
+    "variable": "100 900"
+  },
+  {
+    "theme": "atelier-lookbook",
+    "family": "Bodoni Moda",
+    "file": "src/fonts/atelier-lookbook/bodoni-moda-400-700-italic.woff2",
+    "style": "italic",
+    "weight": "400 700",
+    "variable": "400 900"
+  },
+  {
+    "theme": "atelier-lookbook",
+    "family": "Bodoni Moda",
+    "file": "src/fonts/atelier-lookbook/bodoni-moda-400-900.woff2",
+    "style": "normal",
+    "weight": "400 900",
+    "variable": "400 900"
+  },
+  {
+    "theme": "atelier-lookbook",
+    "family": "Familjen Grotesk",
+    "file": "src/fonts/atelier-lookbook/familjen-grotesk-400-700.woff2",
+    "style": "normal",
+    "weight": "400 700",
+    "variable": "400 700"
+  },
+  {
+    "theme": "memphis-play",
+    "family": "Unbounded",
+    "file": "src/fonts/memphis-play/unbounded-200-900.woff2",
+    "style": "normal",
+    "weight": "200 900",
+    "variable": "200 900"
+  },
+  {
+    "theme": "memphis-play",
+    "family": "DM Sans",
+    "file": "src/fonts/memphis-play/dm-sans-100-1000.woff2",
+    "style": "normal",
+    "weight": "100 1000",
+    "variable": "100 1000"
+  }
+]

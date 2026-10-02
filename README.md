@@ -13,24 +13,30 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-The app runs entirely on local fixtures. No database, Google Maps key, or object storage is required for development.
+The app runs entirely on local fixtures with bundled fonts. No database, Google Maps key, or object storage is required for development — and the production build needs no internet access.
+
+Internal routes (`/themes`, `/preview/**`) require an operator session. In development a passwordless dev login is available for the allowlisted operator email; production requires `AUTH_SECRET` plus Google OAuth or an operator password (see `.env.example` and [docs/security.md](docs/security.md)).
 
 ```bash
 npm run typecheck    # tsc --noEmit (strict)
 npm run lint         # eslint
-npm run test         # vitest (schema, normalization, fallbacks, CTA engine, repository)
-npm run build        # production build
+npm run test         # vitest (schema, normalization, fallbacks, CTA engine, repository, security)
+npm run build        # production build (offline: fonts are bundled)
 npm start            # serve the production build
 ```
 
 ## Routes
 
-| Route | Purpose |
-|---|---|
-| `GET /demo/[slug]` | The customer-facing POC. Unindexed (`noindex, nofollow`), record-driven metadata, discreet "Unofficial website concept" notice, no theme switcher. |
-| `GET /themes` | Internal theme showroom: ten cards with palette swatches, typography preview, abstract layout miniature, and demo links. |
-| `GET /themes/[themeId]` | One canonical sample business in the selected theme, with a complete / partial / minimal fixture switcher for inspecting fallbacks. |
-| `GET /preview/[slug]` | Internal preview tool: theme override, desktop / tablet / mobile viewport frames, source-provenance overlay, and the unresolved-placeholder report. Never appears on `/demo/[slug]`. |
+| Route | Access | Purpose |
+|---|---|---|
+| `GET /p/[token]` | Customer, via 256-bit share token | The customer-facing POC. Tokens are hashed at rest, expiring, revocable, and optionally view-capped; every failure mode returns a generic 404. Unindexed, record-driven metadata, discreet "Unofficial website concept" notice, no theme switcher, no provenance leakage. |
+| `GET /demo/[slug]` | Fixture demo route | Same renderer as `/p` but addressed by slug. Used for local development and the showroom; real outreach uses share links. Unindexed; drafts/archived 404; expired and closed records get safe states. |
+| `GET /login` | Public | Operator sign-in (Google OAuth, operator password, or gated dev login). |
+| `GET /themes` | Operator | Theme showroom: thirteen cards with palette swatches, typography preview, abstract layout miniature, and demo links. |
+| `GET /themes/[themeId]` | Operator | One canonical sample business in the selected theme, with a complete / partial / minimal fixture switcher for inspecting fallbacks. |
+| `GET /preview/[slug]` | Operator | Preview tool: theme override, desktop / tablet / mobile viewport frames, source-provenance overlay, the unresolved-placeholder report, and share-link creation/revocation. Never appears on customer routes. |
+| `POST/GET /api/internal/share-links`, `DELETE /api/internal/share-links/[id]` | Operator session | Share-link lifecycle API. |
+| `POST /api/auth/login` / `logout`, `GET /api/auth/google/*` | Public | Authentication endpoints (rate-limited). |
 
 ### Record states on `/demo/[slug]`
 
@@ -121,7 +127,9 @@ Every mode ships a text alternative; iframes are lazy-loaded and titled; maps ne
 
 Records are read exclusively through the `BusinessPocRepository` interface in [`repository.ts`](src/lib/poc/repository.ts). The default adapter loads the fixture set through the Zod boundary. A documented PostgreSQL adapter point lives in the same file — records stay JSON documents in the database and the schema remains the single validation boundary, so externally sourced details (ratings, hours) can be refreshed at render time.
 
-**Safest next step for the lead-generation pipeline:** keep generation upstream and POST finished, schema-valid records into the store, keyed by `slug`, with `status: "draft"`. Humans review drafts on `/preview/[slug]`, flip to `active`, and share the `/demo/[slug]` link. Nothing about the rendering path needs to change; only a new repository adapter (and, if desired, a token-guarded ingestion route) is required.
+**Implemented today:** the fixture repository, the JSON-file share-link store, and the render path above. **Planned (not yet built):** the PostgreSQL adapter, a token-guarded machine-ingestion endpoint, enrichment providers, and background workers — sequenced in [docs/backlog.md](docs/backlog.md). No ingestion route exists yet; do not send records to any `/api` endpoint expecting persistence.
+
+The intended pipeline contract when it lands: records arrive as schema-valid JSON keyed by `slug` with `status: "draft"`; humans review drafts on `/preview/[slug]`, flip to `active`, and share a `/p/[token]` link.
 
 ## Environment variables
 
@@ -157,6 +165,6 @@ The production concept is one multi-tenant deployment serving many records by sl
 
 ## Testing and QA
 
-- **Unit (Vitest, 38 tests):** schema acceptance/rejection, URL and protocol safety, CTA priority and derivation, every numbered fallback rule, record disposition (expired / closed / draft), repository integrity and per-theme fixture coverage.
+- **Unit (Vitest, 67 tests):** schema acceptance/rejection, URL and protocol safety, CTA priority and derivation, every numbered fallback rule, record disposition (expired / closed / draft / request-time `expiresAt`), the central render policy matrix, share-token generation/hashing/expiry/revocation/view caps, map-embed and image-host allowlists, zero-coordinate handling, preview query-state preservation, and repository integrity with per-theme fixture coverage.
 - **Visual QA performed:** all ten themes screenshotted and inspected at 390×844 and 1440×900 against broken imagery, horizontal overflow, clipped navigation, contrast, and cross-theme sameness; edge states (expired, permanently closed, temporarily closed, partial, minimal), the preview tool, and the showroom verified in a real browser.
 - Known cosmetic note: fixture photography comes from seeded picsum placeholders, so the photo behind a seed is random and may not match its alt text. Replace with licensed or owner-supplied assets in real records — the `attribution` field is already wired for it.

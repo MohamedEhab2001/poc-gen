@@ -21,6 +21,9 @@ yarn-error.log*
 .env
 .env*.local
 
+# local durable stores (share links until Phase 2 moves them to PostgreSQL)
+/.data
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

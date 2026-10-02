@@ -7,6 +7,7 @@ import { getPocRepository } from "@/lib/poc/repository";
 import { themeIds } from "@/lib/poc/schema";
 import type { BusinessPocRecord, ThemeId } from "@/lib/poc/schema";
 import { themeMeta } from "@/lib/poc/theme-meta";
+import { requireOperator } from "@/server/auth/authorize";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -42,6 +43,7 @@ export default async function ThemeDetailPage({ params, searchParams }: PageProp
   const { themeId } = await params;
   const { data } = await searchParams;
 
+  await requireOperator(`/themes/${themeId}`);
   if (!(themeIds as readonly string[]).includes(themeId)) notFound();
   const id = themeId as ThemeId;
   const mode: DataMode = data === "partial" || data === "minimal" ? data : "complete";

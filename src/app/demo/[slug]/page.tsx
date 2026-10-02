@@ -10,15 +10,25 @@ import { getPocRepository } from "@/lib/poc/repository";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
+const GENERIC_NOINDEX_METADATA: Metadata = {
+  title: "Website concept",
+  robots: { index: false, follow: false, nocache: true },
+};
+
 /**
  * Customer-facing POC route. Unindexed by default, record-driven metadata,
  * and safe states for draft, archived, expired, and permanently closed
  * records. A permanently closed business never renders a sales POC.
+ *
+ * Metadata applies the exact same disposition rules as rendering: anything
+ * that must not render returns a generic title with no business name,
+ * address, or hint that a record exists.
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const record = await getPocRepository().getBySlug(slug);
-  if (!record) return { title: "Not found", robots: { index: false, follow: false } };
+  if (!record) return GENERIC_NOINDEX_METADATA;
+  if (getRecordDisposition(record) !== "render") return GENERIC_NOINDEX_METADATA;
   return buildPocMetadata(normalizeRecord(record));
 }
 

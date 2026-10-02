@@ -61,3 +61,45 @@ export function mapsQueryUrl(place: {
 export function isHexColor(value: string): boolean {
   return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value.trim());
 }
+
+/**
+ * Trusted map-embed origins. Arbitrary HTTPS iframe URLs are rejected: only
+ * the explicit Google Maps embed endpoints may be framed.
+ */
+const TRUSTED_EMBED_ORIGINS = new Set(["https://www.google.com", "https://maps.google.com"]);
+const TRUSTED_EMBED_PATH_PREFIXES = ["/maps/embed"];
+
+export function isTrustedMapEmbed(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    if (!TRUSTED_EMBED_ORIGINS.has(url.origin)) return false;
+    return TRUSTED_EMBED_PATH_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Image URL policy: local paths (no protocol-relative tricks) or HTTPS hosts
+ * on the allowlist. The allowlist extends via POC_IMAGE_HOST_ALLOWLIST for a
+ * future object-storage domain.
+ */
+const BASE_IMAGE_HOSTS = ["picsum.photos", "fastly.picsum.photos", "i.picsum.photos"];
+
+export function imageHostAllowlist(): string[] {
+  const extra = (process.env.POC_IMAGE_HOST_ALLOWLIST ?? "")
+    .split(",")
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set([...BASE_IMAGE_HOSTS, ...extra])];
+}
+
+export function isAllowedImageUrl(raw: string): boolean {
+  if (raw.startsWith("/") && !raw.startsWith("//")) return true;
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" && imageHostAllowlist().includes(url.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}

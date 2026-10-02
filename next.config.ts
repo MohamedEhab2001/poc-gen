@@ -1,5 +1,25 @@
 import type { NextConfig } from "next";
 
+/**
+ * Restrictive CSP covering only the origins this app actually uses: self,
+ * the placeholder image host, and the trusted Google Maps embed endpoints.
+ * Scripts/styles allow 'unsafe-inline' because Next.js hydration injects
+ * inline bootstrap; a nonce-based policy is on the Phase 5 backlog.
+ */
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://picsum.photos https://fastly.picsum.photos https://i.picsum.photos",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "frame-src https://www.google.com https://maps.google.com",
+  "frame-ancestors 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join("; ");
+
 const nextConfig: NextConfig = {
   images: {
     // Demo POC records use remote placeholder photography. The optimizer's
@@ -13,6 +33,20 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "fastly.picsum.photos" },
       { protocol: "https", hostname: "i.picsum.photos" },
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: contentSecurityPolicy },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        ],
+      },
+    ];
   },
 };
 

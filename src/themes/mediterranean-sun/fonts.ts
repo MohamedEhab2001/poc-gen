@@ -1,14 +1,22 @@
-import { Young_Serif, Nunito_Sans } from "next/font/google";
+import localFont from "next/font/local";
 
-export const display = Young_Serif({
-  subsets: ["latin"],
-  weight: "400",
+/**
+ * Self-hosted Young Serif and Nunito Sans (SIL Open Font License; see the
+ * LICENSE files in src/fonts/mediterranean-sun/). Bundled locally so production builds
+ * never depend on remote font CDNs.
+ */
+export const display = localFont({
+  src: [
+    { path: "../../fonts/mediterranean-sun/young-serif-400.woff2", weight: "400", style: "normal" },
+  ],
   variable: "--font-t-display",
   display: "swap",
 });
 
-export const body = Nunito_Sans({
-  subsets: ["latin"],
+export const body = localFont({
+  src: [
+    { path: "../../fonts/mediterranean-sun/nunito-sans-400-1000.woff2", weight: "400 1000", style: "normal" },
+  ],
   variable: "--font-t-body",
   display: "swap",
 });

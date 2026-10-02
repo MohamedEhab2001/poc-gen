@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClosureBanner } from "@/components/poc/ClosureBanner";
+import { ShareLinksPanel } from "@/components/admin/ShareLinksPanel";
 import { PreviewToolbar } from "@/components/poc/preview-toolbar/PreviewToolbar";
 import { ExpiredState, PermanentlyClosedState } from "@/components/poc/states/RecordStates";
 import { listUnresolved } from "@/lib/poc/placeholders";
@@ -11,6 +12,7 @@ import { getPocRepository } from "@/lib/poc/repository";
 import { themeIds } from "@/lib/poc/schema";
 import type { BusinessPocRecord } from "@/lib/poc/schema";
 import { themeMeta } from "@/lib/poc/theme-meta";
+import { requireOperator } from "@/server/auth/authorize";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -30,6 +32,7 @@ export default async function PreviewPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const query = await searchParams;
 
+  await requireOperator(`/preview/${slug}`);
   const raw = await getPocRepository().getBySlug(slug);
   if (!raw) notFound();
 
@@ -46,7 +49,7 @@ export default async function PreviewPage({ params, searchParams }: PageProps) {
   const report = listUnresolved(record);
 
   return (
-    <div className="preview-shell">
+      <div className="preview-shell">
       <PreviewToolbar
         slug={slug}
         activeTheme={record.themeId}
@@ -56,6 +59,7 @@ export default async function PreviewPage({ params, searchParams }: PageProps) {
         report={report}
         warnings={record.warnings}
       />
+      <ShareLinksPanel slug={slug} />
       <div className={`preview-frame preview-frame--${viewport} pt-[52px]`}>
         <div className={overlay ? "show-provenance" : undefined}>
           {record.status === "expired" ? (

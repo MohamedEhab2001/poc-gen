@@ -36,6 +36,10 @@ import { fizzClub } from "@/data/businesses/fizz-club";
  * Records stay JSON documents in the database; the Zod schema above remains
  * the single validation boundary. Externously sourced details (ratings,
  * hours) can be refreshed at render time by the adapter before parsing.
+ *
+ * Ingestion: no machine-ingestion route exists yet. The planned Phase 2/3
+ * adapter is a token-guarded POST endpoint with constant-time verification
+ * and rotation (see docs/backlog.md).
  */
 export interface BusinessPocRepository {
   getBySlug(slug: string): Promise<BusinessPocRecord | null>;
