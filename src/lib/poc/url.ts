@@ -4,7 +4,7 @@
  * rejected before they can reach an href.
  */
 
-import { resolveImageHosts } from "./image-hosts";
+import { getRuntimeImageHosts } from "./image-hosts";
 
 const SAFE_PROTOCOLS = new Set(["https:"]);
 
@@ -82,12 +82,22 @@ export function isTrustedMapEmbed(raw: string): boolean {
 }
 
 /**
- * Image URL policy: local paths (no protocol-relative tricks) or HTTPS hosts
- * on the shared allowlist (src/lib/poc/image-hosts.ts), which also drives the
- * CSP img-src directive so the two can never drift apart.
+ * Image URL policy: strictly validated root-relative local paths or HTTPS
+ * hosts on the shared allowlist (src/lib/poc/image-hosts.ts). The default
+ * host set is resolved from the live server environment, so
+ * POC_IMAGE_HOST_ALLOWLIST and R2_PUBLIC_BASE_URL apply at runtime exactly
+ * as they do in the CSP. Local paths reject protocol-relative (//), backslash
+ * (/\host, which browsers normalize to a protocol-relative URL), control
+ * characters, and anything else that could normalize into an external URL.
  */
-export function isAllowedImageUrl(raw: string, hosts: readonly string[] = resolveImageHosts()): boolean {
-  if (raw.startsWith("/") && !raw.startsWith("//")) return true;
+export function isAllowedImageUrl(raw: string, hosts: readonly string[] = getRuntimeImageHosts()): boolean {
+  if (raw.startsWith("/")) {
+    // Root-relative local path only: no protocol-relative, no backslash
+    // variants, no control characters that could smuggle a URL.
+    if (raw.startsWith("//") || raw.includes("\\")) return false;
+    if (/[\u0000-\u001f\u007f]/.test(raw)) return false;
+    return true;
+  }
   try {
     const url = new URL(raw);
     return url.protocol === "https:" && hosts.includes(url.hostname.toLowerCase());

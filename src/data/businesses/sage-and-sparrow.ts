@@ -43,6 +43,8 @@ export const sageAndSparrow: BusinessPocRecord = {
       href: "https://sageandsparrow.example.com/book",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
     secondaryAction: null,
   },
@@ -50,9 +52,9 @@ export const sageAndSparrow: BusinessPocRecord = {
   contact: {
     phone: sv("+1 (828) 555-0141", "google_places", { verified: true }),
     email: sv("hello@sageandsparrow.example.com", "business_owner", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "instagram", url: "https://www.instagram.com/sageandsparrow.example", label: "Instagram" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -91,6 +93,7 @@ export const sageAndSparrow: BusinessPocRecord = {
     reviews: [
       {
         id: "ss-r1",
+        source: "google_places",
         authorName: "Wren Hollis",
         rating: 5,
         text: "The garden toast is a meal and a view. Dog friendly porch, endless coffee.",
@@ -98,6 +101,7 @@ export const sageAndSparrow: BusinessPocRecord = {
       },
       {
         id: "ss-r2",
+        source: "google_places",
         authorName: "Tomás Riera",
         rating: 5,
         text: "Best gluten-free biscuits I have had anywhere, and I do not say that lightly.",
@@ -105,6 +109,7 @@ export const sageAndSparrow: BusinessPocRecord = {
       },
       {
         id: "ss-r3",
+        source: "google_places",
         authorName: "Alma Dawson",
         rating: 4,
         text: "Weekend wait is real but the porch and the cat make it fine.",
@@ -156,8 +161,8 @@ export const sageAndSparrow: BusinessPocRecord = {
       dineIn: sv(true, "google_places", { verified: true }),
       takeout: sv(true, "google_places", { verified: true }),
     },
-    mealTypes: ["Breakfast", "Brunch", "Lunch"],
-    dietaryOptions: ["Vegetarian options", "Vegan options", "Gluten-free options"],
+    mealTypes: sv(["Breakfast", "Brunch", "Lunch"], "business_owner", { verified: true }),
+    dietaryOptions: sv(["Vegetarian options", "Vegan options", "Gluten-free options"], "business_owner", { verified: true }),
     menu: {
       mode: "verified",
       source: "business_owner",
@@ -210,8 +215,10 @@ export const sageAndSparrow: BusinessPocRecord = {
       href: "https://sageandsparrow.example.com/book",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
-    call: { label: "Call the café", href: "+1 (828) 555-0141", kind: "call" },
+    call: { label: "Call the café", href: "+1 (828) 555-0141", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

@@ -44,9 +44,9 @@ export const junosDiner: BusinessPocRecord = {
 
   contact: {
     phone: sv("+1 (614) 555-0166", "google_places", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "facebook", url: "https://www.facebook.com/junosdiner.example", label: "Facebook" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -85,6 +85,7 @@ export const junosDiner: BusinessPocRecord = {
     reviews: [
       {
         id: "jd-r1",
+        source: "google_places",
         authorName: "Frank Delgado",
         rating: 5,
         text: "Two eggs, rye toast, and a bottomless cup for under ten dollars. The American project.",
@@ -92,6 +93,7 @@ export const junosDiner: BusinessPocRecord = {
       },
       {
         id: "jd-r2",
+        source: "google_places",
         authorName: "Sarah Kaminski",
         rating: 4,
         text: "The Olympia burger with griddled onions. Sit at the counter, let Ruth take care of you.",
@@ -99,6 +101,7 @@ export const junosDiner: BusinessPocRecord = {
       },
       {
         id: "jd-r3",
+        source: "google_places",
         authorName: "Marcus Bell",
         rating: 4,
         text: "Busy on Saturdays but the wait is short and the pie case is full by 9.",
@@ -145,7 +148,7 @@ export const junosDiner: BusinessPocRecord = {
       takeout: sv(true, "google_places", { verified: true }),
       curbsidePickup: sv(true, "business_owner", { verified: true }),
     },
-    mealTypes: ["Breakfast", "Lunch"],
+    mealTypes: sv(["Breakfast", "Lunch"], "business_owner", { verified: true }),
     menu: {
       mode: "verified",
       source: "business_owner",
@@ -204,12 +207,14 @@ export const junosDiner: BusinessPocRecord = {
   },
 
   callsToAction: {
-    call: { label: "Call ahead for pickup", href: "+1 (614) 555-0166", kind: "call" },
+    call: { label: "Call ahead for pickup", href: "+1 (614) 555-0166", kind: "call", source: "manual", verified: true },
     directions: {
       label: "Find the neon sign",
       href: "https://www.google.com/maps/dir/?api=1&destination=1440+N+High+St+Columbus+OH",
       kind: "directions",
       external: true,
+    source: "manual",
+    verified: true,
     },
   },
 

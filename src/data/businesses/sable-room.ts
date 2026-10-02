@@ -43,6 +43,8 @@ export const sableRoom: BusinessPocRecord = {
       href: "https://sableroom.example.com/reservations",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
     secondaryAction: null,
   },
@@ -50,9 +52,9 @@ export const sableRoom: BusinessPocRecord = {
   contact: {
     phone: sv("+1 (312) 555-0198", "google_places", { verified: true }),
     email: sv("reservations@sableroom.example.com", "business_owner", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "instagram", url: "https://www.instagram.com/sableroom.example", label: "Instagram" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -91,6 +93,7 @@ export const sableRoom: BusinessPocRecord = {
     reviews: [
       {
         id: "sr-r1",
+        source: "google_places",
         authorName: "Cornelia Voss",
         rating: 5,
         text: "The aged duck course is worth the entire evening. Service reads the table perfectly.",
@@ -98,6 +101,7 @@ export const sableRoom: BusinessPocRecord = {
       },
       {
         id: "sr-r2",
+        source: "google_places",
         authorName: "James Okafor",
         rating: 5,
         text: "Three hours, nine courses, not one wasted motion. The sorrel course will live in my head.",
@@ -150,7 +154,7 @@ export const sableRoom: BusinessPocRecord = {
       dineIn: sv(true, "google_places", { verified: true }),
       reservable: sv(true, "business_owner", { verified: true }),
     },
-    dietaryOptions: ["Vegetarian menu with notice"],
+    dietaryOptions: sv(["Vegetarian menu with notice"], "business_owner", { verified: true }),
     menu: {
       mode: "verified",
       source: "business_owner",
@@ -194,8 +198,10 @@ export const sableRoom: BusinessPocRecord = {
       href: "https://sableroom.example.com/reservations",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
-    call: { label: "Call", href: "+1 (312) 555-0198", kind: "call" },
+    call: { label: "Call", href: "+1 (312) 555-0198", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

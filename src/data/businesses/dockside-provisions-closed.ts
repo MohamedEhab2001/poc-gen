@@ -112,7 +112,7 @@ export const docksideProvisionsClosed: BusinessPocRecord = {
   },
 
   callsToAction: {
-    call: { label: "Call", href: "+1 (360) 555-0126", kind: "call" },
+    call: { label: "Call", href: "+1 (360) 555-0126", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

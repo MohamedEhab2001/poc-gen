@@ -42,6 +42,8 @@ export const hakoTeaRoom: BusinessPocRecord = {
       href: "https://hako.example.com/reserve",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
     secondaryAction: null,
   },
@@ -49,9 +51,9 @@ export const hakoTeaRoom: BusinessPocRecord = {
   contact: {
     phone: sv("+1 (206) 555-0147", "google_places", { verified: true }),
     email: sv("tea@hako.example.com", "business_owner", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "instagram", url: "https://www.instagram.com/hako.tea.example", label: "Instagram" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -90,6 +92,7 @@ export const hakoTeaRoom: BusinessPocRecord = {
     reviews: [
       {
         id: "hk-r1",
+        source: "google_places",
         authorName: "Ellis Tanaka",
         rating: 5,
         text: "The gyokuro service is explained with real care. The room stays hushed, which is the point.",
@@ -97,6 +100,7 @@ export const hakoTeaRoom: BusinessPocRecord = {
       },
       {
         id: "hk-r2",
+        source: "google_places",
         authorName: "Amara L.",
         rating: 5,
         text: "Sesame tofu is worth planning a whole afternoon around.",
@@ -137,7 +141,7 @@ export const hakoTeaRoom: BusinessPocRecord = {
       takeout: sv(true, "business_owner", { verified: true }),
       reservable: sv(true, "business_owner", { verified: true }),
     },
-    dietaryOptions: ["Vegetarian options", "Vegan options", "Gluten-free options"],
+    dietaryOptions: sv(["Vegetarian options", "Vegan options", "Gluten-free options"], "business_owner", { verified: true }),
     menu: {
       mode: "verified",
       source: "business_owner",
@@ -189,8 +193,10 @@ export const hakoTeaRoom: BusinessPocRecord = {
       href: "https://hako.example.com/reserve",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
-    call: { label: "Call", href: "+1 (206) 555-0147", kind: "call" },
+    call: { label: "Call", href: "+1 (206) 555-0147", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

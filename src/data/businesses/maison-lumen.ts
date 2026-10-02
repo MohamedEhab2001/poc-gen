@@ -45,6 +45,8 @@ export const maisonLumen: BusinessPocRecord = {
       href: "https://maisonlumen.example.com/book",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
     secondaryAction: null,
   },
@@ -52,9 +54,9 @@ export const maisonLumen: BusinessPocRecord = {
   contact: {
     phone: sv("+1 (514) 555-0186", "google_places", { verified: true }),
     email: sv("bonjour@maisonlumen.example.com", "business_owner", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "instagram", url: "https://www.instagram.com/maisonlumen.example", label: "Instagram" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -93,6 +95,7 @@ export const maisonLumen: BusinessPocRecord = {
     reviews: [
       {
         id: "ml-r1",
+        source: "google_places",
         authorName: "Éloise Gagnon",
         rating: 5,
         text: "The morning room might be the most beautiful place to eat a soft egg in this city.",
@@ -100,6 +103,7 @@ export const maisonLumen: BusinessPocRecord = {
       },
       {
         id: "ml-r2",
+        source: "google_places",
         authorName: "D. Fontaine",
         rating: 5,
         text: "Sat at the marble counter, watched the cooks plate for two hours. Dinner is a quiet spectacle.",
@@ -154,8 +158,8 @@ export const maisonLumen: BusinessPocRecord = {
       takeout: sv(true, "business_owner", { verified: true }),
       reservable: sv(true, "business_owner", { verified: true }),
     },
-    mealTypes: ["Breakfast", "Lunch", "Dinner"],
-    dietaryOptions: ["Vegetarian options", "Vegan options"],
+    mealTypes: sv(["Breakfast", "Lunch", "Dinner"], "business_owner", { verified: true }),
+    dietaryOptions: sv(["Vegetarian options", "Vegan options"], "business_owner", { verified: true }),
     menu: {
       mode: "verified",
       source: "business_owner",
@@ -209,8 +213,10 @@ export const maisonLumen: BusinessPocRecord = {
       href: "https://maisonlumen.example.com/book",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
-    call: { label: "Call the counter", href: "+1 (514) 555-0186", kind: "call" },
+    call: { label: "Call the counter", href: "+1 (514) 555-0186", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

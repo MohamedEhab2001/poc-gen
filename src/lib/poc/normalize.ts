@@ -23,7 +23,7 @@ import type {
   ThemePalette,
 } from "./types";
 import { isAllowedImageUrl, isHexColor, isTrustedMapEmbed, safeExternalUrl, telHref, mailtoHref } from "./url";
-import type { PocImage, Sourced } from "./schema";
+import type { ActionLink, PocImage, Sourced } from "./schema";
 
 /** Sources that speak for the business itself (mirrors policy.ts). */
 const BUSINESS_ORIGIN_SOURCES: ReadonlySet<string> = new Set([
@@ -208,11 +208,13 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
   }
 
   /**
-   * Image gate: trust policy AND host allowlist. Trust fields may live on the
-   * image itself or on the Sourced wrapper (logo/hero); the image's own
-   * values win when present. A blocked or non-allowlisted image resolves to
-   * null (callers fall back to theme placeholder artwork or drop the gallery
-   * slot); provenance records why.
+   * Image gate: trust policy AND host allowlist. The WRAPPER is authoritative
+   * for wrapped images (logo, hero); direct media images carry their own
+   * provenance. Layers are never mixed (the schema enforces matching sources
+   * when both are present). AI-generated business imagery never renders as
+   * photography regardless of confidence — real-photo roles must depict the
+   * real business — so it is blocked outright and the theme placeholder or
+   * gallery drop applies.
    */
   function imageValue(
     field: string,
@@ -220,17 +222,24 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
     wrapper?: Sourced<PocImage>,
   ): ResolvedImage | null {
     if (!image) return null;
-    const verified = image.verified ?? wrapper?.verified;
-    const confidence = image.confidence ?? wrapper?.confidence ?? null;
-    const outcome = renderPolicy("factual", {
-      source: image.source,
-      verified,
-      confidence,
-    });
+    const source = (wrapper ? wrapper.source : image.source) as PocImage["source"];
+    const verified = wrapper ? wrapper.verified : image.verified;
+    const confidence = wrapper ? (wrapper.confidence ?? null) : (image.confidence ?? null);
+
+    if (source === "ai_derived") {
+      provenance.push({
+        field,
+        source,
+        outcome: "hidden",
+        note: "Blocked: AI-generated imagery never renders as business photography",
+      });
+      return null;
+    }
+    const outcome = renderPolicy("factual", { source, verified, confidence });
     if (outcome === "blocked") {
       provenance.push({
         field,
-        source: image.source,
+        source,
         outcome: "hidden",
         note: "Blocked by the render policy (untrusted derived imagery)",
       });
@@ -239,14 +248,48 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
     if (!isAllowedImageUrl(image.url)) {
       provenance.push({
         field,
-        source: image.source,
+        source,
         outcome: "hidden",
         note: "Blocked: image host not allowlisted",
       });
       return null;
     }
-    provenance.push({ field, source: image.source, outcome });
+    provenance.push({ field, source, outcome });
     return resolveImage(image, outcome);
+  }
+
+  /**
+   * Action gate: explicit CTAs and hero actions carry provenance on the link
+   * itself. AI-derived actions and policy-blocked actions never reach the
+   * CTA engine.
+   */
+  function policyAction(field: string, link: ActionLink | null | undefined): ActionLink | null {
+    if (!link) return null;
+    if (link.source === "ai_derived") {
+      provenance.push({
+        field,
+        source: link.source,
+        outcome: "hidden",
+        note: "Blocked: AI-derived action",
+      });
+      return null;
+    }
+    const outcome = renderPolicy("factual", {
+      source: link.source,
+      verified: link.verified,
+      confidence: link.confidence ?? null,
+    });
+    if (outcome === "blocked") {
+      provenance.push({
+        field,
+        source: link.source,
+        outcome: "hidden",
+        note: "Blocked by the render policy (untrusted action)",
+      });
+      return null;
+    }
+    provenance.push({ field, source: link.source, outcome });
+    return link;
   }
 
   const { themeId, overridden, warning } = resolveThemeId(record.themeId);
@@ -382,6 +425,35 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
         seen.add(key);
         return trimToNull(review.text) !== null;
       })
+      .filter((review) => {
+        // AI-derived reviews are always blocked: reviewer identities, ratings,
+        // and text must never be generated. Provider reviews render through
+        // the factual policy; attribution stays attached.
+        if (review.source === "ai_derived") {
+          provenance.push({
+            field: "reputation.reviews",
+            source: review.source,
+            outcome: "hidden",
+            note: "Blocked: AI-derived reviews never render",
+          });
+          return false;
+        }
+        const outcome = renderPolicy("factual", {
+          source: review.source,
+          verified: review.verified,
+          confidence: review.confidence ?? null,
+        });
+        if (outcome === "blocked") {
+          provenance.push({
+            field: "reputation.reviews",
+            source: review.source,
+            outcome: "hidden",
+            note: "Blocked by the render policy",
+          });
+          return false;
+        }
+        return true;
+      })
       .map((review) => ({
         id: review.id,
         authorName: review.authorName,
@@ -450,7 +522,8 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
       ? { title: `About ${shortName}`, body: neighborhood }
       : null;
 
-  // Menu (fallback rule 5 plus source trust). Verified mode requires a
+  // Menu (fallback rule 5 plus source trust). Source is required by the
+  // schema — no silent manual default. Verified mode requires a
   // business-origin source or explicit verification; anything else — and any
   // ai_derived content — is demonstrative sample data with the notice.
   const menuRaw = record.offering?.menu;
@@ -472,7 +545,7 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
       }))
       .filter((section) => section.items.length > 0);
 
-    const source = menuRaw.source ?? "manual";
+    const source = menuRaw.source;
     const trustedOrigin =
       menuRaw.verified === true || BUSINESS_ORIGIN_SOURCES.has(source);
     const isAi = source === "ai_derived";
@@ -535,15 +608,16 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
       ? { title: narrativeText("media.galleryTitle", record.media.galleryTitle), images: galleryImages }
       : null;
 
-  // Hours (fallback rule 9; factual policy on sourced fields)
+  // Hours (fallback rule 9; factual policy on sourced fields incl. periods)
   const hoursRaw = record.hours;
   let hours: ResolvedHours | null = null;
   if (hoursRaw) {
     let descriptions = (
       factualValue("hours.weekdayDescriptions", hoursRaw.weekdayDescriptions) ?? []
     ).filter((line) => trimToNull(line) !== null);
-    if (descriptions.length === 0 && hoursRaw.periods && hoursRaw.periods.length > 0) {
-      descriptions = hoursRaw.periods.map((period) =>
+    const periods = factualValue("hours.periods", hoursRaw.periods) ?? [];
+    if (descriptions.length === 0 && periods.length > 0) {
+      descriptions = periods.map((period) =>
         period.isClosed
           ? `${period.day}: Closed`
           : `${period.day}: ${period.open} to ${period.close}`,
@@ -596,13 +670,41 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
   const email = emailRaw && mailtoHref(emailRaw) ? emailRaw : null;
   if (emailRaw && !email) warnings.push("contact.email failed validation; ignored.");
   const website = safeExternalUrl(factualValue("contact.website", record.contact?.website) ?? null);
-  const socials = (record.contact?.socialLinks ?? []).filter((social) =>
-    safeExternalUrl(social.url),
+  const socials = (factualValue("contact.socialLinks", record.contact?.socialLinks) ?? []).filter(
+    (social) => safeExternalUrl(social.url),
   );
 
+  // Dietary options are sensitive claims: policy-gated, and AI-derived
+  // options never render regardless of confidence (never invented).
+  const dietarySourced = record.offering?.dietaryOptions;
+  let dietaryOptions: string[] = [];
+  if (dietarySourced) {
+    if (dietarySourced.source === "ai_derived") {
+      provenance.push({
+        field: "offering.dietaryOptions",
+        source: dietarySourced.source,
+        outcome: "hidden",
+        note: "Blocked: AI-derived dietary claims never render",
+      });
+    } else {
+      dietaryOptions = factualValue("offering.dietaryOptions", dietarySourced) ?? [];
+    }
+  }
+
   // CTA priority engine (fallback rules 7, 8, 10). The context carries
-  // policy-resolved facts so blocked phones/emails/locations can never
-  // derive or preserve an action.
+  // policy-resolved facts AND the policy-gated explicit actions (calls to
+  // action plus hero actions), so blocked data can never derive or preserve
+  // an action and the engine never reads raw unsourced fields.
+  const explicitActions = [
+    policyAction("callsToAction.order", record.callsToAction?.order),
+    policyAction("callsToAction.reserve", record.callsToAction?.reserve),
+    policyAction("callsToAction.call", record.callsToAction?.call),
+    policyAction("callsToAction.directions", record.callsToAction?.directions),
+    policyAction("callsToAction.email", record.callsToAction?.email),
+    policyAction("hero.primaryAction", record.hero.primaryAction),
+    policyAction("hero.secondaryAction", record.hero.secondaryAction),
+  ].filter((action): action is ActionLink => action !== null);
+
   const cta = resolveCtas(record, {
     phone,
     email,
@@ -611,6 +713,7 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
       latitude !== null || longitude !== null || formattedAddress !== null
         ? { latitude, longitude, formattedAddress }
         : null,
+    explicit: explicitActions,
   });
   for (const drop of cta.dropped) {
     warnings.push(`CTA "${drop.label}" dropped: ${drop.reason}.`);
@@ -665,8 +768,8 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
     offering: {
       priceLevel: trimToNull(factualValue("offering.priceLevel", record.offering?.priceLevel)),
       priceRange: trimToNull(factualValue("offering.priceRange", record.offering?.priceRange)),
-      mealTypes: record.offering?.mealTypes ?? [],
-      dietaryOptions: record.offering?.dietaryOptions ?? [],
+      mealTypes: factualValue("offering.mealTypes", record.offering?.mealTypes) ?? [],
+      dietaryOptions,
     },
     poc: {
       conceptLabel: trimToNull(record.poc.conceptLabel) ?? "Unofficial website concept",
@@ -679,10 +782,13 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
 }
 
 /** Preview check for gallery warnings without resolving the image twice. */
-function imagePreviewBlocked(image: PocImage, wrapper?: Sourced<PocImage>): boolean {
-  const verified = image.verified ?? wrapper?.verified;
-  const confidence = image.confidence ?? wrapper?.confidence ?? null;
-  const outcome = renderPolicy("factual", { source: image.source, verified, confidence });
+function imagePreviewBlocked(image: PocImage): boolean {
+  if (image.source === "ai_derived") return true;
+  const outcome = renderPolicy("factual", {
+    source: image.source,
+    verified: image.verified,
+    confidence: image.confidence ?? null,
+  });
   return outcome === "blocked" || !isAllowedImageUrl(image.url);
 }
 

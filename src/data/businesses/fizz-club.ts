@@ -43,6 +43,8 @@ export const fizzClub: BusinessPocRecord = {
       href: "https://order.fizzclub.example.com",
       kind: "order",
       external: true,
+    source: "manual",
+    verified: true,
     },
     secondaryAction: null,
   },
@@ -50,10 +52,10 @@ export const fizzClub: BusinessPocRecord = {
   contact: {
     phone: sv("+1 (215) 555-0149", "google_places", { verified: true }),
     email: sv("hi@fizzclub.example.com", "business_owner", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "instagram", url: "https://www.instagram.com/fizzclub.example", label: "Instagram" },
       { platform: "tiktok", url: "https://www.tiktok.com/@fizzclub.example", label: "TikTok" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -92,6 +94,7 @@ export const fizzClub: BusinessPocRecord = {
     reviews: [
       {
         id: "fz-r1",
+        source: "google_places",
         authorName: "Tasha Kim",
         rating: 5,
         text: "The brown sugar fizz with the oat soft serve on top. I think about it at work.",
@@ -99,6 +102,7 @@ export const fizzClub: BusinessPocRecord = {
       },
       {
         id: "fz-r2",
+        source: "google_places",
         authorName: "Marcus Odum",
         rating: 4,
         text: "Loud, bright, fast. Mobile orders are ready in five, even on Fridays.",
@@ -106,6 +110,7 @@ export const fizzClub: BusinessPocRecord = {
       },
       {
         id: "fz-r3",
+        source: "google_places",
         authorName: "Bea Lindgren",
         rating: 5,
         text: "Took my niece, she rated the sprinkle wall eleven out of ten.",
@@ -153,7 +158,7 @@ export const fizzClub: BusinessPocRecord = {
       takeout: sv(true, "google_places", { verified: true }),
       delivery: sv(true, "business_owner", { verified: true }),
     },
-    dietaryOptions: ["Vegan options", "Dairy-free options"],
+    dietaryOptions: sv(["Vegan options", "Dairy-free options"], "business_owner", { verified: true }),
     menu: {
       mode: "verified",
       source: "business_owner",
@@ -207,8 +212,10 @@ export const fizzClub: BusinessPocRecord = {
       href: "https://order.fizzclub.example.com",
       kind: "order",
       external: true,
+    source: "manual",
+    verified: true,
     },
-    call: { label: "Call the club", href: "+1 (215) 555-0149", kind: "call" },
+    call: { label: "Call the club", href: "+1 (215) 555-0149", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

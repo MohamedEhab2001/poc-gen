@@ -43,7 +43,7 @@ export const cornerPhoMinimal: BusinessPocRecord = {
   },
 
   callsToAction: {
-    call: { label: "Call", href: "+1 (718) 555-0134", kind: "call" },
+    call: { label: "Call", href: "+1 (718) 555-0134", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

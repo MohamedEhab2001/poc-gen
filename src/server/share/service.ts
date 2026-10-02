@@ -93,12 +93,7 @@ export async function consumeShareLink(
 }
 
 export async function revokeShareLink(id: string, now: Date = new Date()): Promise<boolean> {
-  const store = getShareLinkStore();
-  const record = await store.findById(id);
-  if (!record || record.revokedAt) return false;
-  record.revokedAt = now.toISOString();
-  await store.update(record);
-  return true;
+  return getShareLinkStore().revokeById(id, now);
 }
 
 export async function listShareLinksForSlug(slug: string): Promise<ShareLinkRecord[]> {

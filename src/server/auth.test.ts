@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAllowedOperator, resolveAuthConfig } from "./auth/config";
+import { isAllowedOperator, resolveAuthConfig, toPublicAuthUiConfig } from "./auth/config";
 
 const SECRET = "x".repeat(48);
 
@@ -82,5 +82,32 @@ describe("auth configuration (pure resolver)", () => {
     const noListDev = resolveAuthConfig({}, "development");
     expect(isAllowedOperator("operator@poc-gen.local", noListDev)).toBe(true);
     expect(isAllowedOperator("someone-else@example.com", noListDev)).toBe(false);
+  });
+
+  it("never serializes operator emails or secret state into the public UI config", () => {
+    const config = resolveAuthConfig(
+      {
+        ADMIN_EMAILS: "secret-operator@example.com,another@example.com",
+        AUTH_SECRET: "super-secret-value-0123456789abcdef",
+        OPERATOR_PASSWORD: "hunter2-hunter2",
+        AUTH_GOOGLE_ID: "google-client-id",
+        AUTH_GOOGLE_SECRET: "google-client-secret",
+      },
+      "production",
+    );
+    const serialized = JSON.stringify(toPublicAuthUiConfig(config));
+
+    expect(serialized).not.toContain("secret-operator@example.com");
+    expect(serialized).not.toContain("another@example.com");
+    expect(serialized).not.toContain("super-secret-value");
+    expect(serialized).not.toContain("hunter2");
+    expect(serialized).not.toContain("google-client");
+    expect(serialized).not.toContain("adminEmails");
+    expect(serialized).not.toContain("secretConfigured");
+    expect(serialized).not.toContain("productionAuthComplete");
+
+    const publicConfig = toPublicAuthUiConfig(config);
+    const keys = Object.keys(publicConfig).sort();
+    expect(keys).toEqual(["devLoginEnabled", "googleEnabled", "isProduction", "passwordEnabled", "signInAvailable"]);
   });
 });

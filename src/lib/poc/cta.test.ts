@@ -10,16 +10,18 @@ function withCtas(overrides: NonNullable<BusinessPocRecord["callsToAction"]>): B
 describe("cta priority engine", () => {
   it("prioritizes order > reserve > call > directions > email", () => {
     const record = withCtas({
-      order: { label: "Order online", href: "https://order.example.com", kind: "order", external: true },
-      reserve: { label: "Book", href: "https://book.example.com", kind: "reserve", external: true },
-      call: { label: "Call", href: "+1 (503) 555-0114", kind: "call" },
+      order: { label: "Order online", href: "https://order.example.com", kind: "order", external: true, source: "manual", verified: true },
+      reserve: { label: "Book", href: "https://book.example.com", kind: "reserve", external: true, source: "manual", verified: true },
+      call: { label: "Call", href: "+1 (503) 555-0114", kind: "call", source: "manual", verified: true },
       directions: {
         label: "Directions",
         href: "https://maps.example.com",
         kind: "directions",
         external: true,
+      source: "manual",
+      verified: true,
       },
-      email: { label: "Email", href: "hello@example.com", kind: "email" },
+      email: { label: "Email", href: "hello@example.com", kind: "email", source: "manual", verified: true },
     });
     const { primary, secondary, mobile } = resolveCtas(record);
     expect(primary?.kind).toBe("order");
@@ -29,7 +31,7 @@ describe("cta priority engine", () => {
 
   it("falls to the next best action when order and reserve are missing (rule 10)", () => {
     const record = withCtas({
-      call: { label: "Call us", href: "+1 (503) 555-0114", kind: "call" },
+      call: { label: "Call us", href: "+1 (503) 555-0114", kind: "call", source: "manual", verified: true },
     });
     const { primary } = resolveCtas(record);
     expect(primary?.kind).toBe("call");
@@ -46,7 +48,7 @@ describe("cta priority engine", () => {
 
   it("never renders disabled or empty actions", () => {
     const record = withCtas({
-      order: { label: "Broken", href: "javascript:x", kind: "order", external: true },
+      order: { label: "Broken", href: "javascript:x", kind: "order", external: true, source: "manual", verified: true },
     });
     const { primary, dropped } = resolveCtas(record);
     expect(dropped).toHaveLength(1);
@@ -55,10 +57,10 @@ describe("cta priority engine", () => {
 
   it("keeps at most one primary and two secondary actions", () => {
     const record = withCtas({
-      order: { label: "Order", href: "https://a.example.com", kind: "order", external: true },
-      reserve: { label: "Reserve", href: "https://b.example.com", kind: "reserve", external: true },
-      call: { label: "Call", href: "+1 (503) 555-0114", kind: "call" },
-      directions: { label: "Go", href: "https://c.example.com", kind: "directions", external: true },
+      order: { label: "Order", href: "https://a.example.com", kind: "order", external: true, source: "manual", verified: true },
+      reserve: { label: "Reserve", href: "https://b.example.com", kind: "reserve", external: true, source: "manual", verified: true },
+      call: { label: "Call", href: "+1 (503) 555-0114", kind: "call", source: "manual", verified: true },
+      directions: { label: "Go", href: "https://c.example.com", kind: "directions", external: true, source: "manual", verified: true },
     });
     const { primary, secondary } = resolveCtas(record);
     expect(primary).toBeDefined();

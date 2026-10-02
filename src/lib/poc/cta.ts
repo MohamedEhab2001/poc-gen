@@ -7,10 +7,12 @@ type CtaT = ResolvedCta;
 const KIND_ORDER = ["order", "reserve", "call", "directions", "email"] as const;
 
 /**
- * Policy-resolved contact and location facts. Normalization passes these so
- * the engine never derives actions from raw values the render policy has
- * blocked (a blocked phone cannot resurrect a Call CTA). Callers that omit
- * the context (existing unit tests) get raw-record behavior.
+ * Policy-resolved contact and location facts plus the policy-gated explicit
+ * action list. Normalization passes all of these so the engine never reads
+ * raw blocked fields in production: derivations use resolved facts and the
+ * explicit candidates arrive already policy-approved (calls to action plus
+ * hero actions). Callers that omit the context (legacy unit tests) get
+ * raw-record behavior.
  */
 export interface CtaContext {
   phone: string | null;
@@ -21,6 +23,8 @@ export interface CtaContext {
     longitude: number | null;
     formattedAddress: string | null;
   } | null;
+  /** Policy-resolved explicit actions (callsToAction + hero actions). */
+  explicit?: ActionLink[];
 }
 
 function sanitizeExternal(link: ActionLink): CtaT | null {
@@ -94,9 +98,15 @@ export function resolveCtas(
   const phoneUsable = ctx ? ctx.phone !== null : true;
   const emailUsable = ctx ? ctx.email !== null : true;
 
-  const explicit = record.callsToAction ?? {};
-  for (const kind of KIND_ORDER) {
-    const link = explicit[kind] ?? null;
+  const explicitRecord = record.callsToAction ?? {};
+  const explicitCandidates: Array<[string, ActionLink | null]> = ctx?.explicit
+    ? KIND_ORDER.map((kind) => [
+        kind,
+        ctx.explicit!.find((link) => link.kind === kind) ?? null,
+      ])
+    : KIND_ORDER.map((kind) => [kind, explicitRecord[kind] ?? null]);
+
+  for (const [kind, link] of explicitCandidates) {
     if (!link) continue;
 
     if (kind === "call" && !phoneUsable) {

@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Minimum token permissions: this workflow only reads the repository.
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Typecheck, lint, test (with PostgreSQL), build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: poc_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U testuser -d poc_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Both point at the CI service database so the shared resolver selects
+      # PostgreSQL in test mode and the migration step uses the same URL.
+      DATABASE_URL: postgres://testuser:testpass@localhost:5432/poc_test
+      TEST_DATABASE_URL: postgres://testuser:testpass@localhost:5432/poc_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (lockfile-enforced)
+        run: npm ci
+
+      - name: Apply database migrations
+        run: npm run db:migrate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: PostgreSQL integration tests (fail if skipped)
+        run: |
+          npx vitest run src/server/share/postgres.integration.test.ts 2>&1 | tee /tmp/pg-tests.log
+          if grep -qE "skipped" /tmp/pg-tests.log; then
+            echo "::error::PostgreSQL integration tests were skipped — they must run in CI."
+            exit 1
+          fi
+
+      - name: Production build (no network fonts)
+        run: npm run build
+
+  audit:
+    name: Production dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies (lockfile-enforced)
+        run: npm ci
+      # Separate step so audit-network flakiness never hides a real result:
+      # a failure here is always reported as an audit failure.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=moderate

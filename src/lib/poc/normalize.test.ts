@@ -67,7 +67,7 @@ describe("normalize: fallback rules", () => {
     const noPhone: BusinessPocRecord = {
       ...cornerPhoMinimal,
       contact: {},
-      callsToAction: { call: { label: "Call", href: "tel:123", kind: "call" } },
+      callsToAction: { call: { label: "Call", href: "tel:123", kind: "call", source: "manual", verified: true } },
     };
     const vm = normalizeRecord(noPhone);
     expect(vm.contact.phone).toBeNull();
@@ -108,7 +108,7 @@ describe("normalize: fallback rules", () => {
     const poisoned: BusinessPocRecord = {
       ...merchantAndVine,
       callsToAction: {
-        order: { label: "Order", href: "javascript:alert(1)", kind: "order", external: true },
+        order: { label: "Order", href: "javascript:alert(1)", kind: "order", external: true, source: "manual", verified: true },
         reserve: merchantAndVine.callsToAction?.reserve ?? null,
       },
     };

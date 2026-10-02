@@ -68,8 +68,12 @@ export interface ShareLinkStore {
    * fail. This is the only authority for rendering.
    */
   consumeByTokenHash(tokenHash: string, now: Date): Promise<ShareLinkRecord | null>;
+  /**
+   * Atomically revokes: sets revoked_at only when it is still null. Never
+   * writes stale copies of view_count, last_used_at, or any other column.
+   */
+  revokeById(id: string, now: Date): Promise<boolean>;
   listBySlug(slug: string): Promise<ShareLinkRecord[]>;
-  update(record: ShareLinkRecord): Promise<void>;
 }
 
 function isValid(record: ShareLinkRecord, now: Date): boolean {
@@ -160,13 +164,18 @@ export class PostgresShareLinkStore implements ShareLinkStore {
     return rows[0] ? rowToRecord(rows[0]) : null;
   }
 
+  async revokeById(id: string, now: Date): Promise<boolean> {
+    const rows = await getDb()
+      .update(shareLinks)
+      .set({ revokedAt: now })
+      .where(and(eq(shareLinks.id, id), isNull(shareLinks.revokedAt)))
+      .returning({ id: shareLinks.id });
+    return rows.length > 0;
+  }
+
   async listBySlug(slug: string): Promise<ShareLinkRecord[]> {
     const rows = await getDb().select().from(shareLinks).where(eq(shareLinks.slug, slug));
     return rows.map(rowToRecord);
-  }
-
-  async update(record: ShareLinkRecord): Promise<void> {
-    await getDb().update(shareLinks).set(recordToRow(record)).where(eq(shareLinks.id, record.id));
   }
 }
 
@@ -190,7 +199,10 @@ interface FileShape {
   links: ShareLinkRecord[];
 }
 
-const EMPTY: FileShape = { version: 1, links: [] };
+/** Factory: every empty read returns a fresh object. Never share mutable state. */
+function emptyStore(): FileShape {
+  return { version: 1, links: [] };
+}
 
 export class JsonFileShareLinkStore implements ShareLinkStore {
   private mutex = new Mutex();
@@ -205,7 +217,7 @@ export class JsonFileShareLinkStore implements ShareLinkStore {
       const code = (error as NodeJS.ErrnoException).code;
       // Only a missing file is an empty store. Permission errors, EISDIR, and
       // anything else surface as real errors and never silently reset data.
-      if (code === "ENOENT") return EMPTY;
+      if (code === "ENOENT") return emptyStore();
       throw error;
     }
     try {
@@ -260,18 +272,18 @@ export class JsonFileShareLinkStore implements ShareLinkStore {
     });
   }
 
-  async listBySlug(slug: string): Promise<ShareLinkRecord[]> {
-    return this.withLock((data) => data.links.filter((link) => link.slug === slug));
+  async revokeById(id: string, now: Date): Promise<boolean> {
+    return this.withLock(async (data) => {
+      const record = data.links.find((link) => link.id === id);
+      if (!record || record.revokedAt) return false;
+      record.revokedAt = now.toISOString();
+      await this.write(data);
+      return true;
+    });
   }
 
-  async update(record: ShareLinkRecord): Promise<void> {
-    await this.withLock(async (data) => {
-      const index = data.links.findIndex((link) => link.id === record.id);
-      if (index >= 0) {
-        data.links[index] = record;
-        await this.write(data);
-      }
-    });
+  async listBySlug(slug: string): Promise<ShareLinkRecord[]> {
+    return this.withLock((data) => data.links.filter((link) => link.slug === slug));
   }
 }
 
@@ -309,12 +321,15 @@ export class InMemoryShareLinkStore implements ShareLinkStore {
     return null;
   }
 
-  async listBySlug(slug: string): Promise<ShareLinkRecord[]> {
-    return [...this.records.values()].filter((record) => record.slug === slug);
+  async revokeById(id: string, now: Date): Promise<boolean> {
+    const record = this.records.get(id);
+    if (!record || record.revokedAt) return false;
+    record.revokedAt = now.toISOString();
+    return true;
   }
 
-  async update(record: ShareLinkRecord): Promise<void> {
-    this.records.set(record.id, record);
+  async listBySlug(slug: string): Promise<ShareLinkRecord[]> {
+    return [...this.records.values()].filter((record) => record.slug === slug);
   }
 }
 
@@ -349,13 +364,14 @@ export class UnavailableShareLinkStore implements ShareLinkStore {
     this.fail();
   }
 
-  async listBySlug(slug: string): Promise<ShareLinkRecord[]> {
-    void slug;
+  async revokeById(id: string, now: Date): Promise<boolean> {
+    void id;
+    void now;
     this.fail();
   }
 
-  async update(record: ShareLinkRecord): Promise<void> {
-    void record;
+  async listBySlug(slug: string): Promise<ShareLinkRecord[]> {
+    void slug;
     this.fail();
   }
 }
@@ -367,13 +383,16 @@ export class UnavailableShareLinkStore implements ShareLinkStore {
 export type ShareStoreKind = "postgres" | "json" | "unavailable";
 
 /**
- * Pure selection rule: production NEVER falls back to JSON. Unit tested.
+ * Pure selection rule: production NEVER falls back to JSON. Uses the shared
+ * database URL resolver (test mode prefers TEST_DATABASE_URL). Unit tested.
  */
 export function selectShareLinkStoreKind(
   env: Record<string, string | undefined>,
   nodeEnv: string | undefined,
 ): ShareStoreKind {
-  const hasDb = Boolean(env.DATABASE_URL);
+  const hasDb = Boolean(
+    nodeEnv === "test" ? env.TEST_DATABASE_URL ?? env.DATABASE_URL : env.DATABASE_URL,
+  );
   if (nodeEnv === "production") {
     return hasDb ? "postgres" : "unavailable";
   }

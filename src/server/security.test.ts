@@ -46,6 +46,39 @@ describe("request-time expiration (disposition)", () => {
   it("still honors explicit expired status regardless of timestamps", () => {
     expect(getRecordDisposition(sunsetRamenExpired, now)).toBe("expired");
   });
+
+  it("renders the closed state for trusted permanently-closed statuses", () => {
+    const verifiedClosed: BusinessPocRecord = {
+      ...merchantAndVine,
+      identity: {
+        ...merchantAndVine.identity,
+        businessStatus: { value: "permanently_closed", source: "google_places", verified: true },
+      },
+    };
+    expect(getRecordDisposition(verifiedClosed, now)).toBe("permanently_closed");
+
+    const providerClosed: BusinessPocRecord = {
+      ...merchantAndVine,
+      identity: {
+        ...merchantAndVine.identity,
+        businessStatus: { value: "permanently_closed", source: "google_places" },
+      },
+    };
+    expect(getRecordDisposition(providerClosed, now)).toBe("permanently_closed");
+  });
+
+  it("treats low-confidence AI-derived business status as unknown, never as trusted state", () => {
+    const aiClosed: BusinessPocRecord = {
+      ...merchantAndVine,
+      identity: {
+        ...merchantAndVine.identity,
+        businessStatus: { value: "permanently_closed", source: "ai_derived", confidence: 0.3 },
+      },
+    };
+    // Blocked status is unknown: the record renders, but the AI value can
+    // never trigger the closed state (nor claim the business is open).
+    expect(getRecordDisposition(aiClosed, now)).toBe("render");
+  });
 });
 
 describe("central render policy", () => {
@@ -210,7 +243,7 @@ describe("normalize applies the policy (integration)", () => {
     expect(vm.hero.image?.url).toBe("/poc-placeholders/heritage-bistro-hero.svg");
   });
 
-  it("renders a confidently derived image as derived", async () => {
+  it("blocks AI business imagery regardless of confidence (high-confidence hero included)", async () => {
     const { normalizeRecord } = await import("@/lib/poc/normalize");
     const record: BusinessPocRecord = {
       ...merchantAndVine,
@@ -222,15 +255,245 @@ describe("normalize applies the policy (integration)", () => {
             url: "https://picsum.photos/seed/ai-ok/1600/1000",
             alt: "Derived hero",
             source: "ai_derived",
-            confidence: 0.85,
+            confidence: 0.95,
           },
           source: "ai_derived",
-          confidence: 0.85,
+          confidence: 0.95,
         },
       },
     };
     const vm = normalizeRecord(record);
-    expect(vm.hero.image?.outcome).toBe("derived");
+    expect(vm.hero.image?.outcome).toBe("fallback");
+    expect(vm.hero.image?.url).toBe("/poc-placeholders/heritage-bistro-hero.svg");
+    expect(vm.provenance).toContainEqual(
+      expect.objectContaining({
+        field: "hero.image",
+        outcome: "hidden",
+        note: expect.stringContaining("AI-generated imagery"),
+      }),
+    );
+  });
+
+  it("blocks an AI-derived logo even at high confidence; the wordmark fallback applies", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      brand: {
+        ...merchantAndVine.brand,
+        logo: {
+          value: {
+            id: "ai-logo",
+            url: "https://picsum.photos/seed/ai-logo/400/400",
+            alt: "Generated logo",
+            source: "ai_derived",
+            confidence: 0.99,
+          },
+          source: "ai_derived",
+          confidence: 0.99,
+        },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.wordmark.image).toBeNull();
+    expect(vm.wordmark.outcome).toBe("fallback");
+  });
+
+  it("rejects wrapped images whose wrapper and inner sources disagree (schema)", async () => {
+    const { recordSchema } = await import("@/lib/poc/schema");
+    const result = recordSchema.safeParse({
+      ...merchantAndVine,
+      hero: {
+        ...merchantAndVine.hero,
+        image: {
+          value: {
+            id: "mixed",
+            url: "https://picsum.photos/seed/mixed/1600/1000",
+            alt: "Mixed provenance",
+            source: "manual",
+          },
+          source: "ai_derived",
+          confidence: 0.2,
+        },
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("blocks AI-derived reviews regardless of confidence and provider reviews without trust", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      reputation: {
+        ...merchantAndVine.reputation!,
+        reviews: [
+          {
+            id: "ai-review",
+            authorName: "Fabricated Person",
+            rating: 5,
+            text: "Absolutely the best experience imaginable.",
+            source: "ai_derived",
+            confidence: 0.99,
+          },
+          {
+            id: "ok-review",
+            authorName: "Real Guest",
+            rating: 4,
+            text: "Lovely room, serious cellar.",
+            source: "google_places",
+          },
+        ],
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.reputation?.reviews).toHaveLength(1);
+    expect(vm.reputation?.reviews[0]?.authorName).toBe("Real Guest");
+    expect(vm.provenance).toContainEqual(
+      expect.objectContaining({ field: "reputation.reviews", outcome: "hidden" }),
+    );
+  });
+
+  it("rejects records whose reviews lack provenance (schema)", async () => {
+    const { recordSchema } = await import("@/lib/poc/schema");
+    const result = recordSchema.safeParse({
+      ...merchantAndVine,
+      reputation: {
+        ...merchantAndVine.reputation!,
+        reviews: [
+          {
+            id: "no-source",
+            authorName: "Someone",
+            rating: 5,
+            text: "Great.",
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("blocks untrusted hours periods from generating displayed opening hours", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      hours: {
+        periods: {
+          value: [
+            { day: "Monday", open: "09:00", close: "17:00" },
+          ],
+          source: "ai_derived",
+          confidence: 0.2,
+        },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.hours?.descriptions ?? []).toHaveLength(0);
+    expect(vm.provenance).toContainEqual(
+      expect.objectContaining({ field: "hours.periods", outcome: "hidden" }),
+    );
+  });
+
+  it("blocks low-confidence AI-derived social links and keeps verified provider ones", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      contact: {
+        ...merchantAndVine.contact,
+        socialLinks: {
+          value: [{ platform: "instagram", url: "https://www.instagram.com/fake.example" }],
+          source: "ai_derived",
+          confidence: 0.4,
+        },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.contact.socials).toHaveLength(0);
+    expect(vm.provenance).toContainEqual(
+      expect.objectContaining({ field: "contact.socialLinks", outcome: "hidden" }),
+    );
+  });
+
+  it("never renders AI-derived dietary claims (vegetarian, vegan, halal, gluten-free)", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    for (const claim of ["Vegetarian options", "Vegan options", "Halal options", "Gluten-free options"]) {
+      const record: BusinessPocRecord = {
+        ...merchantAndVine,
+        offering: {
+          ...merchantAndVine.offering!,
+          dietaryOptions: {
+            value: [claim],
+            source: "ai_derived",
+            confidence: 0.95,
+          },
+        },
+      };
+      const vm = normalizeRecord(record);
+      expect(vm.offering.dietaryOptions, claim).toHaveLength(0);
+    }
+  });
+
+  it("blocks low-confidence AI-derived meal types", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      offering: {
+        ...merchantAndVine.offering!,
+        mealTypes: { value: ["Dinner", "Drinks"], source: "ai_derived", confidence: 0.2 },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.offering.mealTypes).toHaveLength(0);
+  });
+
+  it("rejects menus without an explicit source (schema) and keeps AI menus as sample", async () => {
+    const { recordSchema } = await import("@/lib/poc/schema");
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const menu = merchantAndVine.offering!.menu!;
+    const noSource = recordSchema.safeParse({
+      ...merchantAndVine,
+      offering: { ...merchantAndVine.offering!, menu: { mode: "verified", sections: menu.sections } },
+    });
+    expect(noSource.success).toBe(false);
+
+    const aiMenu = normalizeRecord({
+      ...merchantAndVine,
+      offering: {
+        ...merchantAndVine.offering!,
+        menu: { mode: "verified", source: "ai_derived", confidence: 0.95, sections: menu.sections },
+      },
+    } as BusinessPocRecord);
+    expect(aiMenu.menu?.mode).toBe("sample");
+    expect(aiMenu.menu?.notice).toBeTruthy();
+  });
+
+  it("blocks AI-derived explicit CTAs and hero actions", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      callsToAction: {
+        order: {
+          label: "Order now",
+          href: "https://order.example.com",
+          kind: "order",
+          external: true,
+          source: "ai_derived",
+          confidence: 0.95,
+        },
+        reserve: {
+          label: "Reserve",
+          href: "https://merchantandvine.example.com/reserve",
+          kind: "reserve",
+          external: true,
+          source: "manual",
+          verified: true,
+        },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.cta.primary?.kind).toBe("reserve");
+    expect(vm.cta.secondary.some((cta) => cta.kind === "order")).toBe(false);
+    expect(vm.provenance).toContainEqual(
+      expect.objectContaining({ field: "callsToAction.order", outcome: "hidden" }),
+    );
   });
 
   it("downgrades a verified menu from an untrusted source to sample", async () => {

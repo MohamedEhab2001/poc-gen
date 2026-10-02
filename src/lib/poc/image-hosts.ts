@@ -75,3 +75,22 @@ export function resolveImageHosts(env: Record<string, string | undefined> = {}):
     : [];
   return [...new Set([...BASE_IMAGE_HOSTS, ...fromList, ...fromR2])];
 }
+
+/**
+ * Server runtime resolution. URL validation calls this (never a defaulted
+ * empty environment) so POC_IMAGE_HOST_ALLOWLIST and R2_PUBLIC_BASE_URL are
+ * honored at runtime exactly as they are at build time for the CSP.
+ */
+export function getRuntimeImageHosts(): string[] {
+  return resolveImageHosts(process.env);
+}
+
+/**
+ * Builds the CSP img-src directive value from the same validated host
+ * collection. Used by next.config.ts and by tests proving CSP/runtime
+ * agreement.
+ */
+export function cspImgSrc(env: Record<string, string | undefined> = {}): string {
+  const hosts = resolveImageHosts(env);
+  return `'self' data: blob: ${hosts.map((host) => `https://${host}`).join(" ")}`;
+}

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
+  cspImgSrc,
   hostnameFromBaseUrl,
   isValidImageHostname,
   parseImageHostAllowlist,
@@ -64,5 +65,57 @@ describe("isAllowedImageUrl against the shared allowlist", () => {
     expect(isAllowedImageUrl("https://evil.example.com/img.jpg", hosts)).toBe(false);
     expect(isAllowedImageUrl("javascript:alert(1)", hosts)).toBe(false);
     expect(isAllowedImageUrl("not a url", hosts)).toBe(false);
+  });
+});
+
+describe("runtime resolution and CSP agreement", () => {
+  const ENV_KEYS = ["POC_IMAGE_HOST_ALLOWLIST", "R2_PUBLIC_BASE_URL"] as const;
+
+  afterEach(() => {
+    for (const key of ENV_KEYS) delete process.env[key];
+  });
+
+  it("honors POC_IMAGE_HOST_ALLOWLIST through the default runtime path", () => {
+    process.env.POC_IMAGE_HOST_ALLOWLIST = "cdn.example.com";
+    // No explicit hosts argument: exercises getRuntimeImageHosts() ->
+    // process.env, the same path production normalization uses.
+    expect(isAllowedImageUrl("https://cdn.example.com/img.jpg")).toBe(true);
+    expect(isAllowedImageUrl("https://other.example.com/img.jpg")).toBe(false);
+  });
+
+  it("honors R2_PUBLIC_BASE_URL through the default runtime path", () => {
+    process.env.R2_PUBLIC_BASE_URL = "https://assets.example.com";
+    expect(isAllowedImageUrl("https://assets.example.com/p/hero.jpg")).toBe(true);
+  });
+
+  it("returns the identical host set for CSP and runtime validation", () => {
+    process.env.POC_IMAGE_HOST_ALLOWLIST = "cdn.example.com,bad host;injected";
+    process.env.R2_PUBLIC_BASE_URL = "https://assets.example.com";
+
+    const hosts = resolveImageHosts(process.env);
+    const csp = cspImgSrc(process.env);
+
+    for (const host of hosts) {
+      expect(csp).toContain(`https://${host}`);
+    }
+    // Nothing that failed validation may leak into the directive.
+    expect(csp).not.toContain(";");
+    expect(csp).not.toContain("bad host");
+    expect(csp).not.toContain("injected");
+  });
+});
+
+describe("local image path hardening", () => {
+  it("allows valid root-relative paths only", () => {
+    expect(isAllowedImageUrl("/poc-placeholders/heritage-bistro-hero.svg")).toBe(true);
+    expect(isAllowedImageUrl("/a/deeper/path.jpg")).toBe(true);
+  });
+
+  it("rejects protocol-relative, backslash, and normalizable-malicious paths", () => {
+    expect(isAllowedImageUrl("//evil.example.com/x.jpg")).toBe(false);
+    expect(isAllowedImageUrl("/\\evil.example.com/x.jpg")).toBe(false);
+    expect(isAllowedImageUrl("/path/\\evil.example.com/x.jpg")).toBe(false);
+    expect(isAllowedImageUrl("/x/\tevil.jpg")).toBe(false);
+    expect(isAllowedImageUrl("/x/\nevil.jpg")).toBe(false);
   });
 });

@@ -46,6 +46,8 @@ export const foundryCoffeeLab: BusinessPocRecord = {
       href: "https://shop.foundrylab.example.com",
       kind: "order",
       external: true,
+    source: "manual",
+    verified: true,
     },
     secondaryAction: null,
   },
@@ -53,10 +55,10 @@ export const foundryCoffeeLab: BusinessPocRecord = {
   contact: {
     phone: sv("+1 (313) 555-0138", "google_places", { verified: true }),
     email: sv("lab@foundrylab.example.com", "business_owner", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "instagram", url: "https://www.instagram.com/foundry.lab.example", label: "Instagram" },
       { platform: "youtube", url: "https://www.youtube.com/@foundrylab.example", label: "YouTube" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -95,6 +97,7 @@ export const foundryCoffeeLab: BusinessPocRecord = {
     reviews: [
       {
         id: "fc-r1",
+        source: "google_places",
         authorName: "Nadia Petrou",
         rating: 5,
         text: "They publish the brew ratios on a chalk wall. The naturally processed Ethiopia was stellar.",
@@ -102,6 +105,7 @@ export const foundryCoffeeLab: BusinessPocRecord = {
       },
       {
         id: "fc-r2",
+        source: "google_places",
         authorName: "Cal Whitmore",
         rating: 4,
         text: "Seating is stools and steel, laptop crowd is thick, but the bread program is no joke.",
@@ -206,8 +210,10 @@ export const foundryCoffeeLab: BusinessPocRecord = {
       href: "https://shop.foundrylab.example.com",
       kind: "order",
       external: true,
+    source: "manual",
+    verified: true,
     },
-    call: { label: "Call the lab", href: "+1 (313) 555-0138", kind: "call" },
+    call: { label: "Call the lab", href: "+1 (313) 555-0138", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

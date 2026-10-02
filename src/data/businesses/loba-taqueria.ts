@@ -43,16 +43,18 @@ export const lobaTaqueria: BusinessPocRecord = {
       href: "https://order.loba.example.com",
       kind: "order",
       external: true,
+    source: "manual",
+    verified: true,
     },
     secondaryAction: null,
   },
 
   contact: {
     phone: sv("+1 (213) 555-0155", "google_places", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "instagram", url: "https://www.instagram.com/loba.tacos.example", label: "Instagram" },
       { platform: "tiktok", url: "https://www.tiktok.com/@loba.example", label: "TikTok" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -93,6 +95,7 @@ export const lobaTaqueria: BusinessPocRecord = {
     reviews: [
       {
         id: "lt-r1",
+        source: "google_places",
         authorName: "Gigi Marín",
         rating: 5,
         text: "The mushroom al pastor is the best thing on York. Cash and card both fine.",
@@ -100,6 +103,7 @@ export const lobaTaqueria: BusinessPocRecord = {
       },
       {
         id: "lt-r2",
+        source: "google_places",
         authorName: "Rob Feld",
         rating: 5,
         text: "Order ahead and skip the line. The salsa macha bottles sell out by 2.",
@@ -107,6 +111,7 @@ export const lobaTaqueria: BusinessPocRecord = {
       },
       {
         id: "lt-r3",
+        source: "google_places",
         authorName: "Andrea Solis",
         rating: 4,
         text: "Follow the tracker for the Thursday spot. Tacos are worth the crossing.",
@@ -152,7 +157,7 @@ export const lobaTaqueria: BusinessPocRecord = {
       takeout: sv(true, "google_places", { verified: true }),
       delivery: sv(true, "business_owner", { verified: true }),
     },
-    dietaryOptions: ["Vegetarian options", "Vegan options"],
+    dietaryOptions: sv(["Vegetarian options", "Vegan options"], "business_owner", { verified: true }),
     menu: {
       mode: "sample",
       source: "manual",
@@ -205,12 +210,16 @@ export const lobaTaqueria: BusinessPocRecord = {
       href: "https://order.loba.example.com",
       kind: "order",
       external: true,
+    source: "manual",
+    verified: true,
     },
     directions: {
       label: "Find the truck",
       href: "https://www.google.com/maps/dir/?api=1&destination=34.1190,-118.2030",
       kind: "directions",
       external: true,
+    source: "manual",
+    verified: true,
     },
   },
 

@@ -46,6 +46,8 @@ export const merchantAndVine: BusinessPocRecord = {
       href: "https://merchantandvine.example.com/reserve",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
     secondaryAction: null,
   },
@@ -54,9 +56,9 @@ export const merchantAndVine: BusinessPocRecord = {
     phone: sv("+1 (503) 555-0114", "google_places", { verified: true }),
     email: sv("hello@merchantandvine.example.com", "business_owner", { verified: true }),
     website: sv("https://merchantandvine.example.com", "business_owner", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "instagram", url: "https://www.instagram.com/merchantandvine.example", label: "Instagram" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -100,6 +102,7 @@ export const merchantAndVine: BusinessPocRecord = {
     reviews: [
       {
         id: "mv-r1",
+        source: "google_places",
         authorName: "Rosalind A.",
         rating: 5,
         text: "The pork chop alone is worth the trip. Staff steered us to a Jura wine we are still thinking about.",
@@ -108,6 +111,7 @@ export const merchantAndVine: BusinessPocRecord = {
       },
       {
         id: "mv-r2",
+        source: "google_places",
         authorName: "Theo Marchetti",
         rating: 4,
         text: "Cozy room, serious cellar, and a menu that changes often enough to keep it interesting.",
@@ -116,6 +120,7 @@ export const merchantAndVine: BusinessPocRecord = {
       },
       {
         id: "mv-r3",
+        source: "google_places",
         authorName: "June Okafor",
         rating: 5,
         text: "Sat at the bar on a rainy Tuesday. Bread, butter, and a glass of something funky. Perfect.",
@@ -165,7 +170,7 @@ export const merchantAndVine: BusinessPocRecord = {
       takeout: sv(true, "google_places", { verified: true }),
       reservable: sv(true, "business_owner", { verified: true }),
     },
-    mealTypes: ["Dinner", "Drinks"],
+    mealTypes: sv(["Dinner", "Drinks"], "business_owner", { verified: true }),
     menu: {
       mode: "verified",
       source: "business_owner",
@@ -226,8 +231,10 @@ export const merchantAndVine: BusinessPocRecord = {
       href: "https://merchantandvine.example.com/reserve",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
-    call: { label: "Call the host stand", href: "+1 (503) 555-0114", kind: "call" },
+    call: { label: "Call the host stand", href: "+1 (503) 555-0114", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

@@ -20,8 +20,9 @@ next begins.
   behind the existing `ShareLinkStore` interface; migrate the JSON store),
   `analytics_events`, `outreach_drafts`, `audit_logs`.
 - Seed command for synthetic fixtures only (`npm run db:seed`).
-- Move share-link persistence from `.data/share-links.json` to Postgres
-  behind the existing interface; no route changes.
+- Share-link persistence already runs on PostgreSQL (`share_links` table,
+  atomic consume/revoke, TEST_DATABASE_URL test path) — extend the same
+  migration set with the Phase 2 tables below.
 
 **Repositories and services**
 - Postgres implementations for every repository; keep the fixture repository

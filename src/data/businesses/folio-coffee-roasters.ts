@@ -43,6 +43,8 @@ export const folioCoffeeRoasters: BusinessPocRecord = {
       href: "https://shop.foliocoffee.example.com",
       kind: "order",
       external: true,
+    source: "manual",
+    verified: true,
     },
     secondaryAction: null,
   },
@@ -50,10 +52,10 @@ export const folioCoffeeRoasters: BusinessPocRecord = {
   contact: {
     phone: sv("+1 (720) 555-0129", "google_places", { verified: true }),
     email: sv("editors@foliocoffee.example.com", "business_owner", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "instagram", url: "https://www.instagram.com/folio.roasters.example", label: "Instagram" },
       { platform: "youtube", url: "https://www.youtube.com/@foliocoffee.example", label: "YouTube" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -92,6 +94,7 @@ export const folioCoffeeRoasters: BusinessPocRecord = {
     reviews: [
       {
         id: "fo-r1",
+        source: "google_places",
         authorName: "Marta Quill",
         rating: 5,
         text: "The cardamom bun and a washed Ethiopian filter. I get more done here than at my desk.",
@@ -99,6 +102,7 @@ export const folioCoffeeRoasters: BusinessPocRecord = {
       },
       {
         id: "fo-r2",
+        source: "google_places",
         authorName: "D. Osei",
         rating: 5,
         text: "You can watch them roast on Tuesdays. Bags are dated, shots are dialed in by 7:15.",
@@ -106,6 +110,7 @@ export const folioCoffeeRoasters: BusinessPocRecord = {
       },
       {
         id: "fo-r3",
+        source: "google_places",
         authorName: "Hanna Lindqvist",
         rating: 4,
         text: "Busy at peak but the line moves. Reading room in back is a gift.",
@@ -210,8 +215,10 @@ export const folioCoffeeRoasters: BusinessPocRecord = {
       href: "https://shop.foliocoffee.example.com",
       kind: "order",
       external: true,
+    source: "manual",
+    verified: true,
     },
-    call: { label: "Call the bar", href: "+1 (720) 555-0129", kind: "call" },
+    call: { label: "Call the bar", href: "+1 (720) 555-0129", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

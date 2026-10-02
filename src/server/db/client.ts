@@ -2,25 +2,28 @@ import "server-only";
 
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { resolveDatabaseUrl } from "./url";
 
 /**
  * Lazy database access. The client is created on first query, never at
  * import time, so `next build` performs no database connection and the
- * production build succeeds without DATABASE_URL. DATABASE_URL is
+ * production build succeeds without DATABASE_URL. The resolved URL is
  * server-only by construction (this module is server-only).
  */
 
 let client: postgres.Sql | null = null;
 
+export { resolveDatabaseUrl };
+
 export function isDatabaseConfigured(): boolean {
-  return Boolean(process.env.DATABASE_URL);
+  return Boolean(resolveDatabaseUrl());
 }
 
 export function getDb(): ReturnType<typeof drizzle> {
   if (!client) {
-    const url = process.env.DATABASE_URL;
+    const url = resolveDatabaseUrl();
     if (!url) {
-      throw new Error("DATABASE_URL is not configured.");
+      throw new Error("No database URL is configured.");
     }
     client = postgres(url, {
       max: 10,

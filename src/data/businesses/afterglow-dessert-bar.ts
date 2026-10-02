@@ -46,6 +46,8 @@ export const afterglowDessertBar: BusinessPocRecord = {
       href: "https://order.afterglow.example.com",
       kind: "order",
       external: true,
+    source: "manual",
+    verified: true,
     },
     secondaryAction: null,
   },
@@ -53,10 +55,10 @@ export const afterglowDessertBar: BusinessPocRecord = {
   contact: {
     phone: sv("+1 (512) 555-0182", "google_places", { verified: true }),
     email: sv("night@afterglow.example.com", "business_owner", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "instagram", url: "https://www.instagram.com/afterglow.example", label: "Instagram" },
       { platform: "tiktok", url: "https://www.tiktok.com/@afterglow.example", label: "TikTok" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -95,6 +97,7 @@ export const afterglowDessertBar: BusinessPocRecord = {
     reviews: [
       {
         id: "ag-r1",
+        source: "google_places",
         authorName: "Priya N.",
         rating: 5,
         text: "The midnight brownie sundae is absurd. The room feels like a music video.",
@@ -102,6 +105,7 @@ export const afterglowDessertBar: BusinessPocRecord = {
       },
       {
         id: "ag-r2",
+        source: "google_places",
         authorName: "Deshaun Wells",
         rating: 4,
         text: "Great DJ sets on Fridays. Seating is scarce after 10, so come early or order ahead.",
@@ -109,6 +113,7 @@ export const afterglowDessertBar: BusinessPocRecord = {
       },
       {
         id: "ag-r3",
+        source: "google_places",
         authorName: "Marisol Vega",
         rating: 5,
         text: "Miso caramel shake. That is the review.",
@@ -155,7 +160,7 @@ export const afterglowDessertBar: BusinessPocRecord = {
       delivery: sv(true, "google_places", { verified: true }),
       dineIn: sv(true, "google_places", { verified: true }),
     },
-    mealTypes: ["Dessert", "Late-night drinks"],
+    mealTypes: sv(["Dessert", "Late-night drinks"], "business_owner", { verified: true }),
     menu: {
       mode: "verified",
       source: "business_owner",
@@ -207,8 +212,10 @@ export const afterglowDessertBar: BusinessPocRecord = {
       href: "https://order.afterglow.example.com",
       kind: "order",
       external: true,
+    source: "manual",
+    verified: true,
     },
-    call: { label: "Call the bar", href: "+1 (512) 555-0182", kind: "call" },
+    call: { label: "Call the bar", href: "+1 (512) 555-0182", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

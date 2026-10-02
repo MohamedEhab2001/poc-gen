@@ -43,27 +43,43 @@ hardening plan, the residual risks accepted, and the upgrade path for each.
   authorized only by an **atomic consumption** — a single conditional
   UPDATE that re-checks revocation, expiry (inclusive boundary), and the
   view cap while incrementing the count. Concurrent requests can never both
-  spend the last allowed view.
+  spend the last allowed view. **Revocation is equally atomic**
+  (`revokeById`: UPDATE ... WHERE revoked_at IS NULL), so a revocation
+  racing a consumption can never be overwritten by a stale view-count
+  write; there is no generic full-record update path.
 - Persistence: PostgreSQL (Drizzle, committed SQL migration
   `src/server/db/migrations/0000_share_links.sql`) in production and
-  whenever `DATABASE_URL` is set. Local development without a database uses
-  a hardened single-process JSON adapter (mutex-serialized
-  read-modify-write, ENOENT-only empty state, unique temp-file replacement,
-  corruption surfaces as an error and is never silently overwritten) — it is
-  never selected in production. Production without `DATABASE_URL` fails
-  closed: share-link APIs return a controlled 503 and `/p/[token]` returns
-  the generic 404, with no storage details exposed.
+  whenever `DATABASE_URL` is set — integration tests run against a real
+  database via `TEST_DATABASE_URL` (honored only when `NODE_ENV=test`, so a
+  production runtime can never consume it). Local development without a
+  database uses a hardened single-process JSON adapter (mutex-serialized
+  read-modify-write, ENOENT-only empty state returning fresh objects per
+  read, unique temp-file replacement, corruption surfaces as an error and is
+  never silently overwritten) — it is never selected in production.
+  Production without `DATABASE_URL` fails closed: share-link APIs return a
+  controlled 503 and `/p/[token]` returns the generic 404, with no storage
+  details exposed.
 - All link failures return the same generic 404. No page, API, or metadata
   response reveals whether a record exists.
 
 ## Data trust policy
 
 - One central function (`src/lib/poc/policy.ts`) decides whether a sourced
-  value may render. Narrative fields (hero copy, tagline, about,
-  announcements, review summaries) accept only business-origin sources
-  unverified; provider data must be verified; `ai_derived` values require
-  confidence ≥ 0.7 (missing confidence defaults to untrusted). Blocked
-  values are dropped before the fallback engine, with a provenance entry.
+  value may render, and every sourced field passes through it: narrative
+  copy, factual data, imagery, reviews, hours (descriptions and periods),
+  social links, meal types, dietary options, explicit CTAs and hero actions,
+  menus, and the business status used by record disposition. Narrative
+  fields accept only business-origin sources unverified; `ai_derived`
+  values require confidence ≥ 0.7 (missing confidence defaults to
+  untrusted). Blocked values are dropped before the fallback engine, with a
+  provenance entry, and never reused to synthesize fallback copy.
+- Hard bans regardless of confidence: **AI-generated business imagery**
+  (never presented as a real photograph of the business; wrapped images use
+  the wrapper as the authoritative provenance layer, with schema-level
+  source-match enforcement), **AI-derived reviews** (reviewer identities,
+  ratings, and text are never generated), and **AI-derived dietary claims**.
+  Wrapped logo/hero images whose wrapper and inner sources disagree fail
+  validation outright.
 - Factual fields (hours, address, phone, ratings, menus) may render
   unverified provider data, always flagged in the admin provenance view.
 - Sample menus render only with an explicit demonstration notice.
@@ -112,9 +128,20 @@ in the Phase 5 backlog.
   license files committed in `src/fonts/`); no font CDN is contacted at
   build or runtime.
 
+## Client/server boundary
+
+- The login page passes only a boolean `PublicAuthUiConfig` projection into
+  the client component: operator emails, secret state, and configuration
+  completeness never serialize into the RSC payload (regression-tested).
+- `/demo/[slug]` uses static generic metadata with no record lookup at
+  metadata time, so record existence, names, and state cannot leak through
+  metadata or prefetching — including to an operator removed from
+  `ADMIN_EMAILS` whose signed cookie is still valid.
+
 ## Secrets
 
 - `.env` files are gitignored; `.env.example` contains placeholders only.
 - Server secrets are never exposed through `NEXT_PUBLIC_*`.
 - The share-link API never returns stored tokens; the operator sees a token
-  once at creation.
+  once at creation. Plaintext tokens are never persisted or logged
+  (verified against the real database in integration tests).

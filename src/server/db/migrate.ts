@@ -2,13 +2,15 @@ import "dotenv/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { resolveDatabaseUrl } from "./url";
 
 /**
  * Applies the committed SQL migrations in src/server/db/migrations.
- * Run with: npm run db:migrate (requires DATABASE_URL).
+ * Run with: npm run db:migrate (requires DATABASE_URL; in test mode the
+ * shared resolver prefers TEST_DATABASE_URL, matching the integration tests).
  */
 async function main() {
-  const url = process.env.DATABASE_URL;
+  const url = resolveDatabaseUrl();
   if (!url) {
     console.error("DATABASE_URL is required to run migrations.");
     process.exit(1);

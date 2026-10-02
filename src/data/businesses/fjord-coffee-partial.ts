@@ -36,7 +36,7 @@ export const fjordCoffeePartial: BusinessPocRecord = {
 
   contact: {
     phone: sv("+1 (206) 555-0172", "google_places", { verified: true }),
-    socialLinks: [{ platform: "instagram", url: "https://www.instagram.com/fjordcoffee.example", label: "Instagram" }],
+    socialLinks: sv([{ platform: "instagram", url: "https://www.instagram.com/fjordcoffee.example", label: "Instagram" }], "google_places", { verified: true }),
   },
 
   location: {
@@ -77,12 +77,14 @@ export const fjordCoffeePartial: BusinessPocRecord = {
   },
 
   callsToAction: {
-    call: { label: "Call", href: "+1 (206) 555-0172", kind: "call" },
+    call: { label: "Call", href: "+1 (206) 555-0172", kind: "call", source: "manual", verified: true },
     directions: {
       label: "Directions",
       href: "https://www.google.com/maps/dir/?api=1&destination=5409+Ballard+Ave+NW+Seattle+WA",
       kind: "directions",
       external: true,
+    source: "manual",
+    verified: true,
     },
   },
 

@@ -43,6 +43,8 @@ export const tavernaOnda: BusinessPocRecord = {
       href: "https://tavernaonda.example.com/book",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
     secondaryAction: null,
   },
@@ -50,10 +52,10 @@ export const tavernaOnda: BusinessPocRecord = {
   contact: {
     phone: sv("+1 (619) 555-0173", "google_places", { verified: true }),
     email: sv("yamas@tavernaonda.example.com", "business_owner", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "instagram", url: "https://www.instagram.com/tavernaonda.example", label: "Instagram" },
       { platform: "facebook", url: "https://www.facebook.com/tavernaonda.example", label: "Facebook" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -92,6 +94,7 @@ export const tavernaOnda: BusinessPocRecord = {
     reviews: [
       {
         id: "od-r1",
+        source: "google_places",
         authorName: "Nikos Petrakis",
         rating: 5,
         text: "The whole fish for two is a proper event. Bring people you like.",
@@ -99,6 +102,7 @@ export const tavernaOnda: BusinessPocRecord = {
       },
       {
         id: "od-r2",
+        source: "google_places",
         authorName: "Bethany Cruz",
         rating: 4,
         text: "Patio at sunset with a plate of watermelon and feta. Hard to beat.",
@@ -106,6 +110,7 @@ export const tavernaOnda: BusinessPocRecord = {
       },
       {
         id: "od-r3",
+        source: "google_places",
         authorName: "A. Whitfield",
         rating: 5,
         text: "Kids were welcomed, bread kept coming, nobody rushed us out.",
@@ -158,8 +163,8 @@ export const tavernaOnda: BusinessPocRecord = {
       takeout: sv(true, "google_places", { verified: true }),
       reservable: sv(true, "business_owner", { verified: true }),
     },
-    mealTypes: ["Lunch", "Dinner"],
-    dietaryOptions: ["Vegetarian options", "Gluten-free options"],
+    mealTypes: sv(["Lunch", "Dinner"], "business_owner", { verified: true }),
+    dietaryOptions: sv(["Vegetarian options", "Gluten-free options"], "business_owner", { verified: true }),
     menu: {
       mode: "verified",
       source: "business_owner",
@@ -222,8 +227,10 @@ export const tavernaOnda: BusinessPocRecord = {
       href: "https://tavernaonda.example.com/book",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
-    call: { label: "Call", href: "+1 (619) 555-0173", kind: "call" },
+    call: { label: "Call", href: "+1 (619) 555-0173", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

@@ -81,3 +81,27 @@ export function isAllowedOperator(email: string, config = getAuthConfig()): bool
   // No allowlist configured: only the gated dev operator may sign in.
   return normalized === DEV_OPERATOR_EMAIL && config.devLoginAllowed;
 }
+
+/**
+ * The ONLY shape of auth configuration that may cross the server/client
+ * boundary (into LoginForm). Booleans only: never operator emails, secret
+ * state, environment values, or configuration completeness details.
+ */
+export interface PublicAuthUiConfig {
+  googleEnabled: boolean;
+  passwordEnabled: boolean;
+  devLoginEnabled: boolean;
+  signInAvailable: boolean;
+  isProduction: boolean;
+}
+
+export function toPublicAuthUiConfig(config: AuthConfig): PublicAuthUiConfig {
+  return {
+    googleEnabled: config.googleConfigured,
+    passwordEnabled: config.passwordConfigured,
+    devLoginEnabled: config.devLoginAllowed,
+    signInAvailable:
+      config.googleConfigured || config.passwordConfigured || config.devLoginAllowed,
+    isProduction: config.isProduction,
+  };
+}

@@ -29,23 +29,29 @@ function makeLink(overrides: Partial<ShareLinkRecord> = {}): ShareLinkRecord {
   };
 }
 
-function tempFilePath(): string {
-  return path.join(tmpdir(), `poc-share-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+/** Isolated temporary directory per test; removed by afterEach. */
+async function tempDir(): Promise<string> {
+  return fs.mkdtemp(path.join(tmpdir(), "poc-share-test-"));
 }
 
 describe("atomic view consumption", () => {
   it("maxViews=1: two concurrent consumption attempts yield exactly one success (json store)", async () => {
-    const store = new JsonFileShareLinkStore(tempFilePath());
-    await store.create(makeLink({ maxViews: 1 }));
-    const now = new Date();
-    const results = await Promise.all([
-      store.consumeByTokenHash("a".repeat(64), now),
-      store.consumeByTokenHash("a".repeat(64), now),
-    ]);
-    expect(results.filter((r) => r !== null)).toHaveLength(1);
-    expect(results.filter((r) => r === null)).toHaveLength(1);
-    const final = await store.findById("link-1");
-    expect(final?.viewCount).toBe(1);
+    const dir = await tempDir();
+    try {
+      const store = new JsonFileShareLinkStore(path.join(dir, "links.json"));
+      await store.create(makeLink({ maxViews: 1 }));
+      const now = new Date();
+      const results = await Promise.all([
+        store.consumeByTokenHash("a".repeat(64), now),
+        store.consumeByTokenHash("a".repeat(64), now),
+      ]);
+      expect(results.filter((r) => r !== null)).toHaveLength(1);
+      expect(results.filter((r) => r === null)).toHaveLength(1);
+      const final = await store.findById("link-1");
+      expect(final?.viewCount).toBe(1);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 
   it("maxViews=1: exactly one success across concurrent attempts (memory store)", async () => {
@@ -58,13 +64,21 @@ describe("atomic view consumption", () => {
     expect(results.filter((r) => r !== null)).toHaveLength(1);
   });
 
-  it("revocation racing consumption cannot produce an unauthorized render", async () => {
-    const store = new JsonFileShareLinkStore(tempFilePath());
+  it("a revoke racing consumption cannot authorize a render after revocation lands", async () => {
+    const store = new InMemoryShareLinkStore();
     await store.create(makeLink());
     const now = new Date();
-    // Revoke first, then attempt consumption (the race window after peek).
-    await store.update(makeLink({ revokedAt: now.toISOString() }));
+    // Fire consumption attempts and revocation simultaneously.
+    const settled = await Promise.all([
+      ...Array.from({ length: 6 }, () => store.consumeByTokenHash("a".repeat(64), now)),
+      store.revokeById("link-1", now),
+    ]);
+    const successes = settled.slice(0, 6).filter((r) => r !== null).length;
+    const revoked = settled[6] === true;
+    expect(revoked).toBe(true);
+    // Post-revocation, no further consumption is possible.
     expect(await store.consumeByTokenHash("a".repeat(64), now)).toBeNull();
+    expect(successes).toBeLessThanOrEqual(6);
   });
 
   it("expired links cannot be consumed, including the exact boundary", async () => {
@@ -75,47 +89,77 @@ describe("atomic view consumption", () => {
     await store.create(makeLink({ id: "link-2", tokenHash: "b".repeat(64), expiresAt: "2026-10-03T11:59:59Z" }));
     expect(await store.consumeByTokenHash("b".repeat(64), now)).toBeNull();
   });
+
+  it("revokeById is atomic: concurrent revokes yield exactly one success", async () => {
+    const dir = await tempDir();
+    try {
+      const store = new JsonFileShareLinkStore(path.join(dir, "links.json"));
+      await store.create(makeLink());
+      const now = new Date();
+      const results = await Promise.all([
+        store.revokeById("link-1", now),
+        store.revokeById("link-1", now),
+      ]);
+      expect(results.filter(Boolean)).toHaveLength(1);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("hardened JSON store", () => {
-  let filePath: string;
+  let dir: string;
 
-  beforeEach(() => {
-    filePath = tempFilePath();
+  beforeEach(async () => {
+    dir = await tempDir();
   });
   afterEach(async () => {
-    await fs.rm(filePath, { force: true });
+    await fs.rm(dir, { recursive: true, force: true });
   });
 
   it("treats a missing file as empty (ENOENT only)", async () => {
-    const store = new JsonFileShareLinkStore(filePath);
+    const store = new JsonFileShareLinkStore(path.join(dir, "links.json"));
     expect(await store.listBySlug("anything")).toEqual([]);
   });
 
+  it("does not share mutable empty state between stores on different files", async () => {
+    const storeA = new JsonFileShareLinkStore(path.join(dir, "a.json"));
+    const storeB = new JsonFileShareLinkStore(path.join(dir, "b.json"));
+    await storeA.create(makeLink());
+    expect(await storeB.listBySlug("merchant-vine")).toEqual([]);
+    expect(await storeA.listBySlug("merchant-vine")).toHaveLength(1);
+  });
+
   it("corrupted JSON throws and is never overwritten", async () => {
-    await fs.writeFile(filePath, "{ not valid json !!", "utf8");
-    const store = new JsonFileShareLinkStore(filePath);
+    const file = path.join(dir, "links.json");
+    await fs.writeFile(file, "{ not valid json !!", "utf8");
+    const store = new JsonFileShareLinkStore(file);
     await expect(store.listBySlug("x")).rejects.toBeInstanceOf(ShareStoreCorruptError);
     // A later create must not silently replace the corrupted file.
     await expect(store.create(makeLink())).rejects.toBeInstanceOf(ShareStoreCorruptError);
-    expect(await fs.readFile(filePath, "utf8")).toBe("{ not valid json !!");
+    expect(await fs.readFile(file, "utf8")).toBe("{ not valid json !!");
   });
 
   it("wrong-shape JSON is treated as corruption", async () => {
-    await fs.writeFile(filePath, JSON.stringify({ version: 2, links: [] }), "utf8");
-    const store = new JsonFileShareLinkStore(filePath);
+    const file = path.join(dir, "links.json");
+    await fs.writeFile(file, JSON.stringify({ version: 2, links: [] }), "utf8");
+    const store = new JsonFileShareLinkStore(file);
     await expect(store.listBySlug("x")).rejects.toBeInstanceOf(ShareStoreCorruptError);
   });
 
-  it("non-ENOENT read failures are not swallowed", async () => {
-    await fs.writeFile(filePath, JSON.stringify({ version: 1, links: [] }), "utf8");
-    await fs.chmod(filePath, 0o000);
-    try {
-      const store = new JsonFileShareLinkStore(filePath);
-      await expect(store.listBySlug("x")).rejects.not.toBeInstanceOf(ShareStoreCorruptError);
-    } finally {
-      await fs.chmod(filePath, 0o644).catch(() => undefined);
-    }
+  it("non-ENOENT read failures are not swallowed (deterministic EISDIR)", async () => {
+    // Reading a directory as a file fails with EISDIR on every platform and
+    // regardless of privileges — unlike permission-bit tests under root.
+    const store = new JsonFileShareLinkStore(dir);
+    await expect(store.listBySlug("x")).rejects.not.toBeInstanceOf(ShareStoreCorruptError);
+  });
+
+  it("leaves no stray temp files after writes", async () => {
+    const file = path.join(dir, "links.json");
+    const store = new JsonFileShareLinkStore(file);
+    await store.create(makeLink());
+    const entries = await fs.readdir(dir);
+    expect(entries).toEqual(["links.json"]);
   });
 });
 
@@ -128,16 +172,20 @@ describe("store selection", () => {
     ).toBe("unavailable");
   });
 
-  it("development prefers the database when configured, JSON otherwise", () => {
-    expect(selectShareLinkStoreKind({ DATABASE_URL: "postgres://x" }, "development")).toBe("postgres");
+  it("prefers TEST_DATABASE_URL in test mode only", () => {
+    expect(selectShareLinkStoreKind({ TEST_DATABASE_URL: "postgres://t" }, "test")).toBe("postgres");
+    expect(selectShareLinkStoreKind({ TEST_DATABASE_URL: "postgres://t" }, "development")).toBe("json");
+    expect(selectShareLinkStoreKind({ TEST_DATABASE_URL: "postgres://t" }, "production")).toBe("unavailable");
     expect(selectShareLinkStoreKind({}, "development")).toBe("json");
-    expect(selectShareLinkStoreKind({}, "test")).toBe("json");
   });
 
   it("the unavailable store fails closed on every operation", async () => {
     const store = new UnavailableShareLinkStore();
     await expect(store.create(makeLink())).rejects.toBeInstanceOf(ShareStoreUnavailableError);
     await expect(store.consumeByTokenHash("a".repeat(64), new Date())).rejects.toBeInstanceOf(
+      ShareStoreUnavailableError,
+    );
+    await expect(store.revokeById("link-1", new Date())).rejects.toBeInstanceOf(
       ShareStoreUnavailableError,
     );
     await expect(store.listBySlug("x")).rejects.toBeInstanceOf(ShareStoreUnavailableError);

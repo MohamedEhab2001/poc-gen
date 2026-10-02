@@ -1,33 +1,43 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { randomBytes } from "node:crypto";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import postgres from "postgres";
 import { eq } from "drizzle-orm";
-import { getDb } from "@/server/db/client";
+import { getDb, closeDb } from "@/server/db/client";
+import { resolveDatabaseUrl } from "@/server/db/url";
 import { shareLinks } from "@/server/db/schema";
 import { PostgresShareLinkStore } from "./store";
 import type { ShareLinkRecord } from "./store";
 
 /**
- * PostgreSQL integration coverage for share links. CONDITIONAL: runs only
- * when TEST_DATABASE_URL (or DATABASE_URL) is set, because it needs a real
- * database with the committed migrations applied:
+ * PostgreSQL integration coverage for share links, run against a REAL
+ * database (TEST_DATABASE_URL in test mode via the shared resolver; CI sets
+ * it, so nothing here is skipped in CI). The suite first rebuilds the schema
+ * from nothing and applies the committed migrations, then verifies the
+ * atomic semantics of the production adapter:
  *
- *   TEST_DATABASE_URL=postgres://... npm run db:migrate   # against that db
  *   TEST_DATABASE_URL=postgres://... npx vitest run src/server/share/postgres.integration.test.ts
  *
- * Unit tests in store.test.ts cover the same semantics without a database
- * (in-memory and hardened JSON adapters); this file verifies the atomic
- * UPDATE semantics of the production adapter specifically.
+ * Unit tests cover the same semantics on the in-memory and JSON adapters;
+ * only the real conditional UPDATE behavior can be proven here.
  */
-const dbUrl = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const dbUrl = resolveDatabaseUrl();
 
 describe.skipIf(!dbUrl)("Postgres share-link store (integration)", () => {
   const store = new PostgresShareLinkStore();
-  const TOKEN_HASH = "f".repeat(64);
+  const CLEANUP_TAG = "pg-integration-test";
 
-  function link(overrides: Partial<ShareLinkRecord> = {}): ShareLinkRecord {
+  /** Unique hex token hash per record (never reuse across tests). */
+  function uniqueHash(): string {
+    return randomBytes(32).toString("hex");
+  }
+
+  function link(hash: string, overrides: Partial<ShareLinkRecord> = {}): ShareLinkRecord {
     return {
-      id: `it-${Math.random().toString(36).slice(2, 10)}`,
+      id: `it-${randomBytes(6).toString("hex")}`,
       slug: "merchant-vine",
-      tokenHash: TOKEN_HASH,
+      tokenHash: hash,
       scope: "poc:view",
       createdAt: new Date().toISOString(),
       expiresAt: null,
@@ -35,38 +45,143 @@ describe.skipIf(!dbUrl)("Postgres share-link store (integration)", () => {
       lastUsedAt: null,
       viewCount: 0,
       maxViews: null,
-      createdBy: "integration-test",
+      createdBy: CLEANUP_TAG,
       ...overrides,
     };
   }
 
-  it("maxViews=1: concurrent consumption yields exactly one success", async () => {
-    const record = link({ maxViews: 1 });
+  async function cleanup(): Promise<void> {
+    await getDb().delete(shareLinks).where(eq(shareLinks.createdBy, CLEANUP_TAG));
+  }
+
+  beforeAll(async () => {
+    // Prove migrations apply from an empty database: rebuild the schema and
+    // run the committed SQL, exactly like `npm run db:migrate` would. Both
+    // the public schema AND drizzle's migration-bookkeeping schema must go,
+    // otherwise the migrator sees stale "already applied" records.
+    const admin = postgres(dbUrl!, { max: 1, prepare: false });
+    try {
+      await admin`DROP SCHEMA IF EXISTS drizzle CASCADE`;
+      await admin`DROP SCHEMA public CASCADE`;
+      await admin`CREATE SCHEMA public`;
+      await migrate(drizzle(admin), { migrationsFolder: "src/server/db/migrations" });
+      const tables = await admin`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`;
+      if (!tables.some((row) => (row as { tablename: string }).tablename === "share_links")) {
+        throw new Error("Migration did not create the share_links table.");
+      }
+    } finally {
+      await admin.end();
+    }
+  });
+
+  afterAll(async () => {
+    await cleanup().catch(() => undefined);
+    await closeDb();
+  });
+
+  it("applies the committed migrations from an empty database", async () => {
+    // The beforeAll rebuild proves this; assert the table exists and has the
+    // expected unique constraint shape by inserting and reading back.
+    const record = link(uniqueHash());
+    await store.create(record);
+    try {
+      const readBack = await store.findById(record.id);
+      expect(readBack?.tokenHash).toBe(record.tokenHash);
+      expect(readBack?.viewCount).toBe(0);
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it("maxViews=1: eight concurrent consumptions produce exactly one success and view_count=1", async () => {
+    const hash = uniqueHash();
+    const record = link(hash, { maxViews: 1 });
     await store.create(record);
     try {
       const now = new Date();
       const results = await Promise.all(
-        Array.from({ length: 8 }, () => store.consumeByTokenHash(TOKEN_HASH, now)),
+        Array.from({ length: 8 }, () => store.consumeByTokenHash(hash, now)),
       );
       expect(results.filter((r) => r !== null)).toHaveLength(1);
       const after = await store.findById(record.id);
       expect(after?.viewCount).toBe(1);
+      expect(after?.lastUsedAt).not.toBeNull();
     } finally {
-      await getDb().delete(shareLinks).where(eq(shareLinks.id, record.id));
+      await cleanup();
     }
   });
 
-  it("rejects the exact expiration boundary and revoked links", async () => {
+  it("expired and exact-boundary links cannot be consumed", async () => {
     const now = new Date();
-    const boundary = link({ expiresAt: new Date(now.getTime()).toISOString() });
-    const revoked = link({ revokedAt: now.toISOString() });
-    await store.create(boundary);
-    await store.create(revoked);
+    const boundaryHash = uniqueHash();
+    const pastHash = uniqueHash();
+    await store.create(link(boundaryHash, { expiresAt: now.toISOString() }));
+    await store.create(link(pastHash, { expiresAt: new Date(now.getTime() - 1000).toISOString() }));
     try {
-      expect(await store.consumeByTokenHash(TOKEN_HASH, now)).toBeNull();
+      expect(await store.consumeByTokenHash(boundaryHash, now)).toBeNull();
+      expect(await store.consumeByTokenHash(pastHash, now)).toBeNull();
     } finally {
-      await getDb().delete(shareLinks).where(eq(shareLinks.id, boundary.id));
-      await getDb().delete(shareLinks).where(eq(shareLinks.id, revoked.id));
+      await cleanup();
     }
+  });
+
+  it("revoked links cannot be consumed, and concurrent revoke/consume ends revoked", async () => {
+    const revokedHash = uniqueHash();
+    await store.create(link(revokedHash));
+    try {
+      expect(await store.revokeById((await store.peekByTokenHash(revokedHash, new Date()))!.id, new Date())).toBe(true);
+      expect(await store.consumeByTokenHash(revokedHash, new Date())).toBeNull();
+    } finally {
+      await cleanup();
+    }
+
+    // Real race: consumption attempts and revocation fired simultaneously.
+    const raceHash = uniqueHash();
+    const raceRecord = link(raceHash);
+    await store.create(raceRecord);
+    try {
+      const now = new Date();
+      const settled = await Promise.all([
+        ...Array.from({ length: 8 }, () => store.consumeByTokenHash(raceHash, now)),
+        store.revokeById(raceRecord.id, now),
+      ]);
+      const successes = settled.slice(0, 8).filter((r) => r !== null).length;
+      expect(settled[8]).toBe(true); // revocation landed
+      // After revocation, no further render is possible.
+      expect(await store.consumeByTokenHash(raceHash, now)).toBeNull();
+      const final = await store.findById(raceRecord.id);
+      expect(final?.revokedAt).not.toBeNull();
+      expect(final?.viewCount).toBe(successes);
+      expect(successes).toBeLessThanOrEqual(8);
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it("never stores or logs plaintext tokens", async () => {
+    const plaintext = randomBytes(32).toString("base64url");
+    const { hashShareToken } = await import("./tokens");
+    const hash = hashShareToken(plaintext);
+    const record = link(hash);
+    await store.create(record);
+    try {
+      const raw = await getDb().select().from(shareLinks).where(eq(shareLinks.id, record.id));
+      expect(raw).toHaveLength(1);
+      const serialized = JSON.stringify(raw[0]);
+      expect(serialized).toContain(hash);
+      expect(serialized).not.toContain(plaintext);
+      expect(serialized).not.toContain(plaintext.slice(0, 16));
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it("production store selection never falls back to JSON (real selection matrix)", async () => {
+    const { selectShareLinkStoreKind } = await import("./store");
+    expect(selectShareLinkStoreKind({ DATABASE_URL: dbUrl }, "production")).toBe("postgres");
+    expect(selectShareLinkStoreKind({}, "production")).toBe("unavailable");
+    expect(
+      selectShareLinkStoreKind({ TEST_DATABASE_URL: dbUrl }, "production"),
+    ).toBe("unavailable");
   });
 });

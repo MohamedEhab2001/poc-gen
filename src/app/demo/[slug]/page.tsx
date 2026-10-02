@@ -3,17 +3,26 @@ import { notFound } from "next/navigation";
 import { ClosureBanner } from "@/components/poc/ClosureBanner";
 import { ExpiredState, PermanentlyClosedState } from "@/components/poc/states/RecordStates";
 import { getRecordDisposition } from "@/lib/poc/disposition";
-import { requireOperator } from "@/server/auth/authorize";
-import { buildPocMetadata } from "@/lib/poc/metadata";
 import { normalizeRecord } from "@/lib/poc/normalize";
 import { renderTheme } from "@/lib/poc/render";
 import { getPocRepository } from "@/lib/poc/repository";
+import { requireOperator } from "@/server/auth/authorize";
 
-type PageProps = { params: Promise<{ slug: string }> };
-
-const GENERIC_NOINDEX_METADATA: Metadata = {
+/**
+ * Static generic metadata: /demo performs no record lookup at metadata time
+ * at all, so nothing about a record — its existence, name, or state — can
+ * leak through metadata, prefetching, or partially authorized sessions
+ * (including an operator removed from ADMIN_EMAILS whose signed cookie is
+ * still valid).
+ */
+export const metadata: Metadata = {
   title: "Website concept",
-  robots: { index: false, follow: false, nocache: true },
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: { index: false, follow: false, noimageindex: true },
+  },
 };
 
 /**
@@ -23,20 +32,8 @@ const GENERIC_NOINDEX_METADATA: Metadata = {
  * server-boundary re-check, never middleware alone). Authorization happens
  * before any record lookup, so unauthenticated requests never learn whether
  * a slug exists.
- *
- * Unindexed by default, record-driven metadata, and safe states for draft,
- * archived, expired, and permanently closed records. A permanently closed
- * business never renders a sales POC.
  */
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const record = await getPocRepository().getBySlug(slug);
-  if (!record) return GENERIC_NOINDEX_METADATA;
-  if (getRecordDisposition(record) !== "render") return GENERIC_NOINDEX_METADATA;
-  return buildPocMetadata(normalizeRecord(record));
-}
-
-export default async function DemoPage({ params }: PageProps) {
+export default async function DemoPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   await requireOperator(`/demo/${slug}`);
   const raw = await getPocRepository().getBySlug(slug);

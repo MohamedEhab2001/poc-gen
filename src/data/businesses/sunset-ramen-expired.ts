@@ -58,7 +58,7 @@ export const sunsetRamenExpired: BusinessPocRecord = {
   },
 
   callsToAction: {
-    call: { label: "Call", href: "+1 (415) 555-0193", kind: "call" },
+    call: { label: "Call", href: "+1 (415) 555-0193", kind: "call", source: "manual", verified: true },
   },
 
   poc: {

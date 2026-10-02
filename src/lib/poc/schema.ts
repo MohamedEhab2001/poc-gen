@@ -103,6 +103,10 @@ export const actionLinkSchema = z.object({
   href: z.string().min(1).max(2048),
   kind: actionKindSchema,
   external: z.boolean().optional(),
+  /** Provenance is required: unsourced actions never render. */
+  source: dataOriginSchema,
+  confidence: z.number().min(0).max(1).nullable().optional(),
+  verified: z.boolean().optional(),
 });
 
 export const socialLinkSchema = z.object({
@@ -194,7 +198,7 @@ export const recordSchema = z
         phone: sourced(z.string().min(7).max(32)).optional(),
         email: sourced(z.string().email()).optional(),
         website: sourced(z.string().url()).optional(),
-        socialLinks: z.array(socialLinkSchema).max(8).optional(),
+        socialLinks: sourced(z.array(socialLinkSchema).max(8)).optional(),
       })
       .optional(),
 
@@ -221,17 +225,18 @@ export const recordSchema = z
         nextOpenTime: sourced(z.string().min(1).max(64)).optional(),
         nextCloseTime: sourced(z.string().min(1).max(64)).optional(),
         weekdayDescriptions: sourced(z.array(z.string().min(1).max(80)).max(7)).optional(),
-        periods: z
-          .array(
-            z.object({
-              day: z.string().min(1).max(12),
-              open: z.string().min(1).max(12),
-              close: z.string().min(1).max(12),
-              isClosed: z.boolean().optional(),
-            }),
-          )
-          .max(14)
-          .optional(),
+        periods: sourced(
+          z
+            .array(
+              z.object({
+                day: z.string().min(1).max(12),
+                open: z.string().min(1).max(12),
+                close: z.string().min(1).max(12),
+                isClosed: z.boolean().optional(),
+              }),
+            )
+            .max(14),
+        ).optional(),
       })
       .optional(),
 
@@ -250,7 +255,11 @@ export const recordSchema = z
               text: z.string().min(1).max(600),
               publishedAt: z.string().nullable().optional(),
               sourceUrl: z.string().url().nullable().optional(),
-              source: dataOriginSchema.optional(),
+              /** Provenance is required: a review without a source never renders. */
+              source: dataOriginSchema,
+              confidence: z.number().min(0).max(1).nullable().optional(),
+              verified: z.boolean().optional(),
+              retrievedAt: z.string().datetime().nullable().optional(),
               attribution: attributionSchema.nullable().optional(),
             }),
           )
@@ -279,13 +288,13 @@ export const recordSchema = z
             reservable: sourced(z.boolean()).optional(),
           })
           .optional(),
-        mealTypes: z.array(z.string().min(1).max(32)).max(8).optional(),
-        dietaryOptions: z.array(z.string().min(1).max(32)).max(8).optional(),
+        mealTypes: sourced(z.array(z.string().min(1).max(32)).max(8)).optional(),
+        dietaryOptions: sourced(z.array(z.string().min(1).max(32)).max(8)).optional(),
         menu: z
           .object({
             mode: z.enum(["verified", "sample", "hidden"]),
-            /** Where the menu came from; verified mode requires a trusted origin. */
-            source: dataOriginSchema.optional(),
+            /** Explicit provenance: missing source fails validation (no silent manual default). */
+            source: dataOriginSchema,
             verified: z.boolean().optional(),
             notice: z.string().max(280).nullable().optional(),
             sections: z.array(menuSectionSchema).max(12),
@@ -336,7 +345,26 @@ export const recordSchema = z
       leadId: z.string().nullable().optional(),
     }),
   })
-  .strict();
+  .strict()
+  .superRefine((record, ctx) => {
+    // Wrapped images (logo, hero) carry provenance on BOTH the Sourced
+    // wrapper and the image itself. The wrapper is authoritative at render
+    // time, and the two must agree — mixing layers can never smuggle a
+    // trust level across the policy boundary.
+    const wrapped: Array<[string, { source?: string } | undefined, { source?: string } | null | undefined]> = [
+      ["brand.logo", record.brand?.logo, record.brand?.logo?.value ?? null],
+      ["hero.image", record.hero.image, record.hero.image?.value ?? null],
+    ];
+    for (const [field, wrapper, image] of wrapped) {
+      if (wrapper?.source && image?.source && wrapper.source !== image.source) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: field.split("."),
+          message: `Wrapped image provenance mismatch: wrapper source "${wrapper.source}" != image source "${image.source}".`,
+        });
+      }
+    }
+  });
 
 export type BusinessPocRecord = z.infer<typeof recordSchema>;
 export type DataOrigin = z.infer<typeof dataOriginSchema>;

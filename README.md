@@ -129,7 +129,7 @@ Every mode ships a text alternative; iframes are lazy-loaded and titled; maps ne
 
 Records are read exclusively through the `BusinessPocRepository` interface in [`repository.ts`](src/lib/poc/repository.ts). The default adapter loads the fixture set through the Zod boundary. A documented PostgreSQL adapter point lives in the same file — records stay JSON documents in the database and the schema remains the single validation boundary, so externally sourced details (ratings, hours) can be refreshed at render time.
 
-**Implemented today:** the fixture repository, the JSON-file share-link store, and the render path above. **Planned (not yet built):** the PostgreSQL adapter, a token-guarded machine-ingestion endpoint, enrichment providers, and background workers — sequenced in [docs/backlog.md](docs/backlog.md). No ingestion route exists yet; do not send records to any `/api` endpoint expecting persistence.
+**Implemented:** the fixture repository, the render path above, and PostgreSQL share-link persistence (Drizzle + committed migrations; `share_links` table). **Still planned (not built):** the full Phase 2 business repository (leads, POC records, assets, jobs, analytics), a token-guarded machine-ingestion endpoint, enrichment providers, and background workers — sequenced in [docs/backlog.md](docs/backlog.md). No ingestion route exists yet; do not send records to any `/api` endpoint expecting persistence.
 
 The intended pipeline contract when it lands: records arrive as schema-valid JSON keyed by `slug` with `status: "draft"`; humans review drafts on `/preview/[slug]`, flip to `active`, and share a `/p/[token]` link.
 
@@ -154,19 +154,20 @@ Never commit real credentials.
 3. Register the export in the `fixtures` array in [`src/lib/poc/repository.ts`](src/lib/poc/repository.ts).
 4. `npm run test` — the repository test asserts every fixture passes the schema boundary.
 
-See [`docs/adding-a-theme.md`](docs/adding-a-theme.md) for adding an eleventh theme.
+See [`docs/adding-a-theme.md`](docs/adding-a-theme.md) for adding a new theme.
 
 ## Deployment
 
 The rendering path is portable RSC with no server-side API routes required.
 
-- **Docker / any Node host:** `npm ci && npm run build && npm start` behind Nginx or Caddy. Production requires PostgreSQL for share links (`DATABASE_URL`, migrations via `npm run db:migrate`) plus the authentication variables (`AUTH_SECRET`, `ADMIN_EMAILS`, and Google OAuth or `OPERATOR_PASSWORD`). Without `DATABASE_URL`, share-link operations fail closed with a controlled 503; the JSON adapter is local-development storage only and is never selected in production.
 - **Docker / any Node host:** `npm ci && npm run build && npm start` behind Nginx or Caddy. No edge-runtime features are required.
+- **Required in production:** `DATABASE_URL` (PostgreSQL) for share links — apply migrations with `npm run db:migrate` — plus `AUTH_SECRET`, `ADMIN_EMAILS`, and Google OAuth or `OPERATOR_PASSWORD`. Without `DATABASE_URL`, share-link operations fail closed with a controlled 503; the JSON adapter is local-development storage only and is never selected in production.
+- **Testing against PostgreSQL locally:** point `TEST_DATABASE_URL` at a scratch database (used only when `NODE_ENV=test`); the migration script and integration tests resolve the same URL. Without it, the six PostgreSQL integration tests are skipped locally — GitHub Actions CI always runs them against a real service container and fails if they skip.
 
 The production concept is one multi-tenant deployment serving many records by slug — never one deployment per business.
 
 ## Testing and QA
 
-- **Unit (Vitest, 67 tests):** schema acceptance/rejection, URL and protocol safety, CTA priority and derivation, every numbered fallback rule, record disposition (expired / closed / draft / request-time `expiresAt`), the central render policy matrix, share-token generation/hashing/expiry/revocation/view caps, map-embed and image-host allowlists, zero-coordinate handling, preview query-state preservation, and repository integrity with per-theme fixture coverage.
-- **Visual QA performed:** all ten themes screenshotted and inspected at 390×844 and 1440×900 against broken imagery, horizontal overflow, clipped navigation, contrast, and cross-theme sameness; edge states (expired, permanently closed, temporarily closed, partial, minimal), the preview tool, and the showroom verified in a real browser.
+- **Unit (Vitest, 126 tests):** schema acceptance/rejection (including provenance requirements and wrapped-image source-match refinement), URL and protocol safety, CTA priority and derivation over policy-resolved actions, every numbered fallback rule, record disposition (expired / closed / draft / request-time `expiresAt` / policy-resolved business status), the central render policy matrix applied to every sourced field, share-token generation/hashing/expiry/atomic revocation/view caps, map-embed and image-host allowlists (runtime/CSP agreement), zero-coordinate handling, preview query-state preservation, JSON-store isolation and corruption behavior, the public auth UI projection, and repository integrity with per-theme fixture coverage.
+- **Visual QA performed:** all thirteen themes screenshotted and inspected at 390×844 and 1440×900 against broken imagery, horizontal overflow, clipped navigation, contrast, and cross-theme sameness; edge states (expired, permanently closed, temporarily closed, partial, minimal), the preview tool, and the showroom verified in a real browser.
 - Known cosmetic note: fixture photography comes from seeded picsum placeholders, so the photo behind a seed is random and may not match its alt text. Replace with licensed or owner-supplied assets in real records — the `attribution` field is already wired for it.

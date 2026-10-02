@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LoginForm } from "./LoginForm";
-import { getAuthConfig } from "@/server/auth/config";
+import { getAuthConfig, toPublicAuthUiConfig } from "@/server/auth/config";
 
 export const metadata: Metadata = {
   title: "Sign in · POC Gen",
@@ -13,7 +13,10 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string }>;
 }) {
   const { next } = await searchParams;
-  const config = getAuthConfig();
+  // Only the boolean projection crosses into the client component — the
+  // full AuthConfig (with operator emails and secret state) never serializes
+  // into the RSC payload.
+  const publicConfig = toPublicAuthUiConfig(getAuthConfig());
 
   const safeNext =
     next && next.startsWith("/") && !next.startsWith("//") ? next : "/themes";
@@ -27,7 +30,7 @@ export default async function LoginPage({
         <h1 className="mb-8 text-center text-2xl font-semibold tracking-tight text-white">
           Sign in
         </h1>
-        <LoginForm config={config} nextPath={safeNext} />
+        <LoginForm config={publicConfig} nextPath={safeNext} />
         <p className="mt-8 text-center text-[11.5px] leading-relaxed text-zinc-600">
           Internal surfaces are protected. Customer concepts are shared only
           through private, expiring links.

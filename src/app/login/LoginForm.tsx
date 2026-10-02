@@ -2,13 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { AuthConfig } from "@/server/auth/config";
+import type { PublicAuthUiConfig } from "@/server/auth/config";
 
 export function LoginForm({
   config,
   nextPath,
 }: {
-  config: AuthConfig;
+  config: PublicAuthUiConfig;
   nextPath: string;
 }) {
   const router = useRouter();
@@ -16,8 +16,6 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  const noMethod = !config.googleConfigured && !config.passwordConfigured && !config.devLoginAllowed;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -43,7 +41,7 @@ export function LoginForm({
     }
   }
 
-  if (noMethod) {
+  if (!config.signInAvailable) {
     if (config.isProduction) {
       // No configuration details for unauthenticated visitors; the server
       // log carries the actionable message.
@@ -74,7 +72,7 @@ export function LoginForm({
 
   return (
     <div className="space-y-4">
-      {config.googleConfigured ? (
+      {config.googleEnabled ? (
         <a
           href={`/api/auth/google/start?next=${encodeURIComponent(nextPath)}`}
           className="flex w-full items-center justify-center gap-3 rounded-lg bg-white px-5 py-3 text-[14px] font-semibold text-zinc-900 transition-transform hover:-translate-y-0.5"
@@ -83,13 +81,13 @@ export function LoginForm({
         </a>
       ) : null}
 
-      {config.googleConfigured && (config.passwordConfigured || config.devLoginAllowed) ? (
+      {config.googleEnabled && (config.passwordEnabled || config.devLoginEnabled) ? (
         <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-zinc-600">
           <span className="h-px flex-1 bg-zinc-800" /> or <span className="h-px flex-1 bg-zinc-800" />
         </div>
       ) : null}
 
-      {config.passwordConfigured || config.devLoginAllowed ? (
+      {config.passwordEnabled || config.devLoginEnabled ? (
         <form onSubmit={submit} className="space-y-3">
           <label className="block text-[12px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
             Operator email
@@ -102,7 +100,7 @@ export function LoginForm({
               className="mt-1.5 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3.5 py-2.5 text-[14px] font-normal normal-case tracking-normal text-zinc-100 outline-none focus:border-zinc-400"
             />
           </label>
-          {config.passwordConfigured ? (
+          {config.passwordEnabled ? (
             <label className="block text-[12px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
               Password
               <input
@@ -115,7 +113,7 @@ export function LoginForm({
               />
             </label>
           ) : null}
-          {config.devLoginAllowed && !config.passwordConfigured ? (
+          {config.devLoginEnabled && !config.passwordEnabled ? (
             <p className="text-[11.5px] leading-relaxed text-zinc-600">
               Development mode: the allowlisted operator email signs in without
               a password. This is impossible in production, which requires

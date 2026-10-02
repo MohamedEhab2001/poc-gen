@@ -43,6 +43,8 @@ export const theGildedFan: BusinessPocRecord = {
       href: "https://thegildedfan.example.com/reserve",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
     secondaryAction: null,
   },
@@ -50,9 +52,9 @@ export const theGildedFan: BusinessPocRecord = {
   contact: {
     phone: sv("+1 (504) 555-0121", "google_places", { verified: true }),
     email: sv("evenings@thegildedfan.example.com", "business_owner", { verified: true }),
-    socialLinks: [
+    socialLinks: sv([
       { platform: "instagram", url: "https://www.instagram.com/thegildedfan.example", label: "Instagram" },
-    ],
+    ], "google_places", { verified: true }),
   },
 
   location: {
@@ -91,6 +93,7 @@ export const theGildedFan: BusinessPocRecord = {
     reviews: [
       {
         id: "gf-r1",
+        source: "google_places",
         authorName: "Cordelia Ames",
         rating: 5,
         text: "The oysters and the Sazerac and the trio at ten. It is a whole production and worth every dollar.",
@@ -98,6 +101,7 @@ export const theGildedFan: BusinessPocRecord = {
       },
       {
         id: "gf-r2",
+        source: "google_places",
         authorName: "R. Beaumont",
         rating: 5,
         text: "Booked the corner banquette for an anniversary. They remembered our names at the door.",
@@ -105,6 +109,7 @@ export const theGildedFan: BusinessPocRecord = {
       },
       {
         id: "gf-r3",
+        source: "google_places",
         authorName: "Yuki Tanabe",
         rating: 4,
         text: "Smart, dark, and unhurried. The duck for two is the move; arrive hungry.",
@@ -151,7 +156,7 @@ export const theGildedFan: BusinessPocRecord = {
       dineIn: sv(true, "google_places", { verified: true }),
       reservable: sv(true, "business_owner", { verified: true }),
     },
-    mealTypes: ["Dinner", "Late-night drinks"],
+    mealTypes: sv(["Dinner", "Late-night drinks"], "business_owner", { verified: true }),
     menu: {
       mode: "verified",
       source: "business_owner",
@@ -215,8 +220,10 @@ export const theGildedFan: BusinessPocRecord = {
       href: "https://thegildedfan.example.com/reserve",
       kind: "reserve",
       external: true,
+    source: "manual",
+    verified: true,
     },
-    call: { label: "Call the maître d'", href: "+1 (504) 555-0121", kind: "call" },
+    call: { label: "Call the maître d'", href: "+1 (504) 555-0121", kind: "call", source: "manual", verified: true },
   },
 
   poc: {
