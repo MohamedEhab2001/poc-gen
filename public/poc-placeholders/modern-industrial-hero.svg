@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Abstract industrial pattern">
+  <rect width="1600" height="900" fill="#ececea"/>
+  <g stroke="#c6c8cb" stroke-width="2">
+    <line x1="200" y1="0" x2="200" y2="900"/><line x1="600" y1="0" x2="600" y2="900"/>
+    <line x1="1000" y1="0" x2="1000" y2="900"/><line x1="1400" y1="0" x2="1400" y2="900"/>
+    <line x1="0" y1="220" x2="1600" y2="220"/><line x1="0" y1="680" x2="1600" y2="680"/>
+  </g>
+  <rect x="200" y="220" width="400" height="460" fill="#1c1d1f"/>
+  <circle cx="1200" cy="450" r="90" fill="none" stroke="#ff5a1f" stroke-width="5"/>
+  <line x1="1060" y1="450" x2="1340" y2="450" stroke="#ff5a1f" stroke-width="3"/>
+  <line x1="1200" y1="310" x2="1200" y2="590" stroke="#ff5a1f" stroke-width="3"/>
+  <g fill="#ff5a1f">
+    <polygon points="600,800 640,760 680,800 640,840"/>
+  </g>
+</svg>

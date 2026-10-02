@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Abstract mediterranean pattern">
+  <rect width="1600" height="900" fill="#f7f4ec"/>
+  <path d="M460 760 L460 420 A 210 210 0 0 1 880 420 L880 760 Z" fill="#1f6f9c"/>
+  <path d="M940 760 C 1000 700, 1080 700, 1140 760 C 1200 700, 1280 700, 1340 760 L1340 760 L940 760 Z" fill="none" stroke="#d96c47" stroke-width="14"/>
+  <circle cx="1180" cy="300" r="70" fill="#e9b93c"/>
+  <path d="M200 200 C 260 140, 340 140, 400 200" stroke="#1f6f9c" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <path d="M240 240 C 300 180, 380 180, 440 240" stroke="#d96c47" stroke-width="10" fill="none" stroke-linecap="round"/>
+</svg>

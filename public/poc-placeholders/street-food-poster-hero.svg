@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Abstract street food poster pattern">
+  <rect width="1600" height="900" fill="#f5f1e8"/>
+  <polygon points="120,120 760,160 700,520 160,480" fill="#ff6b1a"/>
+  <polygon points="820,260 1400,200 1480,560 880,600" fill="#2447ff"/>
+  <circle cx="420" cy="680" r="130" fill="#ffc93c"/>
+  <g fill="#141414" opacity="0.85">
+    <circle cx="1180" cy="720" r="9"/><circle cx="1220" cy="720" r="9"/><circle cx="1260" cy="720" r="9"/>
+    <circle cx="1180" cy="760" r="9"/><circle cx="1220" cy="760" r="9"/><circle cx="1260" cy="760" r="9"/>
+    <circle cx="1180" cy="800" r="9"/><circle cx="1220" cy="800" r="9"/><circle cx="1260" cy="800" r="9"/>
+  </g>
+  <rect x="120" y="780" width="620" height="26" fill="#141414"/>
+</svg>

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Abstract deco supper club pattern">
+  <rect width="1600" height="900" fill="#0e1d18"/>
+  <g>
+    <line x1="800" y1="450" x2="800" y2="270" stroke="#c9a86a" stroke-width="3" transform="rotate(0 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(15 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(30 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="270" stroke="#c9a86a" stroke-width="1.4" transform="rotate(45 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(60 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(75 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="270" stroke="#c9a86a" stroke-width="3" transform="rotate(90 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(105 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(120 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="270" stroke="#c9a86a" stroke-width="1.4" transform="rotate(135 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(150 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(165 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="270" stroke="#c9a86a" stroke-width="3" transform="rotate(180 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(195 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(210 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="270" stroke="#c9a86a" stroke-width="1.4" transform="rotate(225 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(240 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(255 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="270" stroke="#c9a86a" stroke-width="3" transform="rotate(270 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(285 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(300 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="270" stroke="#c9a86a" stroke-width="1.4" transform="rotate(315 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(330 800 450)" opacity="0.4"/>
+    <line x1="800" y1="450" x2="800" y2="300" stroke="#c9a86a" stroke-width="1.4" transform="rotate(345 800 450)" opacity="0.4"/>
+  </g>
+  <rect x="140" y="140" width="1320" height="620" fill="none" stroke="#c9a86a" stroke-width="2"/>
+  <rect x="170" y="170" width="1260" height="560" fill="none" stroke="#c9a86a" stroke-width="1" opacity="0.5"/>
+  <path d="M700 560 L700 380 A 100 100 0 0 1 900 380 L900 560 Z" fill="none" stroke="#d8b978" stroke-width="3"/>
+  <line x1="640" y1="620" x2="960" y2="620" stroke="#c9a86a" stroke-width="3"/>
+  <path d="M780 620 L800 640 L820 620" fill="none" stroke="#8c3040" stroke-width="6"/>
+</svg>

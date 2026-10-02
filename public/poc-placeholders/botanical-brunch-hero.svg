@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Abstract botanical pattern">
+  <rect width="1600" height="900" fill="#faf7f0"/>
+  <path d="M320 760 L320 380 A 190 190 0 0 1 700 380 L700 760 Z" fill="#dfe3d5"/>
+  <path d="M480 760 L480 300 A 150 150 0 0 1 780 300 L780 760 Z" fill="#7d9b76" opacity="0.85"/>
+  <ellipse cx="1150" cy="330" rx="230" ry="150" fill="#f2d7d0"/>
+  <path d="M1000 700 C 1060 660, 1120 740, 1180 690 C 1240 640, 1300 720, 1360 670" stroke="#5f7d5a" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <circle cx="920" cy="200" r="12" fill="#a4536a"/>
+  <circle cx="1350" cy="560" r="9" fill="#c9a86a"/>
+</svg>

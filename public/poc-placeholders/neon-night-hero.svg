@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Abstract neon night pattern">
+  <rect width="1600" height="900" fill="#0b0b12"/>
+  <polygon points="0,900 0,300 700,900" fill="#ff3d8a" opacity="0.22"/>
+  <polygon points="1600,0 1600,600 900,0" fill="#29e0ff" opacity="0.18"/>
+  <line x1="0" y1="620" x2="1600" y2="620" stroke="#26263a" stroke-width="2"/>
+  <line x1="0" y1="680" x2="1600" y2="680" stroke="#26263a" stroke-width="2"/>
+  <line x1="0" y1="740" x2="1600" y2="740" stroke="#26263a" stroke-width="2"/>
+  <rect x="1180" y="180" width="300" height="300" fill="none" stroke="#ff3d8a" stroke-width="6" transform="rotate(8 1330 330)"/>
+  <rect x="180" y="140" width="220" height="220" fill="none" stroke="#29e0ff" stroke-width="6" transform="rotate(-6 290 250)"/>
+  <circle cx="820" cy="260" r="14" fill="#c8ff3d"/>
+  <line x1="820" y1="260" x2="980" y2="260" stroke="#c8ff3d" stroke-width="3"/>
+</svg>

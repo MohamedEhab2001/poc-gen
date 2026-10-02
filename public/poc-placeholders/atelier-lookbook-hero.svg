@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Abstract fashion lookbook pattern">
+  <rect width="1600" height="900" fill="#fbfaf8"/>
+  <rect x="820" y="0" width="780" height="900" fill="#111111"/>
+  <line x1="120" y1="240" x2="360" y2="240" stroke="#e0301e" stroke-width="4"/>
+  <rect x="120" y="300" width="520" height="52" fill="#111111"/>
+  <rect x="120" y="380" width="380" height="30" fill="#111111"/>
+  <line x1="120" y1="640" x2="700" y2="640" stroke="#111111" stroke-width="2"/>
+  <line x1="120" y1="690" x2="520" y2="690" stroke="#e6e4df" stroke-width="2"/>
+  <circle cx="1180" cy="450" r="130" fill="none" stroke="#fbfaf8" stroke-width="2" opacity="0.6"/>
+  <line x1="900" y1="450" x2="1460" y2="450" stroke="#e0301e" stroke-width="3"/>
+</svg>

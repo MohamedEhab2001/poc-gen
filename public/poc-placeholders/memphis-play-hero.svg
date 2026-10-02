@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Abstract memphis play pattern">
+  <rect width="1600" height="900" fill="#fdf8ee"/>
+  <path d="M220 700 C 320 560, 520 560, 620 700 C 720 840, 920 840, 1020 700" fill="none" stroke="#2450ff" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="1240" cy="260" r="110" fill="none" stroke="#ff5c39" stroke-width="14"/>
+  <path d="M300 180 L360 290 L240 290 Z" fill="#ffca3a"/>
+  <circle cx="620" cy="150" r="22" fill="#2450ff"/>
+  <circle cx="1400" cy="620" r="16" fill="#ffca3a"/>
+  <path d="M980 760 L1010 720 L1040 760 L1070 720 L1100 760" fill="none" stroke="#1d1d1f" stroke-width="8" stroke-linecap="round"/>
+  <rect x="1180" y="380" width="180" height="180" rx="40" fill="#e7f7ef" stroke="#1d1d1f" stroke-width="4"/>
+</svg>

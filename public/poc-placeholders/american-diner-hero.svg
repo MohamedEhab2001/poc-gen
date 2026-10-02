@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Abstract american diner pattern">
+  <rect width="1600" height="900" fill="#fff6e8"/>
+  <rect x="0" y="120" width="1600" height="110" fill="#c8102e"/>
+  <rect x="0" y="660" width="1600" height="110" fill="#1e2a5e"/>
+  <g fill="#1e2a5e">
+    <rect x="620" y="610" width="40" height="40"/><rect x="700" y="610" width="40" height="40"/>
+    <rect x="660" y="650" width="40" height="40"/><rect x="740" y="650" width="40" height="40"/>
+    <rect x="820" y="610" width="40" height="40"/><rect x="900" y="610" width="40" height="40"/>
+    <rect x="860" y="650" width="40" height="40"/><rect x="940" y="650" width="40" height="40"/>
+  </g>
+  <circle cx="800" cy="430" r="150" fill="none" stroke="#c8102e" stroke-width="16"/>
+  <circle cx="800" cy="430" r="110" fill="#fff6e8" stroke="#e0a72e" stroke-width="8"/>
+</svg>
