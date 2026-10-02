@@ -160,6 +160,8 @@ export const sageAndSparrow: BusinessPocRecord = {
     dietaryOptions: ["Vegetarian options", "Vegan options", "Gluten-free options"],
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       sections: [
         {
           id: "ss-brunch",

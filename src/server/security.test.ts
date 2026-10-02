@@ -5,9 +5,9 @@ import { buildPreviewQuery, parsePreviewQuery } from "@/lib/poc/preview-query";
 import { isAllowedImageUrl, isTrustedMapEmbed } from "@/lib/poc/url";
 import { InMemoryShareLinkStore, getShareLinkStore, setShareLinkStore } from "@/server/share/store";
 import {
+  consumeShareLink,
   createShareLink,
-  recordShareLinkUse,
-  resolveShareLink,
+  peekShareLink,
   revokeShareLink,
 } from "@/server/share/service";
 import { hashShareToken, tokenHashMatches } from "@/server/share/tokens";
@@ -122,6 +122,165 @@ describe("normalize applies the policy (integration)", () => {
     const vm = normalizeRecord(junosDiner);
     expect(vm.announcement).toContain("Biscuit week");
   });
+
+  it("blocks a low-confidence ai_derived phone and removes Call CTAs", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      contact: {
+        ...merchantAndVine.contact,
+        phone: { value: "+1 555 0100", source: "ai_derived", confidence: 0.3 },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.contact.phone).toBeNull();
+    expect(vm.cta.mobile.some((cta) => cta.kind === "call")).toBe(false);
+    expect(vm.provenance).toContainEqual(
+      expect.objectContaining({ field: "contact.phone", outcome: "hidden" }),
+    );
+  });
+
+  it("blocks a low-confidence ai_derived rating and hides reputation", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      reputation: {
+        ...merchantAndVine.reputation,
+        rating: { value: 4.9, source: "ai_derived", confidence: 0.2 },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.reputation).toBeNull();
+  });
+
+  it("blocks a low-confidence ai_derived city and keeps it out of the fallback headline", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      location: {
+        ...merchantAndVine.location!,
+        city: { value: "Neptune City", source: "ai_derived", confidence: 0.1 },
+      },
+      hero: { ...merchantAndVine.hero, headline: undefined },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.location?.city).toBeNull();
+    expect(vm.hero.headline).not.toContain("Neptune City");
+  });
+
+  it("blocks a low-confidence ai_derived palette color and keeps the theme default", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      brand: {
+        ...merchantAndVine.brand,
+        palette: {
+          primary: { value: "#123456", source: "ai_derived", confidence: 0.25 },
+        },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.palette.primary).toBe("#71272b");
+    expect(vm.provenance).toContainEqual(
+      expect.objectContaining({ field: "brand.palette.primary", outcome: "hidden" }),
+    );
+  });
+
+  it("blocks a low-confidence ai_derived hero image and uses the theme placeholder", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      hero: {
+        ...merchantAndVine.hero,
+        image: {
+          value: {
+            id: "ai-hero",
+            url: "https://picsum.photos/seed/ai/1600/1000",
+            alt: "Generated hero",
+            source: "ai_derived",
+            confidence: 0.3,
+          },
+          source: "ai_derived",
+          confidence: 0.3,
+        },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.hero.image?.outcome).toBe("fallback");
+    expect(vm.hero.image?.url).toBe("/poc-placeholders/heritage-bistro-hero.svg");
+  });
+
+  it("renders a confidently derived image as derived", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      hero: {
+        ...merchantAndVine.hero,
+        image: {
+          value: {
+            id: "ai-hero-ok",
+            url: "https://picsum.photos/seed/ai-ok/1600/1000",
+            alt: "Derived hero",
+            source: "ai_derived",
+            confidence: 0.85,
+          },
+          source: "ai_derived",
+          confidence: 0.85,
+        },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.hero.image?.outcome).toBe("derived");
+  });
+
+  it("downgrades a verified menu from an untrusted source to sample", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      offering: {
+        ...merchantAndVine.offering!,
+        menu: {
+          ...merchantAndVine.offering!.menu!,
+          mode: "verified",
+          source: "google_places",
+          verified: false,
+        },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.menu?.mode).toBe("sample");
+    expect(vm.menu?.notice).toBeTruthy();
+    expect(vm.warnings.some((w) => w.includes("downgraded to sample"))).toBe(true);
+  });
+
+  it("blocks a low-confidence ai_derived address", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      location: {
+        ...merchantAndVine.location!,
+        formattedAddress: { value: "1 Made Up Street", source: "ai_derived", confidence: 0.2 },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.location?.formattedAddress).toBeNull();
+  });
+
+  it("renders a confidently derived name as derived", async () => {
+    const { normalizeRecord } = await import("@/lib/poc/normalize");
+    const record: BusinessPocRecord = {
+      ...merchantAndVine,
+      identity: {
+        ...merchantAndVine.identity,
+        name: { value: "Merchant & Vine Derived", source: "ai_derived", confidence: 0.8 },
+      },
+    };
+    const vm = normalizeRecord(record);
+    expect(vm.identity.name).toBe("Merchant & Vine Derived");
+    expect(vm.provenance).toContainEqual(
+      expect.objectContaining({ field: "identity.name", outcome: "derived" }),
+    );
+  });
 });
 
 describe("map embed and image hardening", () => {
@@ -216,35 +375,41 @@ describe("share links", () => {
     expect(JSON.stringify(stored)).not.toContain(created!.token.slice(0, 12));
   });
 
-  it("resolves valid tokens, counts views, and records last use", async () => {
+  it("peeks valid tokens without mutating, then atomically consumes", async () => {
     const created = await createShareLink({
       slug: "merchant-vine",
       createdBy: "op@example.com",
       record: merchantAndVine,
     });
-    const resolved = await resolveShareLink(created!.token);
-    expect(resolved?.slug).toBe("merchant-vine");
-    expect(await recordShareLinkUse(resolved!)).toBe(true);
-    const again = await resolveShareLink(created!.token);
-    expect(again?.record.viewCount).toBe(1);
-    expect(again?.record.lastUsedAt).not.toBeNull();
+    const peeked = await peekShareLink(created!.token);
+    expect(peeked?.slug).toBe("merchant-vine");
+    // Peek does not consume.
+    expect((await getShareLinkStore().findById(created!.id))?.viewCount).toBe(0);
+
+    const consumed = await consumeShareLink(created!.token);
+    expect(consumed?.slug).toBe("merchant-vine");
+    const stored = await getShareLinkStore().findById(created!.id);
+    expect(stored?.viewCount).toBe(1);
+    expect(stored?.lastUsedAt).not.toBeNull();
   });
 
   it("returns null for unknown tokens without throwing", async () => {
-    expect(await resolveShareLink("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")).toBeNull();
+    expect(await peekShareLink("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")).toBeNull();
+    expect(await consumeShareLink("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")).toBeNull();
   });
 
-  it("enforces expiry at request time", async () => {
+  it("enforces expiry at request time, including the exact boundary", async () => {
     const created = await createShareLink({
       slug: "merchant-vine",
       createdBy: "op@example.com",
       record: merchantAndVine,
       expiresInDays: 1,
     });
-    const now = new Date();
-    const future = new Date(now.getTime() + 2 * 86_400_000);
-    expect(await resolveShareLink(created!.token, now)).not.toBeNull();
-    expect(await resolveShareLink(created!.token, future)).toBeNull();
+    const createdAt = new Date((await getShareLinkStore().findById(created!.id))!.createdAt);
+    const boundary = new Date(createdAt.getTime() + 86_400_000); // exactly expiresAt
+    expect(await peekShareLink(created!.token, createdAt)).not.toBeNull();
+    expect(await peekShareLink(created!.token, boundary)).toBeNull();
+    expect(await consumeShareLink(created!.token, boundary)).toBeNull();
   });
 
   it("enforces revocation", async () => {
@@ -254,21 +419,21 @@ describe("share links", () => {
       record: merchantAndVine,
     });
     expect(await revokeShareLink(created!.id)).toBe(true);
-    expect(await resolveShareLink(created!.token)).toBeNull();
+    expect(await peekShareLink(created!.token)).toBeNull();
+    expect(await consumeShareLink(created!.token)).toBeNull();
     expect(await revokeShareLink(created!.id)).toBe(false);
   });
 
-  it("enforces the maximum view cap", async () => {
+  it("enforces the maximum view cap atomically", async () => {
     const created = await createShareLink({
       slug: "merchant-vine",
       createdBy: "op@example.com",
       record: merchantAndVine,
       maxViews: 1,
     });
-    const first = await resolveShareLink(created!.token);
+    const first = await consumeShareLink(created!.token);
     expect(first).not.toBeNull();
-    expect(await recordShareLinkUse(first!)).toBe(true);
-    expect(await resolveShareLink(created!.token)).toBeNull();
+    expect(await consumeShareLink(created!.token)).toBeNull();
   });
 
   it("refuses to share records that must not render", async () => {

@@ -9,6 +9,14 @@ const bodySchema = z.object({
   password: z.string().max(200).optional(),
 });
 
+const GENERIC_FAILURE = { error: "Sign in failed." } as const;
+
+/**
+ * Operator login. Every failure returns the same generic 401 with no
+ * configuration details; specifics (missing AUTH_SECRET, incomplete
+ * production auth) are logged server-side only. Password comparison is
+ * constant-time and attempts are rate-limited per IP.
+ */
 export async function POST(request: Request) {
   const config = getAuthConfig();
 
@@ -20,6 +28,13 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!config.productionAuthComplete) {
+    console.error(
+      "[auth] Production authentication is incomplete. Required: AUTH_SECRET (>= 32 chars), ADMIN_EMAILS, and Google OAuth or OPERATOR_PASSWORD.",
+    );
+    return NextResponse.json(GENERIC_FAILURE, { status: 401 });
+  }
+
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
@@ -28,7 +43,7 @@ export async function POST(request: Request) {
   const email = parsed.data.email.trim().toLowerCase();
 
   if (!isAllowedOperator(email, config)) {
-    return NextResponse.json({ error: "Sign in failed." }, { status: 401 });
+    return NextResponse.json(GENERIC_FAILURE, { status: 401 });
   }
 
   if (config.passwordConfigured) {
@@ -36,18 +51,16 @@ export async function POST(request: Request) {
     const provided = parsed.data.password ?? "";
     const { timingSafeEqualString } = await import("@/server/security/timing");
     if (!timingSafeEqualString(provided, expected)) {
-      return NextResponse.json({ error: "Sign in failed." }, { status: 401 });
+      return NextResponse.json(GENERIC_FAILURE, { status: 401 });
     }
   } else if (!config.devLoginAllowed) {
-    return NextResponse.json({ error: "Sign in failed." }, { status: 401 });
+    return NextResponse.json(GENERIC_FAILURE, { status: 401 });
   }
 
   const token = await createSessionToken({ email, name: email });
   if (!token) {
-    return NextResponse.json(
-      { error: "Server auth is not configured (AUTH_SECRET missing)." },
-      { status: 500 },
-    );
+    console.error("[auth] createSessionToken returned null: AUTH_SECRET missing or too short.");
+    return NextResponse.json(GENERIC_FAILURE, { status: 401 });
   }
 
   const response = NextResponse.json({ ok: true });

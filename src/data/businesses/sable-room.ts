@@ -153,6 +153,8 @@ export const sableRoom: BusinessPocRecord = {
     dietaryOptions: ["Vegetarian menu with notice"],
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       notice: "The menu changes with the market. This is a recent evening.",
       sections: [
         {

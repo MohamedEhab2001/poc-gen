@@ -150,6 +150,8 @@ export const foundryCoffeeLab: BusinessPocRecord = {
     },
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       sections: [
         {
           id: "fc-brew",

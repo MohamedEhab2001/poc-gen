@@ -4,7 +4,6 @@ import {
   SAMPLE_MENU_NOTICE,
   fallbackHeadline,
   fallbackSubheadline,
-  outcomeForSourced,
   themePlaceholderHero,
 } from "./fallbacks";
 import { renderPolicy } from "./policy";
@@ -25,6 +24,14 @@ import type {
 } from "./types";
 import { isAllowedImageUrl, isHexColor, isTrustedMapEmbed, safeExternalUrl, telHref, mailtoHref } from "./url";
 import type { PocImage, Sourced } from "./schema";
+
+/** Sources that speak for the business itself (mirrors policy.ts). */
+const BUSINESS_ORIGIN_SOURCES: ReadonlySet<string> = new Set([
+  "business_owner",
+  "official_website",
+  "official_social",
+  "manual",
+]);
 
 const trimToNull = (value: string | null | undefined): string | null => {
   if (value == null) return null;
@@ -53,7 +60,8 @@ function resolveImage(image: PocImage, outcome: Outcome): ResolvedImage {
   };
 }
 
-function luminance(hex: string): number {  const clean = hex.replace("#", "");
+function luminance(hex: string): number {
+  const clean = hex.replace("#", "");
   const full =
     clean.length === 3
       ? clean
@@ -78,19 +86,21 @@ function contrastRatio(a: string, b: string): number {
 
 /**
  * Resolves the palette: theme default, then record brand palette, then
- * explicit themeOverrides. A contrast guard reverts text/background pairings
- * that would fall below 3:1 so overrides cannot destroy readability.
+ * explicit themeOverrides. Every brand color passes the factual render
+ * policy; a contrast guard reverts text/background pairings that would fall
+ * below 3:1 so overrides cannot destroy readability.
  */
 function resolvePalette(
   record: BusinessPocRecord,
   themeId: ResolvedBusiness["themeId"],
   warnings: string[],
+  factual: <T>(field: string, sourced: Sourced<T> | undefined) => T | null,
 ): ThemePalette {
   const base = themeMeta[themeId].defaultPalette;
   const palette: ThemePalette = { ...base };
 
   const brand = record.brand?.palette;
-  const apply = (value: string | null | undefined, key: keyof ThemePalette, label: string) => {
+  const apply = (value: string | null, key: keyof ThemePalette, label: string) => {
     if (value == null) return;
     if (!isHexColor(value)) {
       warnings.push(`Brand palette value "${value}" for ${label} is not a valid hex color; ignored.`);
@@ -98,11 +108,11 @@ function resolvePalette(
     }
     palette[key] = value.trim();
   };
-  apply(brand?.primary?.value ?? null, "primary", "primary");
-  apply(brand?.secondary?.value ?? null, "secondary", "secondary");
-  apply(brand?.accent?.value ?? null, "accent", "accent");
-  apply(brand?.background?.value ?? null, "background", "background");
-  apply(brand?.foreground?.value ?? null, "text", "foreground");
+  apply(factual("brand.palette.primary", brand?.primary), "primary", "primary");
+  apply(factual("brand.palette.secondary", brand?.secondary), "secondary", "secondary");
+  apply(factual("brand.palette.accent", brand?.accent), "accent", "accent");
+  apply(factual("brand.palette.background", brand?.background), "background", "background");
+  apply(factual("brand.palette.foreground", brand?.foreground), "text", "foreground");
 
   const overrides = record.themeOverrides ?? null;
   apply(overrides?.primaryColor ?? null, "primary", "themeOverrides.primaryColor");
@@ -120,8 +130,7 @@ function resolvePalette(
   return palette;
 }
 
-type ServicesBlock = NonNullable<BusinessPocRecord["offering"]>["services"];
-const SERVICE_LABELS: Array<[keyof NonNullable<ServicesBlock>, string]> = [
+const SERVICE_LABELS: Array<[string, string]> = [
   ["delivery", "Delivery"],
   ["takeout", "Takeout"],
   ["dineIn", "Dine-in"],
@@ -141,16 +150,43 @@ const AMENITY_LABELS: Array<[string, string]> = [
 
 /**
  * Central normalization. Turns a validated raw record into the view model
- * every theme consumes, applying all placeholder and fallback rules.
+ * every theme consumes.
+ *
+ * Data-trust architecture: EVERY sourced value (narrative and factual,
+ * including images, menus, and palettes) passes through the central render
+ * policy via the resolveNarrativeValue / resolveFactualValue /
+ * resolveImageValue helpers below. Blocked values become null before any
+ * fallback runs, and blocked data is never reused to synthesize fallback
+ * copy (a blocked AI-derived city cannot appear inside the fallback
+ * headline because the fallback consumes only policy-resolved values).
  */
 export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
   const provenance: ProvenanceEntry[] = [];
   const warnings: string[] = [];
 
   /**
-   * Narrative-field gate: routes every story/marketing value through the
-   * central render policy. Blocked values are dropped before the fallback
-   * engine runs, so untrusted content never renders as business fact.
+   * Factual-field gate: operational data may render unverified from any
+   * provider, but ai_derived data must still clear the confidence threshold.
+   */
+  function factualValue<T>(field: string, sourced: Sourced<T> | undefined): T | null {
+    if (!sourced || sourced.value == null) return null;
+    const outcome: PolicyOutcome = renderPolicy("factual", sourced);
+    if (outcome === "blocked") {
+      provenance.push({
+        field,
+        source: sourced.source,
+        outcome: "hidden",
+        note: "Blocked by the render policy (untrusted derived data)",
+      });
+      return null;
+    }
+    provenance.push({ field, source: sourced.source, outcome });
+    return sourced.value;
+  }
+
+  /**
+   * Narrative-field gate: story and marketing copy renders only from
+   * business-origin sources (or verified/derived values above threshold).
    */
   function narrativeText<T extends string>(
     field: string,
@@ -171,12 +207,54 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
     return trimToNull(sourced.value);
   }
 
+  /**
+   * Image gate: trust policy AND host allowlist. Trust fields may live on the
+   * image itself or on the Sourced wrapper (logo/hero); the image's own
+   * values win when present. A blocked or non-allowlisted image resolves to
+   * null (callers fall back to theme placeholder artwork or drop the gallery
+   * slot); provenance records why.
+   */
+  function imageValue(
+    field: string,
+    image: PocImage | null | undefined,
+    wrapper?: Sourced<PocImage>,
+  ): ResolvedImage | null {
+    if (!image) return null;
+    const verified = image.verified ?? wrapper?.verified;
+    const confidence = image.confidence ?? wrapper?.confidence ?? null;
+    const outcome = renderPolicy("factual", {
+      source: image.source,
+      verified,
+      confidence,
+    });
+    if (outcome === "blocked") {
+      provenance.push({
+        field,
+        source: image.source,
+        outcome: "hidden",
+        note: "Blocked by the render policy (untrusted derived imagery)",
+      });
+      return null;
+    }
+    if (!isAllowedImageUrl(image.url)) {
+      provenance.push({
+        field,
+        source: image.source,
+        outcome: "hidden",
+        note: "Blocked: image host not allowlisted",
+      });
+      return null;
+    }
+    provenance.push({ field, source: image.source, outcome });
+    return resolveImage(image, outcome);
+  }
+
   const { themeId, overridden, warning } = resolveThemeId(record.themeId);
   if (warning) warnings.push(warning);
 
-  // Identity
-  const rawName = trimToNull(record.identity.name.value);
-  const name = rawName ?? titleFromSlug(record.slug);
+  // Identity (all factual policy)
+  const rawName = factualValue("identity.name", record.identity.name);
+  const name = trimToNull(rawName) ?? titleFromSlug(record.slug);
   if (!rawName) {
     provenance.push({
       field: "identity.name",
@@ -185,53 +263,64 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
       note: "Name missing; derived from slug",
     });
   }
-  const shortName = trimToNull(record.identity.shortName?.value) ?? name.split(" ")[0] ?? name;
-  const primaryCategory =
-    trimToNull(record.identity.primaryCategory.value) ?? "Local business";
-  const categories = (record.identity.categories.value ?? []).filter(
-    (c) => trimToNull(c) !== null,
-  );
-  const businessStatus = record.identity.businessStatus.value ?? "unknown";
-
-  // Wordmark (fallback rule 1: missing logo becomes a typographic wordmark)
-  const logoSourced = record.brand?.logo;
-  const logo =
-    logoSourced?.value && isAllowedImageUrl(logoSourced.value.url)
-      ? logoSourced.value
-      : null;
-  if (logoSourced?.value && !logo) {
-    warnings.push("brand.logo URL is not on the image host allowlist; ignored.");
+  const shortName =
+    trimToNull(factualValue("identity.shortName", record.identity.shortName)) ??
+    name.split(" ")[0] ??
+    name;
+  const rawCategory = factualValue("identity.primaryCategory", record.identity.primaryCategory);
+  const primaryCategory = trimToNull(rawCategory) ?? "Local business";
+  if (!rawCategory) {
     provenance.push({
-      field: "brand.logo",
-      source: logoSourced.source,
-      outcome: "hidden",
-      note: "Blocked: image host not allowlisted",
+      field: "identity.primaryCategory",
+      source: "fallback",
+      outcome: "fallback",
+      note: "Neutral fallback category",
     });
   }
-  const wordmarkText = trimToNull(record.brand?.wordmark?.value) ?? name;
+  const categories = (factualValue("identity.categories", record.identity.categories) ?? []).filter(
+    (c) => trimToNull(c) !== null,
+  );
+  const businessStatus =
+    factualValue("identity.businessStatus", record.identity.businessStatus) ?? "unknown";
+
+  // Location resolves first: the policy-resolved city feeds hero fallbacks,
+  // so blocked data can never leak into generated copy.
+  const locationRaw = record.location;
+  const city = trimToNull(factualValue("location.city", locationRaw?.city));
+  const formattedAddress = trimToNull(
+    factualValue("location.formattedAddress", locationRaw?.formattedAddress),
+  );
+  const shortAddress = trimToNull(
+    factualValue("location.shortAddress", locationRaw?.shortAddress),
+  );
+  const region = trimToNull(factualValue("location.region", locationRaw?.region));
+  const country = trimToNull(factualValue("location.country", locationRaw?.country));
+  const latitude = factualValue("location.latitude", locationRaw?.latitude);
+  const longitude = factualValue("location.longitude", locationRaw?.longitude);
+
+  // Wordmark (fallback rule 1: missing or blocked logo becomes a wordmark)
+  const logoImage = imageValue("brand.logo", record.brand?.logo?.value, record.brand?.logo);
+  if (record.brand?.logo?.value && !logoImage) {
+    warnings.push("brand.logo was blocked by policy or host validation; typographic wordmark used.");
+  }
+  const wordmarkText = narrativeText("brand.wordmark", record.brand?.wordmark) ?? name;
   let wordmark: ResolvedBusiness["wordmark"];
-  if (logo && logoSourced) {
-    const outcome = outcomeForSourced(logoSourced);
-    wordmark = {
-      text: wordmarkText,
-      image: resolveImage(logo, outcome),
-      outcome,
-    };
+  if (logoImage) {
+    wordmark = { text: wordmarkText, image: logoImage, outcome: logoImage.outcome };
   } else {
     wordmark = { text: wordmarkText, image: null, outcome: "fallback" };
     provenance.push({
       field: "brand.logo",
       source: "fallback",
       outcome: "fallback",
-      note: "No logo; typographic wordmark generated from business name",
+      note: "No renderable logo; typographic wordmark generated from business name",
     });
   }
 
-  // Palette (fallback rule 2)
-  const palette = resolvePalette(record, themeId, warnings);
+  // Palette (factual policy per color)
+  const palette = resolvePalette(record, themeId, warnings, factualValue);
 
-  // Hero copy (narrative policy gates everything)
-  const city = trimToNull(record.location?.city?.value);
+  // Hero copy (narrative policy; fallbacks use only resolved values)
   const heroEyebrowRaw = narrativeText("hero.eyebrow", record.hero.eyebrow);
   const heroHeadlineRaw = narrativeText("hero.headline", record.hero.headline);
   const heroSubRaw = narrativeText("hero.subheadline", record.hero.subheadline);
@@ -248,36 +337,19 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
     });
   }
 
-  // Hero image (fallback rule 3, plus the image-host allowlist)
-  const heroSourced = record.hero.image;
-  const heroFromMedia = record.media.images.find(
-    (img) => img.role === "hero" && isAllowedImageUrl(img.url),
-  );
+  // Hero image (fallback rule 3 plus policy and host gates)
+  const heroFromRecord = imageValue("hero.image", record.hero.image?.value, record.hero.image);
+  const heroFromMedia = record.media.images.find((img) => img.role === "hero");
+  const heroFromMediaResolved = heroFromMedia ? imageValue("hero.image", heroFromMedia) : null;
   let heroImage: ResolvedImage;
-  if (heroSourced?.value && isAllowedImageUrl(heroSourced.value.url)) {
-    heroImage = resolveImage(heroSourced.value, outcomeForSourced(heroSourced));
-  } else if (heroSourced?.value) {
-    warnings.push("hero.image URL is not on the image host allowlist; placeholder used.");
-    provenance.push({
-      field: "hero.image",
-      source: heroSourced.source,
-      outcome: "hidden",
-      note: "Blocked: image host not allowlisted",
-    });
-    heroImage = {
-      url: themePlaceholderHero[themeId],
-      alt: `Abstract ${themeMeta[themeId].name.toLowerCase()} pattern standing in for a photograph of ${name}`,
-      role: "hero",
-      source: "fallback",
-      outcome: "fallback",
-      width: 1600,
-      height: 900,
-      attribution: null,
-      focalPoint: { x: 0.5, y: 0.5 },
-    };
-  } else if (heroFromMedia) {
-    heroImage = resolveImage(heroFromMedia, outcomeForSourced({ source: heroFromMedia.source }));
+  if (heroFromRecord) {
+    heroImage = heroFromRecord;
+  } else if (heroFromMediaResolved) {
+    heroImage = heroFromMediaResolved;
   } else {
+    if (record.hero.image?.value || heroFromMedia) {
+      warnings.push("hero.image was blocked by policy or host validation; theme placeholder used.");
+    }
     heroImage = {
       url: themePlaceholderHero[themeId],
       alt: `Abstract ${themeMeta[themeId].name.toLowerCase()} pattern standing in for a photograph of ${name}`,
@@ -293,13 +365,13 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
       field: "hero.image",
       source: "fallback",
       outcome: "fallback",
-      note: "No hero image; theme placeholder artwork used",
+      note: "No renderable hero image; theme placeholder artwork used",
     });
   }
 
-  // Reputation (fallback rule 6: hidden when absent)
-  const rating = record.reputation?.rating?.value ?? null;
-  const reviewCount = record.reputation?.reviewCount?.value ?? null;
+  // Reputation (factual policy; summary is narrative)
+  const rating = factualValue("reputation.rating", record.reputation?.rating);
+  const reviewCount = factualValue("reputation.reviewCount", record.reputation?.reviewCount);
   let reputation: ResolvedBusiness["reputation"] = null;
   if (rating != null && reviewCount != null) {
     const seen = new Set<string>();
@@ -319,45 +391,44 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
         sourceUrl: safeExternalUrl(review.sourceUrl ?? null),
         attribution: review.attribution ?? null,
       }));
-    const summarySourced = record.reputation?.summary;
-    const summary = summarySourced
-      ? narrativeText("reputation.summary", summarySourced)
+    const summary = record.reputation?.summary
+      ? narrativeText("reputation.summary", record.reputation.summary)
       : null;
     reputation = {
       rating,
       reviewCount,
       summary,
       reviews,
-      reviewsUrl: safeExternalUrl(record.reputation?.reviewsUrl?.value ?? null),
+      reviewsUrl: safeExternalUrl(factualValue("reputation.reviewsUrl", record.reputation?.reviewsUrl) ?? null),
     };
-    provenance.push({
-      field: "reputation.rating",
-      source: record.reputation!.rating!.source,
-      outcome: outcomeForSourced(record.reputation!.rating!),
-    });
   }
 
-  // Services and amenities (fallback rule 11: compact strip under three)
+  // Services and amenities (factual policy; only explicitly trusted trues render)
   const servicesRaw = record.offering?.services;
   const services: ServiceFlag[] = [];
   for (const [key, label] of SERVICE_LABELS) {
-    if (servicesRaw?.[key]?.value === true) services.push({ key, label });
+    const typed = servicesRaw as Record<string, Sourced<boolean> | undefined> | undefined;
+    if (factualValue(`offering.services.${key}`, typed?.[key]) === true) {
+      services.push({ key, label });
+    }
   }
   const amenitiesRaw = record.amenities;
-  const amenities: ServiceFlag[] = [];
   const amenitiesTyped = amenitiesRaw as unknown as
     | Record<string, Sourced<boolean> | undefined>
     | undefined;
+  const amenities: ServiceFlag[] = [];
   for (const [key, label] of AMENITY_LABELS) {
-    if (amenitiesTyped?.[key]?.value === true) amenities.push({ key, label });
+    if (factualValue(`amenities.${key}`, amenitiesTyped?.[key]) === true) {
+      amenities.push({ key, label });
+    }
   }
-  for (const spot of amenitiesRaw?.parking?.value ?? []) {
+  for (const spot of factualValue("amenities.parking", amenitiesRaw?.parking) ?? []) {
     amenities.push({ key: "parking", label: spot });
   }
-  for (const method of amenitiesRaw?.paymentMethods?.value ?? []) {
+  for (const method of factualValue("amenities.paymentMethods", amenitiesRaw?.paymentMethods) ?? []) {
     amenities.push({ key: "payment", label: `Accepts ${method}` });
   }
-  for (const item of amenitiesRaw?.accessibility?.value ?? []) {
+  for (const item of factualValue("amenities.accessibility", amenitiesRaw?.accessibility) ?? []) {
     amenities.push({ key: "accessibility", label: item });
   }
   const compactServiceStrip =
@@ -379,7 +450,9 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
       ? { title: `About ${shortName}`, body: neighborhood }
       : null;
 
-  // Menu (fallback rule 5)
+  // Menu (fallback rule 5 plus source trust). Verified mode requires a
+  // business-origin source or explicit verification; anything else — and any
+  // ai_derived content — is demonstrative sample data with the notice.
   const menuRaw = record.offering?.menu;
   let menu: ResolvedMenu | null = null;
   if (menuRaw && menuRaw.mode !== "hidden") {
@@ -398,19 +471,38 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
         })),
       }))
       .filter((section) => section.items.length > 0);
+
+    const source = menuRaw.source ?? "manual";
+    const trustedOrigin =
+      menuRaw.verified === true || BUSINESS_ORIGIN_SOURCES.has(source);
+    const isAi = source === "ai_derived";
+    let mode: "verified" | "sample" = menuRaw.mode === "sample" ? "sample" : "verified";
+    if (mode === "verified" && (!trustedOrigin || isAi)) {
+      mode = "sample";
+      warnings.push(
+        "Menu was marked verified but its source is not trusted; downgraded to sample with the demonstration notice.",
+      );
+      provenance.push({
+        field: "offering.menu",
+        source,
+        outcome: "sample",
+        note: "Downgraded to sample: untrusted origin for verified menu",
+      });
+    }
+
     if (sections.length > 0) {
       menu = {
-        mode: menuRaw.mode === "sample" ? "sample" : "verified",
+        mode,
         notice:
-          menuRaw.mode === "sample"
+          mode === "sample"
             ? (trimToNull(menuRaw.notice ?? null) ?? SAMPLE_MENU_NOTICE)
             : (trimToNull(menuRaw.notice ?? null) ?? null),
         sections,
       };
-      if (menu.mode === "sample") {
+      if (mode === "sample") {
         provenance.push({
           field: "offering.menu",
-          source: "fallback",
+          source,
           outcome: "sample",
           note: "Menu content is demonstrative sample data",
         });
@@ -422,35 +514,34 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
     }
   }
 
-  // Gallery (fallback rule 4: reduce or hide, never repeat; allowlist-gated)
+  // Gallery (fallback rule 4: reduce or hide, never repeat; policy + host gates)
   const galleryImages = record.media.images
     .filter((img) => img.role === undefined || img.role === "gallery")
-    .filter((img) => isAllowedImageUrl(img.url))
-    .filter((img, index, all) => all.findIndex((other) => other.url === img.url) === index)
-    .map((img) => resolveImage(img, outcomeForSourced({ source: img.source })));
-  const blockedImageCount =
-    record.media.images.filter(
-      (img) =>
-        (img.role === undefined || img.role === "gallery") && !isAllowedImageUrl(img.url),
-    ).length +
-    (record.media.images.some((img) => img.role === "hero" && !isAllowedImageUrl(img.url)) ? 1 : 0);
-  if (blockedImageCount > 0) {
+    .map((img) => imageValue("media.images", img))
+    .filter((img): img is ResolvedImage => img !== null)
+    .filter((img, index, all) => all.findIndex((other) => other.url === img.url) === index);
+  const blockedGallery = record.media.images.filter(
+    (img) =>
+      (img.role === undefined || img.role === "gallery") &&
+      imagePreviewBlocked(img),
+  ).length;
+  if (blockedGallery > 0) {
     warnings.push(
-      `${blockedImageCount} image URL(s) are not on the image host allowlist; dropped.`,
+      `${blockedGallery} gallery image(s) were blocked by policy or host validation; dropped.`,
     );
   }
   const gallery =
     galleryImages.length > 0
-      ? { title: trimToNull(record.media.galleryTitle?.value), images: galleryImages }
+      ? { title: narrativeText("media.galleryTitle", record.media.galleryTitle), images: galleryImages }
       : null;
 
-  // Hours (fallback rule 9)
+  // Hours (fallback rule 9; factual policy on sourced fields)
   const hoursRaw = record.hours;
   let hours: ResolvedHours | null = null;
   if (hoursRaw) {
-    let descriptions = (hoursRaw.weekdayDescriptions?.value ?? []).filter(
-      (line) => trimToNull(line) !== null,
-    );
+    let descriptions = (
+      factualValue("hours.weekdayDescriptions", hoursRaw.weekdayDescriptions) ?? []
+    ).filter((line) => trimToNull(line) !== null);
     if (descriptions.length === 0 && hoursRaw.periods && hoursRaw.periods.length > 0) {
       descriptions = hoursRaw.periods.map((period) =>
         period.isClosed
@@ -458,18 +549,14 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
           : `${period.day}: ${period.open} to ${period.close}`,
       );
     }
-    hours = {
-      descriptions,
-      openNow: hoursRaw.openNow?.value ?? null,
-      statusLabel: trimToNull(hoursRaw.statusLabel?.value),
-      missing: descriptions.length === 0,
-    };
+    const openNow = factualValue("hours.openNow", hoursRaw.openNow);
+    const statusLabel = trimToNull(factualValue("hours.statusLabel", hoursRaw.statusLabel));
+    hours = { descriptions, openNow, statusLabel, missing: descriptions.length === 0 };
     if (hours.openNow == null && hours.missing && !hours.statusLabel) hours = null;
   }
 
-  // Location (fallback rule 8; embeds must be trusted map origins)
-  const locationRaw = record.location;
-  const embedUrlSafe = safeExternalUrl(locationRaw?.embedUrl?.value ?? null);
+  // Location assembly (embeds must be trusted map origins)
+  const embedUrlSafe = safeExternalUrl(factualValue("location.embedUrl", locationRaw?.embedUrl) ?? null);
   const embedUrl =
     embedUrlSafe && isTrustedMapEmbed(embedUrlSafe) ? embedUrlSafe : null;
   if (locationRaw?.embedUrl?.value && !embedUrl) {
@@ -477,25 +564,21 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
       "location.embedUrl failed the trusted map-embed origin check; location card rendered instead.",
     );
   }
-  const mapsUrl = safeExternalUrl(locationRaw?.mapsUrl?.value ?? null);
-  const directionsUrlRaw = safeExternalUrl(locationRaw?.directionsUrl?.value ?? null);
-  const formattedAddress = trimToNull(locationRaw?.formattedAddress?.value);
-  const shortAddress = trimToNull(locationRaw?.shortAddress?.value);
-  const latitude = locationRaw?.latitude?.value ?? null;
-  const longitude = locationRaw?.longitude?.value ?? null;
+  const mapsUrl = safeExternalUrl(factualValue("location.mapsUrl", locationRaw?.mapsUrl) ?? null);
+  const directionsUrlRaw = safeExternalUrl(
+    factualValue("location.directionsUrl", locationRaw?.directionsUrl) ?? null,
+  );
   // Zero coordinates are valid: explicit null checks, never truthiness.
   const hasPlace = Boolean(
-    formattedAddress ||
-      shortAddress ||
-      (latitude !== null && longitude !== null),
+    formattedAddress || shortAddress || (latitude !== null && longitude !== null),
   );
   const location: ResolvedBusiness["location"] = hasPlace
     ? {
         formattedAddress,
         shortAddress,
         city,
-        region: trimToNull(locationRaw?.region?.value),
-        country: trimToNull(locationRaw?.country?.value),
+        region,
+        country,
         latitude,
         longitude,
         mapsUrl,
@@ -504,24 +587,31 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
         hasPlace: true,
       }
     : null;
-  if (locationRaw?.mapsUrl?.value && !mapsUrl) {
-    warnings.push("location.mapsUrl failed URL validation; dropped.");
-  }
 
-  // Contact (fallback rule 7: missing phone removes Call CTAs)
-  const phoneRaw = trimToNull(record.contact?.phone?.value);
+  // Contact (factual policy then format validation)
+  const phoneRaw = trimToNull(factualValue("contact.phone", record.contact?.phone));
   const phone = phoneRaw && telHref(phoneRaw) ? phoneRaw : null;
   if (phoneRaw && !phone) warnings.push("contact.phone is not dialable; ignored.");
-  const emailRaw = trimToNull(record.contact?.email?.value);
+  const emailRaw = trimToNull(factualValue("contact.email", record.contact?.email));
   const email = emailRaw && mailtoHref(emailRaw) ? emailRaw : null;
   if (emailRaw && !email) warnings.push("contact.email failed validation; ignored.");
-  const website = safeExternalUrl(record.contact?.website?.value ?? null);
+  const website = safeExternalUrl(factualValue("contact.website", record.contact?.website) ?? null);
   const socials = (record.contact?.socialLinks ?? []).filter((social) =>
     safeExternalUrl(social.url),
   );
 
-  // CTA priority engine (fallback rules 7, 8, 10)
-  const cta = resolveCtas(record);
+  // CTA priority engine (fallback rules 7, 8, 10). The context carries
+  // policy-resolved facts so blocked phones/emails/locations can never
+  // derive or preserve an action.
+  const cta = resolveCtas(record, {
+    phone,
+    email,
+    directionsUrl: directionsUrlRaw,
+    mapsPlace:
+      latitude !== null || longitude !== null || formattedAddress !== null
+        ? { latitude, longitude, formattedAddress }
+        : null,
+  });
   for (const drop of cta.dropped) {
     warnings.push(`CTA "${drop.label}" dropped: ${drop.reason}.`);
     provenance.push({
@@ -540,8 +630,6 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
     });
   }
 
-  const tagline = narrativeText("brand.tagline", record.brand?.tagline);
-
   return {
     id: record.id,
     slug: record.slug,
@@ -555,7 +643,7 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
       (themeMeta[themeId].motion === "energetic" ? "expressive" : "subtle"),
     identity: { name, shortName, primaryCategory, categories, businessStatus },
     wordmark,
-    tagline,
+    tagline: narrativeText("brand.tagline", record.brand?.tagline),
     hero: {
       eyebrow: heroEyebrowRaw,
       headline,
@@ -575,8 +663,8 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
     contact: { phone, email, website, socials },
     announcement: narrativeText("content.announcement", record.content?.announcement),
     offering: {
-      priceLevel: trimToNull(record.offering?.priceLevel?.value),
-      priceRange: trimToNull(record.offering?.priceRange?.value),
+      priceLevel: trimToNull(factualValue("offering.priceLevel", record.offering?.priceLevel)),
+      priceRange: trimToNull(factualValue("offering.priceRange", record.offering?.priceRange)),
       mealTypes: record.offering?.mealTypes ?? [],
       dietaryOptions: record.offering?.dietaryOptions ?? [],
     },
@@ -588,6 +676,14 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
     provenance,
     warnings,
   };
+}
+
+/** Preview check for gallery warnings without resolving the image twice. */
+function imagePreviewBlocked(image: PocImage, wrapper?: Sourced<PocImage>): boolean {
+  const verified = image.verified ?? wrapper?.verified;
+  const confidence = image.confidence ?? wrapper?.confidence ?? null;
+  const outcome = renderPolicy("factual", { source: image.source, verified, confidence });
+  return outcome === "blocked" || !isAllowedImageUrl(image.url);
 }
 
 export { HOURS_NOT_PROVIDED };

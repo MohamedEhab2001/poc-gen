@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ClosureBanner } from "@/components/poc/ClosureBanner";
 import { ExpiredState, PermanentlyClosedState } from "@/components/poc/states/RecordStates";
 import { getRecordDisposition } from "@/lib/poc/disposition";
+import { requireOperator } from "@/server/auth/authorize";
 import { buildPocMetadata } from "@/lib/poc/metadata";
 import { normalizeRecord } from "@/lib/poc/normalize";
 import { renderTheme } from "@/lib/poc/render";
@@ -16,13 +17,16 @@ const GENERIC_NOINDEX_METADATA: Metadata = {
 };
 
 /**
- * Customer-facing POC route. Unindexed by default, record-driven metadata,
- * and safe states for draft, archived, expired, and permanently closed
- * records. A permanently closed business never renders a sales POC.
+ * Operator-only fixture demo route. The customer-facing surface is /p/[token];
+ * this route exists for internal inspection of records by slug and shares the
+ * same operator authentication as /themes and /preview (middleware plus a
+ * server-boundary re-check, never middleware alone). Authorization happens
+ * before any record lookup, so unauthenticated requests never learn whether
+ * a slug exists.
  *
- * Metadata applies the exact same disposition rules as rendering: anything
- * that must not render returns a generic title with no business name,
- * address, or hint that a record exists.
+ * Unindexed by default, record-driven metadata, and safe states for draft,
+ * archived, expired, and permanently closed records. A permanently closed
+ * business never renders a sales POC.
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -34,6 +38,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function DemoPage({ params }: PageProps) {
   const { slug } = await params;
+  await requireOperator(`/demo/${slug}`);
   const raw = await getPocRepository().getBySlug(slug);
   if (!raw) notFound();
 

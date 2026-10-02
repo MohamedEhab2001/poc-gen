@@ -76,10 +76,16 @@ export const pocImageSchema = z.object({
   alt: z.string(),
   role: z.enum(["logo", "hero", "gallery", "about", "menu", "location"]).optional(),
   source: dataOriginSchema,
+  /** Trust fields for direct media: policy applies exactly as to text. */
+  confidence: z.number().min(0).max(1).nullable().optional(),
+  verified: z.boolean().optional(),
+  retrievedAt: z.string().datetime().nullable().optional(),
+  attribution: attributionSchema.nullable().optional(),
+  /** License identifier when the asset carries one (for example "CC-BY-2.0"). */
+  license: z.string().max(120).nullable().optional(),
   width: z.number().int().positive().nullable().optional(),
   height: z.number().int().positive().nullable().optional(),
   blurDataUrl: z.string().nullable().optional(),
-  attribution: attributionSchema.nullable().optional(),
   focalPoint: focalPointSchema.nullable().optional(),
 });
 
@@ -244,6 +250,7 @@ export const recordSchema = z
               text: z.string().min(1).max(600),
               publishedAt: z.string().nullable().optional(),
               sourceUrl: z.string().url().nullable().optional(),
+              source: dataOriginSchema.optional(),
               attribution: attributionSchema.nullable().optional(),
             }),
           )
@@ -277,6 +284,9 @@ export const recordSchema = z
         menu: z
           .object({
             mode: z.enum(["verified", "sample", "hidden"]),
+            /** Where the menu came from; verified mode requires a trusted origin. */
+            source: dataOriginSchema.optional(),
+            verified: z.boolean().optional(),
             notice: z.string().max(280).nullable().optional(),
             sections: z.array(menuSectionSchema).max(12),
           })

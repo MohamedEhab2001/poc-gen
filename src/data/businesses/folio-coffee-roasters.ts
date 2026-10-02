@@ -154,6 +154,8 @@ export const folioCoffeeRoasters: BusinessPocRecord = {
     },
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       sections: [
         {
           id: "fo-espresso",

@@ -20,24 +20,41 @@ hardening plan, the residual risks accepted, and the upgrade path for each.
   2. **Operator password** (`OPERATOR_PASSWORD`) — constant-time comparison,
      per-IP fixed-window rate limiting (8 attempts/minute).
   3. **Dev login** — passwordless, allowed only when no stronger method is
-     configured AND the process is not in production (or `ALLOW_DEV_LOGIN=true`
-     is set explicitly). Production with no method configured fails closed.
+     configured AND `NODE_ENV !== "production"`. There is no environment
+     override: passwordless production login is impossible by construction,
+     and production additionally requires `AUTH_SECRET` (≥ 32 chars),
+     `ADMIN_EMAILS`, and one real login method; anything less fails closed
+     with a generic error (specifics are logged server-side only).
+- Route protection covers `/themes`, `/themes/[themeId]`, `/preview/**`,
+  `/demo/**`, and the reserved `/admin/**`. `/p/[token]` is the only
+  unauthenticated route that can render a customer POC.
 - `noindex` is treated as a crawler directive, never as access control.
 
 ## Share links
 
-- Customer POCs are served from `/p/[token]` (the `/demo/[slug]` fixture
-  route remains for local development).
+- Customer POCs are served from `/p/[token]`; `/demo/[slug]` is an
+  operator-only fixture route behind the same authentication as `/themes`.
 - Tokens: 256 bits of CSPRNG (`crypto.randomBytes(32)`), base64url.
 - Storage: SHA-256 hash only; the plaintext token is returned exactly once,
-  by the creation API, to the authenticated operator.
-- Enforced at request time (never by a background job): revocation, expiry
-  (inclusive boundary), optional view caps, and the record disposition
-  (drafts, archived, expired, and permanently closed records fail closed).
-- All failures return the same generic 404. No page, API, or metadata
+  by the creation API, to the authenticated operator. Tokens are never
+  persisted or logged.
+- Resolution is peek-then-consume: the token hash is inspected without
+  mutation, the record is loaded and must be renderable, and rendering is
+  authorized only by an **atomic consumption** — a single conditional
+  UPDATE that re-checks revocation, expiry (inclusive boundary), and the
+  view cap while incrementing the count. Concurrent requests can never both
+  spend the last allowed view.
+- Persistence: PostgreSQL (Drizzle, committed SQL migration
+  `src/server/db/migrations/0000_share_links.sql`) in production and
+  whenever `DATABASE_URL` is set. Local development without a database uses
+  a hardened single-process JSON adapter (mutex-serialized
+  read-modify-write, ENOENT-only empty state, unique temp-file replacement,
+  corruption surfaces as an error and is never silently overwritten) — it is
+  never selected in production. Production without `DATABASE_URL` fails
+  closed: share-link APIs return a controlled 503 and `/p/[token]` returns
+  the generic 404, with no storage details exposed.
+- All link failures return the same generic 404. No page, API, or metadata
   response reveals whether a record exists.
-- Phase 1 persistence is a single-writer JSON file (`.data/share-links.json`,
-  gitignored). Phase 2 moves it behind the same interface into PostgreSQL.
 
 ## Data trust policy
 
@@ -57,9 +74,12 @@ hardening plan, the residual risks accepted, and the upgrade path for each.
   external actions; `javascript:` and data URLs are rejected.
 - Map iframes accept only `www.google.com` / `maps.google.com` under
   `/maps/embed*`, re-validated inside the map component (defense in depth).
-- Image URLs must be local paths or HTTPS hosts on the allowlist
-  (`POC_IMAGE_HOST_ALLOWLIST` extends it for a future storage domain).
-  Non-allowlisted hero images fall back to theme placeholder artwork.
+- Image URLs must be local paths or HTTPS hosts on the shared allowlist
+  (`src/lib/poc/image-hosts.ts`): the same validated source feeds
+  `isAllowedImageUrl()`, the CSP `img-src` directive, and accepts the R2
+  public hostname, so an approved CDN can never pass validation and still be
+  blocked by the browser. Non-allowlisted hero images fall back to theme
+  placeholder artwork.
 - Coordinates: zero is a valid value; presence checks use explicit null
   comparisons.
 - `expiresAt` is enforced synchronously at request time with an injectable

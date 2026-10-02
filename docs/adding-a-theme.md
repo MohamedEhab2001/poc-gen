@@ -1,4 +1,4 @@
-# Adding an eleventh theme
+# Adding a new theme
 
 A theme is a self-contained composition: fonts, tokens, and one React server component. Shared primitives (map, media, attribution, hours, mobile action bar, concept notice) already exist — reach for them before building new chrome.
 

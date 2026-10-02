@@ -44,6 +44,16 @@ export function LoginForm({
   }
 
   if (noMethod) {
+    if (config.isProduction) {
+      // No configuration details for unauthenticated visitors; the server
+      // log carries the actionable message.
+      return (
+        <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6 text-[13px] leading-relaxed text-zinc-400">
+          <p className="font-semibold text-zinc-200">Sign in is unavailable.</p>
+          <p className="mt-2">Contact the operator who manages this deployment.</p>
+        </div>
+      );
+    }
     return (
       <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6 text-[13px] leading-relaxed text-zinc-400">
         <p className="mb-3 font-semibold text-zinc-200">Authentication is not configured.</p>
@@ -107,8 +117,9 @@ export function LoginForm({
           ) : null}
           {config.devLoginAllowed && !config.passwordConfigured ? (
             <p className="text-[11.5px] leading-relaxed text-zinc-600">
-              Development mode: any allowlisted email signs in without a
-              password. Configure OAuth or OPERATOR_PASSWORD for production.
+              Development mode: the allowlisted operator email signs in without
+              a password. This is impossible in production, which requires
+              OAuth or an operator password.
             </p>
           ) : null}
           {error ? (

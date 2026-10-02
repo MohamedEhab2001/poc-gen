@@ -88,6 +88,8 @@ export const docksideProvisionsClosed: BusinessPocRecord = {
     },
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       sections: [
         {
           id: "dp-brunch",

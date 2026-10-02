@@ -140,6 +140,8 @@ export const hakoTeaRoom: BusinessPocRecord = {
     dietaryOptions: ["Vegetarian options", "Vegan options", "Gluten-free options"],
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       sections: [
         {
           id: "hk-tea",

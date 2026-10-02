@@ -1,9 +1,17 @@
 import "server-only";
 
 /**
- * Server-only auth configuration. Resolves the active login methods from the
- * environment. Exactly one of these needs to be configured in production;
- * when none are, authentication fails closed and internal routes stay locked.
+ * Server-only auth configuration. Resolves the active login methods from an
+ * environment snapshot.
+ *
+ * Production rules (non-negotiable, not overridable by any env var):
+ *   - Passwordless development login is impossible in production. The
+ *     ALLOW_DEV_LOGIN escape hatch was removed; dev login exists only when
+ *     NODE_ENV !== "production" and no stronger method is configured.
+ *   - Production requires AUTH_SECRET (>= 32 chars), ADMIN_EMAILS, and
+ *     Google OAuth or OPERATOR_PASSWORD. Anything less fails closed.
+ *   - Unauthenticated users never receive configuration details; specifics
+ *     are logged server-side only.
  */
 
 export const SESSION_COOKIE = "poc_session";
@@ -12,48 +20,43 @@ export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const DEV_OPERATOR_EMAIL = "operator@poc-gen.local";
 
 export interface AuthConfig {
-  /** Google OAuth is configured (AUTH_GOOGLE_ID + AUTH_GOOGLE_SECRET). */
   googleConfigured: boolean;
-  /** An operator password is configured (OPERATOR_PASSWORD). */
   passwordConfigured: boolean;
-  /**
-   * Email-only dev login is allowed: local development or explicit opt-in
-   * via ALLOW_DEV_LOGIN=true, and only when no production-grade method is
-   * configured.
-   */
+  /** Passwordless dev login: never true in production. */
   devLoginAllowed: boolean;
-  /** Allowed operator emails (ADMIN_EMAILS). Empty means dev default only. */
   adminEmails: string[];
-  /** AUTH_SECRET is usable for signing sessions. */
   secretConfigured: boolean;
+  isProduction: boolean;
+  /** True when production has everything it needs; meaningless in dev. */
+  productionAuthComplete: boolean;
 }
 
-export function getAuthConfig(): AuthConfig {
-  const googleConfigured = Boolean(
-    process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET,
-  );
-  const passwordConfigured = Boolean(process.env.OPERATOR_PASSWORD);
-  const isProduction = process.env.NODE_ENV === "production";
-  const devLoginAllowed =
-    !googleConfigured &&
-    !passwordConfigured &&
-    (!isProduction || process.env.ALLOW_DEV_LOGIN === "true");
+export function resolveAuthConfig(
+  env: Record<string, string | undefined>,
+  nodeEnv: string | undefined,
+): AuthConfig {
+  const isProduction = nodeEnv === "production";
+  const googleConfigured = Boolean(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET);
+  const passwordConfigured = Boolean(env.OPERATOR_PASSWORD);
+  const devLoginAllowed = !isProduction && !googleConfigured && !passwordConfigured;
 
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+  const adminEmails = (env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
 
-  const secret = process.env.AUTH_SECRET;
+  const secret = env.AUTH_SECRET;
   const secretConfigured = Boolean(secret && secret.length >= 32);
 
-  return {
-    googleConfigured,
-    passwordConfigured,
-    devLoginAllowed,
-    adminEmails,
-    secretConfigured,
-  };
+  const productionAuthComplete =
+    !isProduction ||
+    (secretConfigured && adminEmails.length > 0 && (googleConfigured || passwordConfigured));
+
+  return { googleConfigured, passwordConfigured, devLoginAllowed, adminEmails, secretConfigured, isProduction, productionAuthComplete };
+}
+
+export function getAuthConfig(): AuthConfig {
+  return resolveAuthConfig(process.env, process.env.NODE_ENV);
 }
 
 /**

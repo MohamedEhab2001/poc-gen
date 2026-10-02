@@ -154,6 +154,8 @@ export const theGildedFan: BusinessPocRecord = {
     mealTypes: ["Dinner", "Late-night drinks"],
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       sections: [
         {
           id: "gf-cold",

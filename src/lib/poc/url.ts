@@ -4,6 +4,8 @@
  * rejected before they can reach an href.
  */
 
+import { resolveImageHosts } from "./image-hosts";
+
 const SAFE_PROTOCOLS = new Set(["https:"]);
 
 /** True when the URL parses, is absolute, and uses https. */
@@ -81,24 +83,14 @@ export function isTrustedMapEmbed(raw: string): boolean {
 
 /**
  * Image URL policy: local paths (no protocol-relative tricks) or HTTPS hosts
- * on the allowlist. The allowlist extends via POC_IMAGE_HOST_ALLOWLIST for a
- * future object-storage domain.
+ * on the shared allowlist (src/lib/poc/image-hosts.ts), which also drives the
+ * CSP img-src directive so the two can never drift apart.
  */
-const BASE_IMAGE_HOSTS = ["picsum.photos", "fastly.picsum.photos", "i.picsum.photos"];
-
-export function imageHostAllowlist(): string[] {
-  const extra = (process.env.POC_IMAGE_HOST_ALLOWLIST ?? "")
-    .split(",")
-    .map((host) => host.trim().toLowerCase())
-    .filter(Boolean);
-  return [...new Set([...BASE_IMAGE_HOSTS, ...extra])];
-}
-
-export function isAllowedImageUrl(raw: string): boolean {
+export function isAllowedImageUrl(raw: string, hosts: readonly string[] = resolveImageHosts()): boolean {
   if (raw.startsWith("/") && !raw.startsWith("//")) return true;
   try {
     const url = new URL(raw);
-    return url.protocol === "https:" && imageHostAllowlist().includes(url.hostname.toLowerCase());
+    return url.protocol === "https:" && hosts.includes(url.hostname.toLowerCase());
   } catch {
     return false;
   }

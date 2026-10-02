@@ -15,16 +15,19 @@ export interface CreatedShareLink {
   maxViews: number | null;
 }
 
-export interface ResolvedShareLink {
-  record: ShareLinkRecord;
-  slug: string;
-}
-
 /**
- * Share-link service. Validation happens at request time: revocation,
- * expiry, and view caps are enforced synchronously, never by a background
- * job. Records that should not render (draft, expired, archived, closed)
- * fail resolution generically.
+ * Share-link service.
+ *
+ * Resolution flow (public /p/[token]):
+ *   1. peekShareLink: hash the token and inspect validity conditions without
+ *      mutating anything and without exposing existence (null for every
+ *      failure).
+ *   2. The route loads the POC record and confirms it is renderable.
+ *   3. consumeShareLink: the store ATOMICALLY re-checks revocation, expiry,
+ *      and the view cap while incrementing the view count. Rendering is
+ *      authorized only by a successful consumption.
+ *
+ * All time-based rules are evaluated against an injectable clock.
  */
 
 export async function createShareLink(input: {
@@ -65,32 +68,28 @@ export async function createShareLink(input: {
   };
 }
 
-export async function resolveShareLink(
+/** Step 1: non-mutating validity inspection by token. */
+export async function peekShareLink(
   token: string,
   now: Date = new Date(),
-): Promise<ResolvedShareLink | null> {
+): Promise<{ slug: string } | null> {
   const tokenHash = hashShareToken(token);
-  const record = await getShareLinkStore().findByTokenHash(tokenHash);
+  const record = await getShareLinkStore().peekByTokenHash(tokenHash, now);
   if (!record) return null;
   if (!tokenHashMatches(record.tokenHash, tokenHash)) return null;
-  if (record.revokedAt) return null;
-  if (record.expiresAt && new Date(record.expiresAt).getTime() <= now.getTime()) return null;
-  if (record.maxViews !== null && record.viewCount >= record.maxViews) return null;
-
-  return { record, slug: record.slug };
+  return { slug: record.slug };
 }
 
-/** Marks a use (view) on a resolved link; caps are re-checked. */
-export async function recordShareLinkUse(
-  link: ResolvedShareLink,
+/** Step 3: atomic consumption; the only authorization to render. */
+export async function consumeShareLink(
+  token: string,
   now: Date = new Date(),
-): Promise<boolean> {
-  const { record } = link;
-  if (record.maxViews !== null && record.viewCount + 1 > record.maxViews) return false;
-  record.viewCount += 1;
-  record.lastUsedAt = now.toISOString();
-  await getShareLinkStore().update(record);
-  return true;
+): Promise<{ slug: string } | null> {
+  const tokenHash = hashShareToken(token);
+  const record = await getShareLinkStore().consumeByTokenHash(tokenHash, now);
+  if (!record) return null;
+  if (!tokenHashMatches(record.tokenHash, tokenHash)) return null;
+  return { slug: record.slug };
 }
 
 export async function revokeShareLink(id: string, now: Date = new Date()): Promise<boolean> {

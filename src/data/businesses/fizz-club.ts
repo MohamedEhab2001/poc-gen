@@ -156,6 +156,8 @@ export const fizzClub: BusinessPocRecord = {
     dietaryOptions: ["Vegan options", "Dairy-free options"],
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       sections: [
         {
           id: "fz-fizzes",

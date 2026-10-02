@@ -158,6 +158,8 @@ export const maisonLumen: BusinessPocRecord = {
     dietaryOptions: ["Vegetarian options", "Vegan options"],
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       sections: [
         {
           id: "ml-matin",

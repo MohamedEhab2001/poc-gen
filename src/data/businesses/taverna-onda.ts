@@ -162,6 +162,8 @@ export const tavernaOnda: BusinessPocRecord = {
     dietaryOptions: ["Vegetarian options", "Gluten-free options"],
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       sections: [
         {
           id: "od-mezze",

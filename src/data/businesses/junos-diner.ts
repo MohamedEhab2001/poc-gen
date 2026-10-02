@@ -148,6 +148,8 @@ export const junosDiner: BusinessPocRecord = {
     mealTypes: ["Breakfast", "Lunch"],
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       sections: [
         {
           id: "jd-breakfast",

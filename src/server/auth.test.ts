@@ -1,0 +1,86 @@
+import { describe, expect, it } from "vitest";
+import { isAllowedOperator, resolveAuthConfig } from "./auth/config";
+
+const SECRET = "x".repeat(48);
+
+describe("auth configuration (pure resolver)", () => {
+  it("allows passwordless dev login only outside production", () => {
+    const dev = resolveAuthConfig({}, "development");
+    expect(dev.devLoginAllowed).toBe(true);
+
+    const prod = resolveAuthConfig({}, "production");
+    expect(prod.devLoginAllowed).toBe(false);
+  });
+
+  it("rejects passwordless production login even with ALLOW_DEV_LOGIN=true", () => {
+    const config = resolveAuthConfig(
+      { ALLOW_DEV_LOGIN: "true", ADMIN_EMAILS: "operator@example.com" },
+      "production",
+    );
+    expect(config.devLoginAllowed).toBe(false);
+    expect(config.productionAuthComplete).toBe(false);
+  });
+
+  it("requires AUTH_SECRET, ADMIN_EMAILS, and a login method in production", () => {
+    expect(
+      resolveAuthConfig(
+        { AUTH_SECRET: SECRET, ADMIN_EMAILS: "op@example.com", OPERATOR_PASSWORD: "p" },
+        "production",
+      ).productionAuthComplete,
+    ).toBe(true);
+    expect(
+      resolveAuthConfig(
+        { AUTH_SECRET: SECRET, ADMIN_EMAILS: "op@example.com", AUTH_GOOGLE_ID: "a", AUTH_GOOGLE_SECRET: "b" },
+        "production",
+      ).productionAuthComplete,
+    ).toBe(true);
+
+    // Missing secret.
+    expect(
+      resolveAuthConfig({ ADMIN_EMAILS: "op@example.com", OPERATOR_PASSWORD: "p" }, "production")
+        .productionAuthComplete,
+    ).toBe(false);
+    // Short secret.
+    expect(
+      resolveAuthConfig(
+        { AUTH_SECRET: "short", ADMIN_EMAILS: "op@example.com", OPERATOR_PASSWORD: "p" },
+        "production",
+      ).productionAuthComplete,
+    ).toBe(false);
+    // Missing allowlist.
+    expect(
+      resolveAuthConfig({ AUTH_SECRET: SECRET, OPERATOR_PASSWORD: "p" }, "production")
+        .productionAuthComplete,
+    ).toBe(false);
+    // No login method.
+    expect(
+      resolveAuthConfig({ AUTH_SECRET: SECRET, ADMIN_EMAILS: "op@example.com" }, "production")
+        .productionAuthComplete,
+    ).toBe(false);
+  });
+
+  it("keeps OAuth and password methods configured as expected", () => {
+    const config = resolveAuthConfig(
+      { AUTH_GOOGLE_ID: "a", AUTH_GOOGLE_SECRET: "b", OPERATOR_PASSWORD: "p" },
+      "development",
+    );
+    expect(config.googleConfigured).toBe(true);
+    expect(config.passwordConfigured).toBe(true);
+    // A configured stronger method disables passwordless dev login.
+    expect(config.devLoginAllowed).toBe(false);
+  });
+
+  it("allows only allowlisted operators, and the dev default only in dev", () => {
+    const withList = resolveAuthConfig({ ADMIN_EMAILS: "op@example.com" }, "production");
+    expect(isAllowedOperator("op@example.com", withList)).toBe(true);
+    expect(isAllowedOperator("attacker@evil.example", withList)).toBe(false);
+    expect(isAllowedOperator("OP@EXAMPLE.COM", withList)).toBe(true);
+
+    const noListProd = resolveAuthConfig({}, "production");
+    expect(isAllowedOperator("operator@poc-gen.local", noListProd)).toBe(false);
+
+    const noListDev = resolveAuthConfig({}, "development");
+    expect(isAllowedOperator("operator@poc-gen.local", noListDev)).toBe(true);
+    expect(isAllowedOperator("someone-else@example.com", noListDev)).toBe(false);
+  });
+});

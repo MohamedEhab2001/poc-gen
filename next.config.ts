@@ -1,16 +1,23 @@
 import type { NextConfig } from "next";
+import { resolveImageHosts } from "./src/lib/poc/image-hosts";
 
 /**
  * Restrictive CSP covering only the origins this app actually uses: self,
- * the placeholder image host, and the trusted Google Maps embed endpoints.
+ * the shared image-host allowlist (the same source isAllowedImageUrl uses,
+ * so a configured CDN can never pass validation and still be blocked by the
+ * browser), and the trusted Google Maps embed endpoints. Hosts come from the
+ * validated parser; no unsanitized environment value reaches a directive.
  * Scripts/styles allow 'unsafe-inline' because Next.js hydration injects
  * inline bootstrap; a nonce-based policy is on the Phase 5 backlog.
  */
+const imageHosts = resolveImageHosts(process.env);
+const imgSrc = `'self' data: blob: ${imageHosts.map((host) => `https://${host}`).join(" ")}`;
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://picsum.photos https://fastly.picsum.photos https://i.picsum.photos",
+  `img-src ${imgSrc}`,
   "font-src 'self'",
   "connect-src 'self'",
   "frame-src https://www.google.com https://maps.google.com",

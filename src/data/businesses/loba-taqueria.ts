@@ -155,6 +155,7 @@ export const lobaTaqueria: BusinessPocRecord = {
     dietaryOptions: ["Vegetarian options", "Vegan options"],
     menu: {
       mode: "sample",
+      source: "manual",
       sections: [
         {
           id: "lt-tacos",

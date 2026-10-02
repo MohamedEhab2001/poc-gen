@@ -28,5 +28,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/themes/:path*", "/preview/:path*", "/admin/:path*"],
+  matcher: ["/themes/:path*", "/preview/:path*", "/demo/:path*", "/admin/:path*"],
 };

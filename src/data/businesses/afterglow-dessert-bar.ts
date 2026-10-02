@@ -158,6 +158,8 @@ export const afterglowDessertBar: BusinessPocRecord = {
     mealTypes: ["Dessert", "Late-night drinks"],
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       sections: [
         {
           id: "ag-sweets",

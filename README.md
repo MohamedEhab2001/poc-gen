@@ -15,7 +15,7 @@ npm run dev          # http://localhost:3000
 
 The app runs entirely on local fixtures with bundled fonts. No database, Google Maps key, or object storage is required for development — and the production build needs no internet access.
 
-Internal routes (`/themes`, `/preview/**`) require an operator session. In development a passwordless dev login is available for the allowlisted operator email; production requires `AUTH_SECRET` plus Google OAuth or an operator password (see `.env.example` and [docs/security.md](docs/security.md)).
+Internal routes (`/themes`, `/preview/**`, `/demo/**`) require an operator session. In development a passwordless dev login is available for the allowlisted operator email; production requires `AUTH_SECRET`, `ADMIN_EMAILS`, and Google OAuth or an operator password — passwordless production login is impossible, and incomplete configuration fails closed (see `.env.example` and [docs/security.md](docs/security.md)).
 
 ```bash
 npm run typecheck    # tsc --noEmit (strict)
@@ -30,7 +30,7 @@ npm start            # serve the production build
 | Route | Access | Purpose |
 |---|---|---|
 | `GET /p/[token]` | Customer, via 256-bit share token | The customer-facing POC. Tokens are hashed at rest, expiring, revocable, and optionally view-capped; every failure mode returns a generic 404. Unindexed, record-driven metadata, discreet "Unofficial website concept" notice, no theme switcher, no provenance leakage. |
-| `GET /demo/[slug]` | Fixture demo route | Same renderer as `/p` but addressed by slug. Used for local development and the showroom; real outreach uses share links. Unindexed; drafts/archived 404; expired and closed records get safe states. |
+| `GET /demo/[slug]` | Operator | Fixture demo route: the same renderer addressed by slug, for internal inspection and the showroom. Real outreach uses `/p` share links. Unindexed; drafts/archived 404; expired and closed records get safe states. Authorization happens before any record lookup. |
 | `GET /login` | Public | Operator sign-in (Google OAuth, operator password, or gated dev login). |
 | `GET /themes` | Operator | Theme showroom: thirteen cards with palette swatches, typography preview, abstract layout miniature, and demo links. |
 | `GET /themes/[themeId]` | Operator | One canonical sample business in the selected theme, with a complete / partial / minimal fixture switcher for inspecting fallbacks. |
@@ -65,7 +65,7 @@ The contract is a Zod schema in [`src/lib/poc/schema.ts`](src/lib/poc/schema.ts)
 }
 ```
 
-Fixtures live in [`src/data/businesses/`](src/data/businesses/). Fifteen are included: one complete record per theme, plus partial-data (`fjord-coffee`), minimal-data (`corner-pho`), temporarily closed (`dockside-provisions`), permanently closed (`old-mill-cantina`), and expired (`sunset-ramen`) edge records. All names, reviews, and imagery are synthetic; photography uses seeded `picsum.photos` placeholders (the photo behind any seed is random — swap in licensed or owner-supplied assets before real outreach).
+Fixtures live in [`src/data/businesses/`](src/data/businesses/). Eighteen are included: one complete record for each of the thirteen themes, plus five edge records — partial-data (`fjord-coffee`), minimal-data (`corner-pho`), temporarily closed (`dockside-provisions`), permanently closed (`old-mill-cantina`), and expired (`sunset-ramen`). All names, reviews, and imagery are synthetic; photography uses seeded `picsum.photos` placeholders (the photo behind any seed is random — swap in licensed or owner-supplied assets before real outreach).
 
 ### Normalization and the fallback engine
 
@@ -86,12 +86,14 @@ Themes never read raw record fields. [`normalize.ts`](src/lib/poc/normalize.ts) 
 
 CTAs are chosen by a priority engine ([`cta.ts`](src/lib/poc/cta.ts)): **order > reserve > call > directions > email**, one primary plus at most two secondary. Every URL is protocol-checked (`tel:`, `mailto:`, `https:` only); `javascript:` and malformed URLs are dropped with an internal warning. No disabled or empty buttons are ever rendered.
 
-### Provenance and attribution
+### Provenance, data trust, and attribution
 
+- One central function ([`policy.ts`](src/lib/poc/policy.ts)) decides whether a sourced value may render, and **every** sourced value passes through it — narrative copy (hero, tagline, about, announcements, review summaries), factual data (identity, contact, location, hours, ratings, services, amenities, palette), and imagery (logo, hero, gallery; trust fields live on the image or its Sourced wrapper). Narrative fields accept only business-origin sources unverified; `ai_derived` values require confidence ≥ 0.7 (missing confidence defaults to untrusted). Blocked values are dropped before the fallback engine with a provenance entry, and blocked data is never reused to synthesize fallback copy (a blocked AI-derived city cannot appear inside the fallback headline).
+- Factual provider data may render unverified, always flagged in provenance. Menus marked verified require a business-origin source or explicit verification; anything else — including any `ai_derived` menu — renders as explicitly labeled sample data.
+- The CTA engine consumes policy-resolved facts only, so a blocked phone or address can never keep or derive an action.
 - Required photo and review attribution renders next to the content it credits.
 - The internal preview route exposes a source overlay (orange chips on `data-provenance` elements) plus a data-quality panel listing every fallback, derivation, sample, and warning via `listUnresolved()`.
 - Public pages stay clean: only legally required attribution and sample-content notices appear there.
-- `ai_derived` copy below a 0.7 confidence threshold is treated as fallback and hidden.
 
 ## The thirteen themes
 
@@ -158,7 +160,7 @@ See [`docs/adding-a-theme.md`](docs/adding-a-theme.md) for adding an eleventh th
 
 The rendering path is portable RSC with no server-side API routes required.
 
-- **Vercel (zero-config):** import the repo and deploy. Set the optional env vars in the project settings. Customer POC routes stay unindexed by default.
+- **Docker / any Node host:** `npm ci && npm run build && npm start` behind Nginx or Caddy. Production requires PostgreSQL for share links (`DATABASE_URL`, migrations via `npm run db:migrate`) plus the authentication variables (`AUTH_SECRET`, `ADMIN_EMAILS`, and Google OAuth or `OPERATOR_PASSWORD`). Without `DATABASE_URL`, share-link operations fail closed with a controlled 503; the JSON adapter is local-development storage only and is never selected in production.
 - **Docker / any Node host:** `npm ci && npm run build && npm start` behind Nginx or Caddy. No edge-runtime features are required.
 
 The production concept is one multi-tenant deployment serving many records by slug — never one deployment per business.

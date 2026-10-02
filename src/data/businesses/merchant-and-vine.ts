@@ -168,6 +168,8 @@ export const merchantAndVine: BusinessPocRecord = {
     mealTypes: ["Dinner", "Drinks"],
     menu: {
       mode: "verified",
+      source: "business_owner",
+      verified: true,
       sections: [
         {
           id: "mv-first",

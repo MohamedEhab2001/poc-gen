@@ -6,6 +6,23 @@ type CtaT = ResolvedCta;
 
 const KIND_ORDER = ["order", "reserve", "call", "directions", "email"] as const;
 
+/**
+ * Policy-resolved contact and location facts. Normalization passes these so
+ * the engine never derives actions from raw values the render policy has
+ * blocked (a blocked phone cannot resurrect a Call CTA). Callers that omit
+ * the context (existing unit tests) get raw-record behavior.
+ */
+export interface CtaContext {
+  phone: string | null;
+  email: string | null;
+  directionsUrl: string | null;
+  mapsPlace: {
+    latitude: number | null;
+    longitude: number | null;
+    formattedAddress: string | null;
+  } | null;
+}
+
 function sanitizeExternal(link: ActionLink): CtaT | null {
   const href = safeExternalUrl(link.href);
   if (!href) return null;
@@ -53,13 +70,18 @@ export function sanitizeActionLink(link: ActionLink): CtaT | null {
 
 /**
  * CTA priority engine. Collects candidates from the explicit callsToAction
- * block plus derivations from verified contact and location data, validates
+ * block plus derivations from trusted contact and location data, validates
  * every URL, then picks one primary and at most two secondary actions.
  *
  * Priority: order > reserve > call > directions > email.
+ *
+ * When `ctx` is provided, call and email actions exist only if the
+ * policy-resolved phone/email exist, and directions derive only from
+ * policy-resolved location data.
  */
 export function resolveCtas(
   record: BusinessPocRecord,
+  ctx?: CtaContext,
 ): {
   primary: CtaT | null;
   secondary: CtaT[];
@@ -69,10 +91,23 @@ export function resolveCtas(
   const dropped: Array<{ label: string; reason: string }> = [];
   const byKind = new Map<string, CtaT>();
 
+  const phoneUsable = ctx ? ctx.phone !== null : true;
+  const emailUsable = ctx ? ctx.email !== null : true;
+
   const explicit = record.callsToAction ?? {};
   for (const kind of KIND_ORDER) {
     const link = explicit[kind] ?? null;
     if (!link) continue;
+
+    if (kind === "call" && !phoneUsable) {
+      dropped.push({ label: link.label, reason: "Phone blocked or missing" });
+      continue;
+    }
+    if (kind === "email" && !emailUsable) {
+      dropped.push({ label: link.label, reason: "Email blocked or missing" });
+      continue;
+    }
+
     const sanitized = sanitizeActionLink(link);
     if (!sanitized) {
       dropped.push({ label: link.label, reason: `Invalid or unsafe ${kind} URL` });
@@ -81,18 +116,34 @@ export function resolveCtas(
     byKind.set(kind, sanitized);
   }
 
-  // Derive actions the record did not declare explicitly.
+  // Derive actions the record did not declare explicitly, using only
+  // policy-resolved facts when a context was provided.
   if (!byKind.has("call")) {
-    const phone = record.contact?.phone?.value ?? null;
+    const phone = ctx ? ctx.phone : record.contact?.phone?.value ?? null;
     const href = telHref(phone);
     if (phone && href) {
       byKind.set("call", { label: "Call", href, kind: "call", external: false });
     }
   }
   if (!byKind.has("directions")) {
-    const explicitUrl =
-      record.location?.directionsUrl?.value ?? record.location?.mapsUrl?.value ?? null;
-    const href = safeExternalUrl(explicitUrl);
+    let href: string | null;
+    if (ctx) {
+      href = ctx.directionsUrl;
+      if (!href && ctx.mapsPlace) {
+        href = mapsQueryUrl(ctx.mapsPlace);
+      }
+    } else {
+      const explicitUrl =
+        record.location?.directionsUrl?.value ?? record.location?.mapsUrl?.value ?? null;
+      href = safeExternalUrl(explicitUrl);
+      if (!href) {
+        href = mapsQueryUrl({
+          latitude: record.location?.latitude?.value ?? null,
+          longitude: record.location?.longitude?.value ?? null,
+          formattedAddress: record.location?.formattedAddress?.value ?? null,
+        });
+      }
+    }
     if (href) {
       byKind.set("directions", {
         label: "Directions",
@@ -100,24 +151,10 @@ export function resolveCtas(
         kind: "directions",
         external: true,
       });
-    } else {
-      const derived = mapsQueryUrl({
-        latitude: record.location?.latitude?.value ?? null,
-        longitude: record.location?.longitude?.value ?? null,
-        formattedAddress: record.location?.formattedAddress?.value ?? null,
-      });
-      if (derived) {
-        byKind.set("directions", {
-          label: "Directions",
-          href: derived,
-          kind: "directions",
-          external: true,
-        });
-      }
     }
   }
   if (!byKind.has("email")) {
-    const email = record.contact?.email?.value ?? null;
+    const email = ctx ? ctx.email : record.contact?.email?.value ?? null;
     const href = mailtoHref(email);
     if (email && href) {
       byKind.set("email", { label: "Email", href, kind: "email", external: false });

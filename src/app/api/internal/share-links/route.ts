@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getPocRepository } from "@/lib/poc/repository";
 import { getOperator } from "@/server/auth/authorize";
 import { createShareLink, listShareLinksForSlug } from "@/server/share/service";
+import { ShareStoreUnavailableError } from "@/server/share/store";
 
 const createSchema = z.object({
   slug: z.string().min(1).max(96).regex(/^[a-z0-9-]+$/),
@@ -10,10 +11,13 @@ const createSchema = z.object({
   maxViews: z.number().int().min(1).max(100_000).nullable().optional(),
 });
 
+const SERVICE_UNAVAILABLE = { error: "Service unavailable." } as const;
+
 /**
  * Operator-only share-link creation. Returns the plaintext token exactly
  * once; only its SHA-256 hash is persisted. Requires an authenticated,
- * allowlisted operator session.
+ * allowlisted operator session. Storage failures fail closed with a
+ * controlled 503 and no configuration details.
  */
 export async function POST(request: Request) {
   const operator = await getOperator();
@@ -32,13 +36,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Cannot create a link for this record." }, { status: 404 });
   }
 
-  const created = await createShareLink({
-    slug: parsed.data.slug,
-    createdBy: operator.email,
-    record,
-    expiresInDays: parsed.data.expiresInDays ?? null,
-    maxViews: parsed.data.maxViews ?? null,
-  });
+  let created;
+  try {
+    created = await createShareLink({
+      slug: parsed.data.slug,
+      createdBy: operator.email,
+      record,
+      expiresInDays: parsed.data.expiresInDays ?? null,
+      maxViews: parsed.data.maxViews ?? null,
+    });
+  } catch (error) {
+    if (error instanceof ShareStoreUnavailableError) {
+      return NextResponse.json(SERVICE_UNAVAILABLE, { status: 503 });
+    }
+    throw error;
+  }
   if (!created) {
     return NextResponse.json({ error: "This record cannot be shared." }, { status: 409 });
   }
@@ -64,7 +76,17 @@ export async function GET(request: Request) {
   if (!/^[a-z0-9-]+$/.test(slug)) {
     return NextResponse.json({ error: "Invalid slug." }, { status: 400 });
   }
-  const links = await listShareLinksForSlug(slug);
+
+  let links;
+  try {
+    links = await listShareLinksForSlug(slug);
+  } catch (error) {
+    if (error instanceof ShareStoreUnavailableError) {
+      return NextResponse.json(SERVICE_UNAVAILABLE, { status: 503 });
+    }
+    throw error;
+  }
+
   const now = Date.now();
   return NextResponse.json({
     links: links.map((link) => ({
