@@ -5,6 +5,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // Integration suites rebuild/verify schema state; running files
+    // sequentially keeps them from racing each other.
+    fileParallelism: false,
   },
   resolve: {
     alias: {

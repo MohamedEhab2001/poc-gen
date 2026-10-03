@@ -4,7 +4,8 @@ import { ClosureBanner } from "@/components/poc/ClosureBanner";
 import { getRecordDisposition } from "@/lib/poc/disposition";
 import { normalizeRecord } from "@/lib/poc/normalize";
 import { renderTheme } from "@/lib/poc/render";
-import { getPocRepository } from "@/lib/poc/repository";
+import { getShareableRecord } from "@/server/poc/service";
+import { PocRepositoryUnavailableError } from "@/server/poc/repository-pg";
 import { consumeShareLink, peekShareLink } from "@/server/share/service";
 import { ShareStoreUnavailableError } from "@/server/share/store";
 
@@ -25,10 +26,11 @@ export const metadata: Metadata = {
  * No provenance, warnings, or internal identifiers are ever exposed.
  *
  * Flow: inspect (peek) the token hash without mutation, load the record and
- * confirm it still renders, then ATOMICALLY consume one view — revocation,
- * expiry, and the view cap are re-checked by that single store operation, so
- * concurrent requests can never both spend the last allowed view. Rendering
- * is authorized only by a successful consumption.
+ * confirm it still renders (the persistent adapter also requires the
+ * published state at request time), then ATOMICALLY consume one view —
+ * revocation, expiry, and the view cap are re-checked by that single store
+ * operation, so concurrent requests can never both spend the last allowed
+ * view. Rendering is authorized only by a successful consumption.
  */
 export default async function SharedPocPage({
   params,
@@ -42,7 +44,7 @@ export default async function SharedPocPage({
     const peeked = await peekShareLink(token);
     if (!peeked) notFound();
 
-    const raw = await getPocRepository().getBySlug(peeked.slug);
+    const raw = await getShareableRecord(peeked.slug);
     if (!raw) notFound();
 
     // Request-time record checks: drafts, expired, archived, and permanently
@@ -61,10 +63,10 @@ export default async function SharedPocPage({
       </>
     );
   } catch (error) {
-    if (error instanceof ShareStoreUnavailableError) {
+    if (error instanceof ShareStoreUnavailableError || error instanceof PocRepositoryUnavailableError) {
       // Production without DATABASE_URL: fail closed without leaking storage
       // configuration. Every token behaves identically.
-      console.error("[share] Share-link storage unavailable; failing closed.");
+      console.error("[share] Share-link storage or POC repository unavailable; failing closed.");
       notFound();
     }
     throw error;

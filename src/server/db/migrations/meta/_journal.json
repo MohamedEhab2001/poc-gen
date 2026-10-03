@@ -8,6 +8,13 @@
       "when": 1790977808911,
       "tag": "0000_share_links",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791067609752,
+      "tag": "0001_automation_bridge",
+      "breakpoints": true
     }
   ]
 }

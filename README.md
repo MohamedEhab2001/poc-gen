@@ -20,7 +20,10 @@ Internal routes (`/themes`, `/preview/**`, `/demo/**`) require an operator sessi
 ```bash
 npm run typecheck    # tsc --noEmit (strict)
 npm run lint         # eslint
-npm run test         # vitest (schema, normalization, fallbacks, CTA engine, repository, security)
+npm run test         # vitest (all suites; integration suites run when TEST_DATABASE_URL is set)
+npm run test:integration  # PostgreSQL integration suites explicitly (fails loudly if skipped)
+npm run db:migrate   # apply committed Drizzle migrations (requires DATABASE_URL)
+npm run automation:smoke -- --database=postgres://...  # synthetic end-to-end flow, mock providers only
 npm run build        # production build (offline: fonts are bundled)
 npm start            # serve the production build
 ```
@@ -36,6 +39,9 @@ npm start            # serve the production build
 | `GET /themes/[themeId]` | Operator | One canonical sample business in the selected theme, with a complete / partial / minimal fixture switcher for inspecting fallbacks. |
 | `GET /preview/[slug]` | Operator | Preview tool: theme override, desktop / tablet / mobile viewport frames, source-provenance overlay, the unresolved-placeholder report, and share-link creation/revocation. Never appears on customer routes. |
 | `POST/GET /api/internal/share-links`, `DELETE /api/internal/share-links/[id]` | Operator session | Share-link lifecycle API. |
+| `POST /api/mcp` | Bearer token (OAuth 2.1 / dev bearer), scoped | Remote MCP server (stateless Streamable HTTP): the automation tool surface driven by the external scheduler. Fail-closed in production until OAuth is configured. |
+| `POST /api/internal/automation/[operation]` | Bearer token, scoped | Internal HTTP adapter over the same automation registry (CI/smoke/deployments). Never cookie-authorized. |
+| `GET/POST /api/unsubscribe` | Public, HMAC-signed token | One-click unsubscribe (RFC 8058): suppresses the contact immediately. |
 | `POST /api/auth/login` / `logout`, `GET /api/auth/google/*` | Public | Authentication endpoints (rate-limited). |
 
 ### Record states on `/demo/[slug]`
@@ -129,7 +135,9 @@ Every mode ships a text alternative; iframes are lazy-loaded and titled; maps ne
 
 Records are read exclusively through the `BusinessPocRepository` interface in [`repository.ts`](src/lib/poc/repository.ts). The default adapter loads the fixture set through the Zod boundary. A documented PostgreSQL adapter point lives in the same file — records stay JSON documents in the database and the schema remains the single validation boundary, so externally sourced details (ratings, hours) can be refreshed at render time.
 
-**Implemented:** the fixture repository, the render path above, and PostgreSQL share-link persistence (Drizzle + committed migrations; `share_links` table). **Still planned (not built):** the full Phase 2 business repository (leads, POC records, assets, jobs, analytics), a token-guarded machine-ingestion endpoint, enrichment providers, and background workers — sequenced in [docs/backlog.md](docs/backlog.md). No ingestion route exists yet; do not send records to any `/api` endpoint expecting persistence.
+**Implemented (Phase 2A — Autonomous Automation Bridge):** PostgreSQL as the operational source of truth — businesses, leads (19-status lifecycle with a central tested transition table), immutable checksummed evidence snapshots, `poc_records` with transactional revision history, automation runs/steps, contacts (AEAD-encrypted, keyed-hash dedup), outreach messages with suppression/unsubscribe state, an idempotency ledger, and audit logs (Drizzle + committed migrations; `npm run db:migrate`). A transport-independent service layer behind a scoped, authenticated remote MCP endpoint (`/api/mcp`) plus an internal HTTP adapter; deterministic automatic QA gates (schema, disposition, render policy, image/map origins, placeholder tokens, CTA protocols, provider attribution, expiry/closure) with automatic reject/quarantine — no review queue and no override parameters; atomic publish with secure share links (token returned exactly once); outreach preparation with compliance footers, deceptive-subject rejection, rate/volume limits, and a deterministic mock email provider (live sending disabled by default); reply-outcome actions; and a synthetic end-to-end smoke command (`npm run automation:smoke`). See [docs/automation-bridge.md](docs/automation-bridge.md).
+
+**Still planned (not built):** provider adapters (Google Places enrichment, website inspection, AI content, production email via SES v2), screenshot/visual-AI QA, reply webhooks, and the read-only operator dashboard — sequenced in [docs/backlog.md](docs/backlog.md). Discovery and reply classification are performed by the external scheduled agent, which submits researched data through the tools.
 
 The intended pipeline contract when it lands: records arrive as schema-valid JSON keyed by `slug` with `status: "draft"`; humans review drafts on `/preview/[slug]`, flip to `active`, and share a `/p/[token]` link.
 

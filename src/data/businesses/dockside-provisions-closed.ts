@@ -78,6 +78,7 @@ export const docksideProvisionsClosed: BusinessPocRecord = {
         source: "google_places",
         width: 1200,
         height: 900,
+        attribution: { label: "Listing photo via Google Maps" },
       }),
     ],
   },

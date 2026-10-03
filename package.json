@@ -12,11 +12,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/server/db/migrate.ts"
+    "db:migrate": "tsx src/server/db/migrate.ts",
+    "automation:smoke": "node --import tsx --conditions=react-server scripts/automation-smoke.ts",
+    "test:integration": "vitest run --no-file-parallelism integration.test.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "dotenv": "^18.0.5",
     "drizzle-orm": "^0.45.3",
+    "jose": "^6.2.12",
     "lucide-react": "^1.49.0",
     "motion": "^13.5.0",
     "next": "^15.5.27",

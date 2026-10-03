@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getPocRepository } from "@/lib/poc/repository";
 import { getOperator } from "@/server/auth/authorize";
+import { PocRepositoryUnavailableError } from "@/server/poc/repository-pg";
 import { createShareLink, listShareLinksForSlug } from "@/server/share/service";
 import { ShareStoreUnavailableError } from "@/server/share/store";
 
@@ -30,7 +31,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const record = await getPocRepository().getBySlug(parsed.data.slug);
+  let record;
+  try {
+    record = await getPocRepository().getBySlug(parsed.data.slug);
+  } catch (error) {
+    if (error instanceof PocRepositoryUnavailableError) {
+      return NextResponse.json(SERVICE_UNAVAILABLE, { status: 503 });
+    }
+    throw error;
+  }
   if (!record) {
     // Generic: do not confirm whether the record exists.
     return NextResponse.json({ error: "Cannot create a link for this record." }, { status: 404 });

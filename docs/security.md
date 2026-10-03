@@ -121,6 +121,24 @@ in the Phase 5 backlog.
 
 - Next.js 15.5.27 (latest patched maintenance release of the 15 line) with a
   postcss override to 8.5.28. `npm audit --omit=dev`: **0 vulnerabilities**.
+- Phase 2A additions: `@modelcontextprotocol/sdk` 1.32.0 and `jose` 6.2.12
+  (deduped across both) — no production advisories.
+- **Known dev-only findings (pre-existing on the Phase 1.2 baseline, not
+  introduced by Phase 2A; production audit stays clean):**
+  - `braces` < 3.0.3 (high, GHSA-vfj7-8cjw-p6xm) via
+    `eslint-config-next → @next/eslint-plugin-next → fast-glob →
+    micromatch`. Lint tooling only; never shipped. The npm "fix" downgrades
+    eslint-config-next to v14 (breaking, incompatible with Next 15); it
+    resolves upstream instead when the eslint-config-next chain updates.
+    Impact if exploited: a maintainer running lint on a maliciously nested
+    glob could hit stack exhaustion — no runtime or build exposure.
+  - `esbuild` ≤ 0.24.2 (moderate, GHSA-67mh-4wv8-2f99) via
+    `drizzle-kit → @esbuild-kit/core-utils` (the legacy esbuild-kit path).
+    Migration tooling only. The npm "fix" downgrades drizzle-kit to 0.18
+    (breaking). Impact: the advisory affects esbuild's **dev server**
+    cross-origin behavior; poc-gen never runs an esbuild dev server, so the
+    practical exposure is nil. Mitigation: run drizzle-kit only against
+    trusted migration folders (this repo's committed SQL).
 - The postcss advisory affected every Next release up to 16.3.0-preview; the
   override installs the patched postcss independently of Next's range. The
   clean long-term fix is the deliberate Next 16 upgrade (backlog).
@@ -145,3 +163,64 @@ in the Phase 5 backlog.
 - The share-link API never returns stored tokens; the operator sees a token
   once at creation. Plaintext tokens are never persisted or logged
   (verified against the real database in integration tests).
+
+
+## Phase 2A — Automation bridge threat model and controls
+
+The bridge exposes machine-driven lead ingestion, publishing, and outreach
+over an authenticated surface. The new threats and their controls:
+
+**Machine surface abuse.** The remote MCP endpoint (`/api/mcp`, stateless
+Streamable HTTP) and the internal HTTP adapter
+(`/api/internal/automation/**`) are the only automation entrances. Both
+require a bearer credential: production validates OAuth 2.1 style JWTs
+(configured issuer + audience + JWKS; wrong/expired/wrong-audience tokens
+all fail identically and generically) and stays **fail-closed (503)** until
+that configuration is complete. A dev static bearer is compared in constant
+time and is *structurally impossible* in production (checked in config
+resolution AND the authenticator). Operator cookies are rejected on the
+machine surface (CSRF must not be the primary control), and an admin email
+in a request body is never identity. Per-tool scopes (`poc:read`,
+`poc:write`, `outreach:prepare`, `outreach:send`, `reports:read`) are
+enforced before any handler runs; request bodies are bounded (256/512 KB),
+rate-limited per principal, correlated, and answered with generic
+structured errors — never stack traces or database messages.
+
+**Replay and double-effect.** Every mutating operation requires an
+idempotency key; the ledger (hashed key + canonical request hash) returns
+the saved result on identical replay, refuses key reuse with a different
+body, expires crashed pending entries, and is enforced across processes by
+database unique constraints. Publishes transition `qa_passed -> published`
+with a single conditional UPDATE (concurrent publishes create exactly one
+link — integration-tested), sends reserve `prepared -> reserved`
+conditionally before any provider call, and lead updates are optimistic
+(status+version re-checked in the WHERE clause).
+
+**Contact data at rest.** Raw addresses live only as versioned AES-256-GCM
+envelopes under dedicated environment keys (never in the database or repo);
+lookups use HKDF-derived keyed hashes stable across rotation. Only the
+address *domain* is stored in plain text (rate limits). Logs, audit
+metadata, run summaries, idempotency results, and tool outputs pass through
+structural redaction — tokens, addresses, bodies, and secrets are masked;
+the publish token is stripped before idempotency storage and returned
+exactly once.
+
+**Suppression integrity.** Suppression/unsubscribe state is unique per
+address hash and checked transactionally before any send reservation; daily
+and per-domain counters are advisory-lock-serialized so parallel sends
+cannot overshoot limits. Unsubscribe links are HMAC-signed contact hashes
+(keyed off the contact-encryption material) and cannot be forged.
+
+**Evidence integrity.** `source_snapshots` are immutable at the database
+boundary (UPDATE/DELETE trigger) with deterministic canonical checksums;
+records carry revision history written transactionally, and every stored
+record re-validates through the Zod schema on read — invalid JSON fails
+closed with a structured log and never renders.
+
+**No new trust in callers.** The server fetches no caller-supplied URLs
+(no SSRF surface), enforces input lengths and batch caps before database
+work, keeps all database/crypto/provider code behind server-only
+boundaries, and preserves the Phase 1 CSP, image-host allowlist, map
+allowlist, and provenance policy. No secrets or real business data are
+committed; production sending is disabled by default and the only email
+provider in this phase is a deterministic mock that cannot open a socket.
