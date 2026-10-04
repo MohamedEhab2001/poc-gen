@@ -6,6 +6,7 @@ import {
   getOperationInputSchema,
   listAutomationOperations,
 } from "./registry";
+import { randomUUID } from "node:crypto";
 import { ingestLeadsInputSchema } from "@/lib/automation/schemas";
 
 const ALL_SCOPES = [...AUTOMATION_SCOPES];
@@ -15,7 +16,7 @@ describe("automation operation registry", () => {
     expect(AUTOMATION_SCOPES).toEqual(["poc:read", "poc:write", "outreach:prepare", "outreach:send", "reports:read"]);
   });
 
-  it("registers all fourteen operations with scopes and mutation flags", () => {
+  it("registers all fifteen operations with scopes and mutation flags", () => {
     const operations = listAutomationOperations();
     const names = operations.map((op) => op.name).sort();
     expect(names).toEqual(
@@ -34,6 +35,7 @@ describe("automation operation registry", () => {
         "get_run_report",
         "get_interested_leads",
         "retry_failed_lead",
+        "finish_automation_run",
       ].sort(),
     );
     for (const op of operations) {
@@ -42,7 +44,7 @@ describe("automation operation registry", () => {
     const mutating = new Set(
       operations.filter((op) => op.mutating).map((op) => op.name),
     );
-    expect(mutating.size).toBe(10);
+    expect(mutating.size).toBe(11);
     for (const readOnly of ["health", "list_due_followups", "get_run_report", "get_interested_leads"]) {
       expect(mutating.has(readOnly), readOnly).toBe(false);
     }
@@ -53,6 +55,11 @@ describe("automation operation registry", () => {
     expect(scopes.get("publish_poc")).toBe("poc:write");
     expect(scopes.get("send_outreach")).toBe("outreach:send");
     expect(scopes.get("prepare_outreach")).toBe("outreach:prepare");
+    expect(scopes.get("finish_automation_run")).toBe("poc:write");
+    // get_run_report is strictly read-only: its schema has no finish flag.
+    const reportSchema = getOperationInputSchema("get_run_report");
+    const parsed = reportSchema!.safeParse({ runId: crypto.randomUUID(), finish: true });
+    expect(parsed.success).toBe(false); // strict schema rejects unknown finish key
   });
 
   it("every input schema is bounded (batch and length caps)", () => {

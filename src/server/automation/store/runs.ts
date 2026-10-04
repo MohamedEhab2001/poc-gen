@@ -34,7 +34,7 @@ export async function createRun(
   return first;
 }
 
-export async function getRun(db: Db, runId: string): Promise<AutomationRunRow | null> {
+export async function getRun(db: Queryable, runId: string): Promise<AutomationRunRow | null> {
   const rows = await db.select().from(automationRuns).where(eq(automationRuns.id, runId)).limit(1);
   return rows[0] ?? null;
 }
@@ -103,7 +103,7 @@ export async function addRunStep(db: Queryable, input: AddStepInput): Promise<Au
   return first;
 }
 
-export async function listRunSteps(db: Db, runId: string, limit = 200): Promise<AutomationRunStepRow[]> {
+export async function listRunSteps(db: Queryable, runId: string, limit = 200): Promise<AutomationRunStepRow[]> {
   return db
     .select()
     .from(automationRunSteps)

@@ -1,0 +1,12 @@
+A private concept for {{business_name}}
+
+View your website concept:
+{{poc_url}}
+
+(Or copy the link into your browser.)
+
+{{body_text}}
+
+You can reply directly to this email.
+
+— {{sender_name}}

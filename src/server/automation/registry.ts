@@ -3,6 +3,7 @@ import "server-only";
 import type { ZodType } from "zod";
 import { z } from "zod";
 import {
+  finishRunInputSchema,
   ingestLeadsInputSchema,
   interestedLeadsInputSchema,
   listDueFollowupsInputSchema,
@@ -21,10 +22,10 @@ import { AutomationError, toStructuredFailure } from "@/lib/automation/outcomes"
 import { isInfrastructureError } from "./db";
 import type { CallAuth, CallContext } from "./context";
 import { buildCallContext } from "./context";
-import { acquireIdempotency, completeIdempotency, writeAudit } from "./support";
+import { acquireIdempotency, completeIdempotency } from "./support";
 import { assertAutomationProductionConfig, getAutomationConfig } from "./config";
 import { getDb } from "@/server/db/client";
-import { getRunReport, startAutomationRun } from "./operations/runs";
+import { finishAutomationRun, getRunReport, startAutomationRun } from "./operations/runs";
 import { ingestLeads } from "./operations/ingest";
 import { publishPoc, retryFailedLead, runPocQa, upsertPocRecord } from "./operations/poc";
 import { listDueFollowups, prepareOutreach, sendOutreach } from "./operations/outreach";
@@ -164,11 +165,19 @@ const registry: Record<string, OperationDefinition> = {
   },
   get_run_report: {
     description:
-      "Bounded report for one automation run: status, counters, redacted steps, and ambiguous-reply exceptions. Pass finish:true to close the run.",
+      "STRICTLY read-only bounded report for one automation run: status, counters, redacted steps, and ambiguous-reply exceptions. Mutates nothing. Close a run with finish_automation_run.",
     scope: "reports:read",
     mutating: false,
     inputSchema: runReportInputSchema,
-    handler: (input, ctx) => getRunReport(input as never, ctx),
+    handler: (input) => getRunReport(input as never),
+  },
+  finish_automation_run: {
+    description:
+      "Close a running automation run with a status derived from its steps (failed / completed_with_skips / completed). Idempotent; audited; requires poc:write.",
+    scope: "poc:write",
+    mutating: true,
+    inputSchema: finishRunInputSchema,
+    handler: (input, ctx) => finishAutomationRun(input as never, ctx),
   },
   get_interested_leads: {
     description:
@@ -319,28 +328,24 @@ export async function dispatchOperation(
     }
 
     const result = await operation.handler(input, ctx);
+    // Fresh executions report replayed:false symmetrically with replays.
+    if (typeof (result as Record<string, unknown> | null)?.replayed === "undefined") {
+      (result as Record<string, unknown>).replayed = false;
+    }
     const stored = operation.sanitizeForStorage
       ? operation.sanitizeForStorage(result as Record<string, unknown>)
       : (result as Record<string, unknown>);
     await completeIdempotency({
       db: getDb(),
       operation: name,
+      principal: auth.principal,
       idempotencyKey,
       status: "completed",
       result: stored,
     });
-    const resultRecord = (result ?? {}) as Record<string, unknown>;
-    await writeAudit(getDb(), {
-      actor: auth.principal,
-      action: name,
-      targetType: typeof resultRecord.leadId === "string" ? "lead" : "operation",
-      targetId:
-        (resultRecord.leadId as string | undefined) ??
-        (resultRecord.runId as string | undefined) ??
-        null,
-      runId: ctx.runId,
-      metadata: { replayed: false },
-    });
+    // Auditing: every mutating operation writes its own specific, audited
+    // entry inside its transaction (see the operation modules); the
+    // dispatcher deliberately does not add a second generic row.
     return { ok: true, result };
   } catch (error) {
     if (operation.mutating) {
@@ -349,6 +354,7 @@ export async function dispatchOperation(
         await completeIdempotency({
           db: getDb(),
           operation: name,
+          principal: auth.principal,
           idempotencyKey,
           status: "failed",
           result: toStructuredFailure(error),

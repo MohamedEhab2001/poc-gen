@@ -19,11 +19,12 @@ ChatGPT Scheduled Task (MCP client)
   -> ingest_leads            (researched candidates + evidence)
   -> upsert_poc_record       (complete, schema-valid record)
   -> run_poc_qa              (deterministic gates; automatic reject/quarantine)
-  -> publish_poc             (atomic publish + secure share link)
+  -> publish_poc             (ONE transaction: publish + secure share link)
+  -> finish_automation_run   (close the run; reports stay read-only)
   -> prepare_outreach        (validated, footered draft)
   -> send_outreach           (mock provider in this phase)
   -> list_due_followups / record_reply_outcome
-  -> get_run_report          (closes the run)
+  -> get_run_report          (strictly read-only)
 
 Incoming email event (classified by the agent)
   -> record_reply_outcome    (stop / suppress / defer, deterministically)
@@ -103,11 +104,12 @@ keys (e.g. `force`, `skipChecks`) are rejected outright.
 | `run_poc_qa` | `poc:write` | yes | Deterministic gates (below); blocking failure ⇒ REJECTED (or QUARANTINED for suspicious model/policy inconsistencies). |
 | `publish_poc` | `poc:write` | yes | Requires QA-passed record+lead; atomic `qa_passed->published` transition; creates the secure share link; token returned exactly once; emergency-stop checked immediately before. |
 | `prepare_outreach` | `outreach:prepare` | yes | Rejects deceptive subjects, POC misrepresentation, missing/extra `{{poc_link}}`; appends the compliance footer; resolves the placeholder to a fresh per-message share link bound to the lead. |
-| `send_outreach` | `outreach:send` | yes | Requires `OUTREACH_SEND_ENABLED`; verified contact only; transactional suppression check; daily/per-domain/per-lead limits (advisory-lock serialized); reservation before the provider call; never auto-retries `delivery_unknown`. |
+| `send_outreach` | `outreach:send` | yes | Requires `OUTREACH_SEND_ENABLED`; verified contact only; shared contact-level lock linearizing suppression against sending (with a recheck immediately before the provider boundary); daily/per-domain/per-lead limits (advisory-lock serialized); reservation before the provider call; never auto-retries `delivery_unknown`. |
 | `list_due_followups` | `outreach:prepare` | no | Only due + eligible leads (no reply/bounce/suppression/terminal/expired POC/revoked link/delivery-unknown); bounded (default 25, max 100). |
 | `record_reply_outcome` | `outreach:prepare` | yes | Deterministic actions per classification (below). |
 | `suppress_contact` | `outreach:prepare` | yes | Permanent suppression by address or lead. |
-| `get_run_report` | `reports:read` | no (finish:true mutates) | Counters, redacted steps, ambiguous-reply exceptions; `finish:true` closes the run. |
+| `get_run_report` | `reports:read` | no | STRICTLY read-only: counters, redacted steps, ambiguous-reply exceptions. Writes nothing. |
+| `finish_automation_run` | `poc:write` | yes | Closes a running run with a status derived from its steps (failed / completed_with_skips / completed); idempotent; audited. |
 | `get_interested_leads` | `reports:read` | no | Safe summaries + share-link view counts. |
 | `retry_failed_lead` | `poc:write` | yes | The explicit, audited FAILED-exit. |
 
@@ -209,13 +211,24 @@ MCP OAuth set.
 ### Dry-run versus live send
 
 `OUTREACH_SEND_ENABLED` is **false by default**. In dry-run, everything up
-to and including `prepare_outreach` works; `send_outreach` fails closed with
-`sending_disabled`. With sending enabled and the only implemented provider
-(`mock`), the full flow runs with zero network activity — the mock provider
-never opens a socket, so tests, builds, previews, and smoke runs can never
-send real email. A production SES v2 adapter is the preferred next step and
-slots into the existing `EmailProvider` interface; enabling any other
-provider name today fails configuration validation.
+to and including `prepare_outreach` works; `send_outreach` fails closed
+with `sending_disabled`.
+
+Live sending uses the **EmailJS provider** (`@emailjs/nodejs`, server-side
+only; one-time dashboard setup in
+[docs/emailjs-template-setup.md](./emailjs-template-setup.md)). Provider
+selection is exhaustive and validated: the deterministic **mock** is
+development/test only and fails closed in production with sending enabled;
+`emailjs` requires the full `EMAILJS_*` set (the private key is required in
+production); unknown provider names fail configuration. `EMAILJS_DRY_RUN`
+defaults to **true outside production**, so even a configured provider
+never contacts EmailJS until dry-run is explicitly disabled. Provider calls
+are time-bounded (`OUTREACH_PROVIDER_TIMEOUT_MS`, default 10 s): timeouts
+and network failures resolve as `delivery_unknown` (never auto-retried);
+definite 4xx rejections fail with safe machine codes. EmailJS allows ~1
+request/second — enforced by a PostgreSQL-backed slot reservation with
+≥1,100 ms spacing that works across server instances (bounded wait; a
+backlog fails retryably).
 
 ### Emergency stop
 
@@ -224,15 +237,30 @@ In-flight effects: a publish attempt fails before the link is created; a
 send whose reservation already committed is marked `failed` with
 `emergency_stop` before the provider call. Reads keep working.
 
+## Publication atomicity
+
+`publish_poc` runs in ONE PostgreSQL transaction: validation, QA-state
+confirmation, renderability revalidation, revocation of any still-active
+links for the slug (their plaintext tokens are unrecoverable, so they are
+never reused), the conditional `qa_passed → published` and lead
+transitions, the share-link insertion (hash-only at rest), the audit
+entry, and the run step. A failure at any point — including an injected
+share-link insertion failure — rolls back everything; the integration
+suite proves a published POC can never exist without its link. Republishing
+a revised POC revokes the old link and returns exactly one new URL.
+
 ## Idempotency and recovery rules
 
 Every mutating operation requires an `idempotencyKey` (8–128 chars,
 `[A-Za-z0-9._:-]`). The ledger stores a hash of the key plus a canonical
-hash of the request:
+hash of the request, unique per (principal, operation, key hash):
 
-- Same key + same request after completion ⇒ the saved result is returned
-  (`replayed: true`). For `publish_poc` the saved result is token-redacted —
-  the plaintext URL exists only in the first response.
+- Reservations are unique per (principal, operation, key hash): the same
+  key under a different authenticated principal is an INDEPENDENT
+  reservation, and a completion can never touch another principal's row.
+- Same principal + key + request after completion ⇒ the saved result is
+  returned (`replayed: true`). For `publish_poc` the saved result is
+  token-redacted — the plaintext URL exists only in the first response.
 - Same key + same request while still executing ⇒ `RETRYABLE` with a
   retry-after hint (a crashed execution's pending entry expires after 24 h
   and is reclaimed atomically).
@@ -277,8 +305,8 @@ lead: build the record from the evidence → `upsert_poc_record` →
 `run_poc_qa` → on pass `publish_poc` (keep the returned URL) →
 `prepare_outreach` (subject/body with `{{poc_link}}`, evidence refs) →
 optionally `send_outreach` when live sending is enabled →
-`list_due_followups` → prepare/send due follow-ups → `get_run_report` with
-`finish:true`.
+`list_due_followups` → prepare/send due follow-ups → `get_run_report`
+(read-only) → `finish_automation_run` to close the day's run.
 
 **Reply-triggered task:** classify the reply externally →
 `record_reply_outcome` → if `AMBIGUOUS`, include it in the operator's

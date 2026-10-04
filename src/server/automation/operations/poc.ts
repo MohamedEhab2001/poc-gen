@@ -9,6 +9,7 @@ import type {
 } from "@/lib/automation/schemas";
 import { themeIds } from "@/lib/poc/schema";
 import { runDeterministicQa } from "@/lib/automation/qa";
+import { recordExternalProviders } from "@/lib/automation/evidence";
 import { AutomationError } from "@/lib/automation/outcomes";
 import { isLeadStatus, isRetryRestorableStatus } from "@/lib/automation/lifecycle";
 import type { LeadStatus } from "@/lib/automation/lifecycle";
@@ -27,6 +28,7 @@ import { addRunStep, incrementRunCounters } from "../store/runs";
 import {
   failLead,
   getLeadWithBusiness,
+  listSnapshotsForLead,
   resolveEvidenceRefs,
   restoreFailedLead,
   updateLeadStatus,
@@ -37,8 +39,8 @@ import {
   transitionPocState,
   upsertPocRow,
 } from "../store/poc";
-import { createShareLink } from "@/server/share/service";
-import { listShareLinksForSlug } from "@/server/share/service";
+import { createShareLinkWithin } from "@/server/share/service";
+import { PostgresShareLinkStore } from "@/server/share/store";
 
 /**
  * upsert_poc_record, run_poc_qa, publish_poc, retry_failed_lead.
@@ -89,6 +91,27 @@ export async function upsertPocRecord(
         undefined,
         { missingCount: evidence.missing.length },
       );
+    }
+
+    // Deterministic provenance linkage: for EVERY external provider whose
+    // facts appear in the record, at least one snapshot from that provider
+    // must exist for this lead — one unrelated snapshot ID cannot launder an
+    // entire record. (Deterministic linkage, not semantic verification of
+    // each fact.)
+    const requiredProviders = recordExternalProviders(input.record);
+    if (requiredProviders.length > 0) {
+      const snapshots = await listSnapshotsForLead(tx, lead.id);
+      const snapshotProviders = new Set(snapshots.map((snapshot) => snapshot.provider));
+      const missing = requiredProviders.filter((provider) => !snapshotProviders.has(provider));
+      if (missing.length > 0) {
+        throw new AutomationError(
+          "provider_evidence_missing",
+          "The record contains provider-sourced facts but no matching provider snapshot exists for this lead.",
+          "REJECTED",
+          undefined,
+          { missingProviders: missing },
+        );
+      }
     }
 
     const row = await upsertPocRow(tx, {
@@ -269,6 +292,10 @@ export async function publishPoc(input: z.infer<typeof publishPocInputSchema>, c
     );
   }
 
+  // ONE transaction covers validation, link revocation, link creation, both
+  // state transitions, the audit entry, and the run step. A failure at ANY
+  // point (including share-link insertion) rolls back everything: a POC can
+  // never end up published without its link.
   return withTransaction(async (tx) => {
     const pair = await getLeadWithBusiness(tx, input.leadId);
     if (!pair) throw new AutomationError("lead_not_found", "No such lead.", "REJECTED");
@@ -288,17 +315,23 @@ export async function publishPoc(input: z.infer<typeof publishPocInputSchema>, c
       );
     }
     if (lead.status !== "QA_PASSED") {
-      throw new AutomationError(
-        "qa_not_passed",
-        "The lead has not passed QA.",
-        "REJECTED",
-        undefined,
-        { leadStatus: lead.status },
-      );
+      throw new AutomationError("qa_not_passed", "The lead has not passed QA.", "REJECTED", undefined, {
+        leadStatus: lead.status,
+      });
     }
 
     const record = parseStoredRecord(row.slug, row.record);
+    // Revalidate renderability inside the transaction; createShareLinkWithin
+    // re-checks the disposition again on the same record (defense in depth).
 
+    // Republishing (a revised POC that re-passed QA): revoke every still
+    // active link for this slug — their plaintext tokens are no longer
+    // available, so they must never be reused — then create exactly one new
+    // link below. Only the token HASH is persisted (Phase 1.2 invariant).
+    await new PostgresShareLinkStore().revokeActiveBySlug(tx, row.slug, ctx.now);
+
+    // Conditional single-row transitions: concurrent publishers cannot both
+    // succeed past this point.
     await transitionPocState(tx, row.id, ["qa_passed"], "published", {
       publishedAt: ctx.now,
     });
@@ -308,13 +341,27 @@ export async function publishPoc(input: z.infer<typeof publishPocInputSchema>, c
       to: "PUBLISHED",
     });
 
+    // Link creation inside the transaction; refusal or failure rolls back
+    // the transitions above.
+    const created = await createShareLinkWithin(tx, {
+      slug: row.slug,
+      createdBy: ctx.principal,
+      record,
+      expiresInDays: input.expiresInDays ?? null,
+      maxViews: input.maxViews ?? null,
+      now: ctx.now,
+    });
+    if (!created) {
+      throw new AutomationError("share_link_refused", "The record cannot currently be shared.", "REJECTED");
+    }
+
     await writeAuditTx(tx, {
       actor: ctx.principal,
       action: "publish_poc",
       targetType: "poc_record",
       targetId: row.id,
       runId: ctx.runId ?? null,
-      metadata: { leadId: lead.id, slug: row.slug },
+      metadata: { leadId: lead.id, slug: row.slug, atomic: true },
     });
     if (ctx.runId) {
       await addRunStep(tx, {
@@ -328,43 +375,11 @@ export async function publishPoc(input: z.infer<typeof publishPocInputSchema>, c
       });
     }
 
-    return { pocRecordId: row.id, leadId: lead.id, slug: row.slug, record };
-  }).then(async (base) => {
-    // Share-link creation runs through the existing secure service (it
-    // re-validates that the record currently renders). If an active link
-    // already exists for this slug it is reused; the plaintext token is
-    // returned exactly once, here.
-    const existing = (await listShareLinksForSlug(base.slug)).find(
-      (link) => !link.revokedAt && (!link.expiresAt || new Date(link.expiresAt).getTime() > ctx.now.getTime()),
-    );
-    if (existing) {
-      return {
-        ...base,
-        shareLinkId: existing.id,
-        shareLinkUrl: null,
-        ...(existing.expiresAt ? { expiresAt: existing.expiresAt } : {}),
-        ...(existing.maxViews !== null ? { maxViews: existing.maxViews } : {}),
-        replayed: true,
-      };
-    }
-    const created = await createShareLink({
-      slug: base.slug,
-      createdBy: ctx.principal,
-      record: base.record,
-      expiresInDays: input.expiresInDays ?? null,
-      maxViews: input.maxViews ?? null,
-    });
-    if (!created) {
-      throw new AutomationError(
-        "share_link_refused",
-        "The record cannot currently be shared.",
-        "REJECTED",
-      );
-    }
-    const { record: _record, ...rest } = base;
-    void _record;
+    // The plaintext token exists ONLY in this return value, exactly once.
     return {
-      ...rest,
+      pocRecordId: row.id,
+      leadId: lead.id,
+      slug: row.slug,
       shareLinkId: created.id,
       shareLinkUrl: `${ctx.baseUrl}/p/${created.token}`,
       ...(created.expiresAt ? { expiresAt: created.expiresAt } : {}),

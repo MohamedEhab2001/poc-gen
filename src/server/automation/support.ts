@@ -35,6 +35,8 @@ export type IdempotencyAcquire =
   | { kind: "in_progress"; retryAfterSeconds: number };
 
 export async function acquireIdempotency(input: IdempotencyAcquireInput): Promise<IdempotencyAcquire> {
+  // Reservations are scoped by (principal, operation, key): the same key
+  // under a different authenticated principal is independent.
   const keyHash = hashIdempotencyKey(input.operation, input.idempotencyKey);
   const requestHash = hashRequest(input.operation, input.request);
   const expiresAt = new Date(input.now.getTime() + IDEMPOTENCY_TTL_MS);
@@ -50,7 +52,9 @@ export async function acquireIdempotency(input: IdempotencyAcquireInput): Promis
       status: "pending",
       expiresAt,
     })
-    .onConflictDoNothing({ target: [automationIdempotency.operation, automationIdempotency.keyHash] })
+    .onConflictDoNothing({
+      target: [automationIdempotency.principal, automationIdempotency.operation, automationIdempotency.keyHash],
+    })
     .returning({ id: automationIdempotency.id });
 
   if (inserted.length > 0) return { kind: "new" };
@@ -58,7 +62,13 @@ export async function acquireIdempotency(input: IdempotencyAcquireInput): Promis
   const existing = await input.db
     .select()
     .from(automationIdempotency)
-    .where(and(eq(automationIdempotency.operation, input.operation), eq(automationIdempotency.keyHash, keyHash)))
+    .where(
+      and(
+        eq(automationIdempotency.principal, input.principal),
+        eq(automationIdempotency.operation, input.operation),
+        eq(automationIdempotency.keyHash, keyHash),
+      ),
+    )
     .limit(1);
   const row = existing[0];
   if (!row) {
@@ -93,15 +103,23 @@ export async function acquireIdempotency(input: IdempotencyAcquireInput): Promis
 export async function completeIdempotency(input: {
   db: Db;
   operation: string;
+  principal: string;
   idempotencyKey: string;
   status: "completed" | "failed";
   result: unknown;
 }): Promise<void> {
   const keyHash = hashIdempotencyKey(input.operation, input.idempotencyKey);
+  // Principal-scoped: a completion can never touch another principal's row.
   await input.db
     .update(automationIdempotency)
     .set({ status: input.status, result: redactedMetadata({ value: input.result }) as object })
-    .where(and(eq(automationIdempotency.operation, input.operation), eq(automationIdempotency.keyHash, keyHash)));
+    .where(
+      and(
+        eq(automationIdempotency.principal, input.principal),
+        eq(automationIdempotency.operation, input.operation),
+        eq(automationIdempotency.keyHash, keyHash),
+      ),
+    );
 }
 
 /** Purge helper for operators (documented, not called by the automation loop). */

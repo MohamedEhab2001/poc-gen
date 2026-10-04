@@ -3,8 +3,8 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { getRecordDisposition } from "@/lib/poc/disposition";
 import type { BusinessPocRecord } from "@/lib/poc/schema";
-import { getShareLinkStore } from "./store";
-import type { ShareLinkRecord } from "./store";
+import { getShareLinkStore, PostgresShareLinkStore } from "./store";
+import type { ShareDbHandle, ShareLinkRecord } from "./store";
 import { generateShareToken, hashShareToken, tokenHashMatches } from "./tokens";
 
 export interface CreatedShareLink {
@@ -37,11 +37,31 @@ export async function createShareLink(input: {
   expiresInDays?: number | null;
   maxViews?: number | null;
 }): Promise<CreatedShareLink | null> {
-  // Only records that currently render may be shared.
-  if (getRecordDisposition(input.record) !== "render") return null;
+  return createShareLinkWithin(null, input);
+}
+
+/**
+ * Transaction-aware creation. Pass an open transaction handle and the link
+ * is inserted INSIDE it (atomic publication); pass null to use the globally
+ * selected store (operator API, tests). The plaintext token exists only in
+ * the returned object; only its hash is persisted.
+ */
+export async function createShareLinkWithin(
+  db: ShareDbHandle | null,
+  input: {
+    slug: string;
+    createdBy: string;
+    record: BusinessPocRecord;
+    expiresInDays?: number | null;
+    maxViews?: number | null;
+    now?: Date;
+  },
+): Promise<CreatedShareLink | null> {
+  // Only records that currently render may be shared (revalidated here).
+  if (getRecordDisposition(input.record, input.now ?? new Date()) !== "render") return null;
 
   const token = generateShareToken();
-  const now = new Date();
+  const now = input.now ?? new Date();
   const record: ShareLinkRecord = {
     id: randomUUID(),
     slug: input.slug,
@@ -58,7 +78,11 @@ export async function createShareLink(input: {
     maxViews: input.maxViews && input.maxViews > 0 ? input.maxViews : null,
     createdBy: input.createdBy,
   };
-  await getShareLinkStore().create(record);
+  if (db) {
+    await new PostgresShareLinkStore().createWith(db, record);
+  } else {
+    await getShareLinkStore().create(record);
+  }
   return {
     id: record.id,
     token,

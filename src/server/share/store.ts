@@ -8,6 +8,9 @@ import { shareLinks } from "@/server/db/schema";
 import type { ShareLinkRow } from "@/server/db/schema";
 import { getDb } from "@/server/db/client";
 
+type Db = ReturnType<typeof getDb>;
+type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
 /**
  * Share-link persistence.
  *
@@ -119,9 +122,35 @@ function recordToRow(record: ShareLinkRecord) {
   };
 }
 
+/** A database handle: the pooled client or an open transaction. */
+export type ShareDbHandle = Db | Tx;
+
 export class PostgresShareLinkStore implements ShareLinkStore {
   async create(record: ShareLinkRecord): Promise<void> {
-    await getDb().insert(shareLinks).values(recordToRow(record));
+    await this.createWith(getDb(), record);
+  }
+
+  /**
+   * Insert a share link through a CALLER-SUPPLIED handle — typically an open
+   * transaction, so atomic publication can create the link inside the same
+   * transaction as the POC/lead transitions (a failure rolls everything
+   * back). The record carries the token HASH only, never the plaintext.
+   */
+  async createWith(db: ShareDbHandle, record: ShareLinkRecord): Promise<void> {
+    await db.insert(shareLinks).values(recordToRow(record));
+  }
+
+  /**
+   * Revokes every still-active link for a slug in the caller's transaction
+   * (used transactionally when a revised POC republishes).
+   */
+  async revokeActiveBySlug(db: ShareDbHandle, slug: string, now: Date): Promise<number> {
+    const rows = await db
+      .update(shareLinks)
+      .set({ revokedAt: now })
+      .where(and(eq(shareLinks.slug, slug), isNull(shareLinks.revokedAt)))
+      .returning({ id: shareLinks.id });
+    return rows.length;
   }
 
   async findById(id: string): Promise<ShareLinkRecord | null> {

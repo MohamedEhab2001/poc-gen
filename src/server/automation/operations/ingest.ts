@@ -10,13 +10,17 @@ import { advisoryLock, withDatabase, withTransaction } from "../db";
 import { writeAuditTx } from "../support";
 import { addRunStep, incrementRunCounters } from "../store/runs";
 import {
+  analyzeBusinessDuplicates,
   countLeadsCreatedSince,
-  findBusinessDuplicates,
+  getLeadByBusinessId,
+  isCompleteAddressKey,
   insertBusiness,
   insertLead,
   insertSnapshot,
   normalizeBusinessKeys,
   primaryDedupLockKey,
+  updateLeadStatus,
+  upsertContactRef,
 } from "../store/leads";
 import type { BusinessIdentityInput } from "../store/leads";
 import { upsertContact } from "../store/contacts";
@@ -119,30 +123,109 @@ async function ingestOne(
   const keys = normalizeBusinessKeys(business);
 
   return withTransaction(async (tx) => {
-    // Serialize duplicate detection on this candidate's strongest key: a
-    // concurrent ingest of the same business blocks here until the first
-    // commits, then sees the inserted row.
+    // Serialize duplicate analysis on this candidate's strongest identity
+    // key: a concurrent ingest of the same business blocks here until the
+    // first commits, then sees the committed row.
     await advisoryLock(tx, primaryDedupLockKey(business, keys));
 
-    const duplicates = await findBusinessDuplicates(tx, business, keys);
-    if (duplicates.businessIds.length > 1) {
+    const analysis = await analyzeBusinessDuplicates(tx, business, keys);
+
+    // Soft signals (domain, phone) NEVER merge by themselves. A candidate
+    // that carries its OWN strong identity basis (a source external id, or
+    // a complete address establishing a distinct location) is a legitimate
+    // distinct business — chain branches share websites and phones all the
+    // time — so it is CREATED even when soft signals match an existing row.
+    // Only when identity is genuinely UNCERTAIN (no source id, no complete
+    // address, soft signals matching) does the candidate surface as an
+    // explicit conflict instead of a silent merge.
+    const conflictIds = [...analysis.softMatchIds, ...(analysis.strongMatch ? [analysis.strongMatch.businessId] : [])];
+    const canEstablishStrongIdentity =
+      Boolean(business.sourceExternalId) || isCompleteAddressKey(keys.normalizedAddressKey);
+    if (!analysis.strongMatch && analysis.softMatchIds.length > 0 && !canEstablishStrongIdentity) {
       return {
         candidateKey: candidate.candidateKey,
         outcome: "conflict" as const,
-        reason: "ambiguous_duplicate_matches",
-        conflictCandidates: duplicates.businessIds.slice(0, 8),
+        reason: "soft_signal_match_only",
+        conflictCandidates: analysis.softMatchIds.slice(0, 8),
+      };
+    }
+    if (analysis.strongMatch && analysis.softMatchIds.length > 0) {
+      // Strong identity says X but domain/phone say Y: disagreement.
+      return {
+        candidateKey: candidate.candidateKey,
+        outcome: "conflict" as const,
+        reason: "identity_disagreement",
+        conflictCandidates: conflictIds.slice(0, 8),
       };
     }
 
-    if (duplicates.businessIds.length === 1) {
+    if (analysis.strongMatch) {
+      // MATCHED with enrichment: attach new immutable evidence (checksum
+      // dedup), refresh the score, and add a newly verified contact — never
+      // downgrading existing verification, never discarding fresh evidence.
+      const existingLead = await getLeadByBusinessId(tx, analysis.strongMatch.businessId);
+      if (!existingLead) {
+        return {
+          candidateKey: candidate.candidateKey,
+          outcome: "conflict" as const,
+          reason: "business_without_lead",
+          conflictCandidates: [analysis.strongMatch.businessId],
+        };
+      }
+      const snapshotIds: string[] = [];
+      for (const evidence of candidate.evidence) {
+        const snapshot = await insertSnapshot(tx, {
+          leadId: existingLead.id,
+          provider: evidence.provider,
+          sourceUrl: evidence.sourceUrl ?? null,
+          sourceIdentifier: evidence.sourceIdentifier ?? null,
+          retrievedAt: new Date(evidence.retrievedAt),
+          payload: evidence.payload,
+          attribution: evidence.attribution ?? null,
+          freshUntil: evidence.freshUntil ? new Date(evidence.freshUntil) : null,
+        });
+        snapshotIds.push(snapshot.id);
+      }
+      await updateLeadStatus(tx, {
+        leadId: existingLead.id,
+        from: existingLead.status as never,
+        to: existingLead.status as never,
+        score: candidate.score,
+        scoreReasons: candidate.scoreReasons,
+      });
+      if (candidate.contact && contactKeys) {
+        await upsertContactRef(tx, {
+          businessId: analysis.strongMatch.businessId,
+          rawAddress: candidate.contact.address,
+          verified: candidate.contact.verified,
+          provenance: candidate.contact.provenance,
+          keys: contactKeys,
+          now: ctx.now,
+        });
+      }
+      await writeAuditTx(tx, {
+        actor: ctx.principal,
+        action: "enrich_lead",
+        targetType: "lead",
+        targetId: existingLead.id,
+        runId: ctx.runId ?? null,
+        metadata: {
+          strategies: analysis.strongMatch.strategies,
+          evidenceAdded: snapshotIds.length,
+          contactProvided: Boolean(candidate.contact),
+        },
+      });
       return {
         candidateKey: candidate.candidateKey,
         outcome: "matched_existing" as const,
-        businessId: duplicates.businessIds[0],
-        reason: `matched_by_${duplicates.strategies.join("_or_")}`,
+        leadId: existingLead.id,
+        businessId: analysis.strongMatch.businessId,
+        snapshotIds,
+        reason: `matched_by_${analysis.strongMatch.strategies.join("_and_")}`,
       };
     }
 
+    // No strong match, no identity disagreement: create.
     const insertedBusiness = await insertBusiness(tx, business, keys);
     const leadStatus: LeadStatus = candidate.contact?.verified
       ? "CONTACT_VERIFIED"
@@ -172,7 +255,7 @@ async function ingestOne(
     }
 
     if (candidate.contact && contactKeys) {
-      await upsertContact(tx, {
+      await upsertContactRef(tx, {
         businessId: insertedBusiness.id,
         rawAddress: candidate.contact.address,
         verified: candidate.contact.verified,
@@ -216,16 +299,46 @@ async function ingestOne(
       snapshotIds,
     };
   }).catch((error: unknown) => {
-    // Unique-violation races on secondary keys (rare; advisory lock misses a
-    // different-key path) resolve to matched_existing on retry of the read.
+    // Unique-constraint race (a concurrent create committed between our
+    // analysis and insert): re-query deterministically under the lock we
+    // already hold conceptually — re-run in a fresh transaction and return
+    // the ACTUAL identifiers, or conflict if identity stays ambiguous.
     if (isUniqueViolation(error)) {
-      return {
-        candidateKey: candidate.candidateKey,
-        outcome: "matched_existing" as const,
-        reason: "concurrent_insert",
-      };
+      return requeryAfterRace(candidate, ctx, contactKeys, business, keys);
     }
     throw error;
+  });
+}
+
+/** Deterministic re-query after a unique-race; never a generic matched_existing. */
+async function requeryAfterRace(
+  candidate: IngestInput["candidates"][number],
+  ctx: CallContext,
+  contactKeys: ReturnType<typeof contactKeysOrThrow> | null,
+  business: BusinessIdentityInput,
+  keys: ReturnType<typeof normalizeBusinessKeys>,
+): Promise<CandidateOutcome> {
+  return withTransaction(async (tx) => {
+    await advisoryLock(tx, primaryDedupLockKey(business, keys));
+    const analysis = await analyzeBusinessDuplicates(tx, business, keys);
+    if (analysis.strongMatch && analysis.softMatchIds.length === 0) {
+      const existingLead = await getLeadByBusinessId(tx, analysis.strongMatch.businessId);
+      if (existingLead) {
+        return {
+          candidateKey: candidate.candidateKey,
+          outcome: "matched_existing" as const,
+          leadId: existingLead.id,
+          businessId: analysis.strongMatch.businessId,
+          reason: `matched_by_${analysis.strongMatch.strategies.join("_and_")}_after_race`,
+        };
+      }
+    }
+    return {
+      candidateKey: candidate.candidateKey,
+      outcome: "conflict" as const,
+      reason: "unresolved_after_race",
+      conflictCandidates: analysis.softMatchIds.slice(0, 8),
+    };
   });
 }
 

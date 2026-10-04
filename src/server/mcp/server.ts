@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { dispatchOperation, listAutomationOperations } from "@/server/automation/registry";
 import {
+  finishRunInputSchema,
   ingestLeadsInputSchema,
   interestedLeadsInputSchema,
   listDueFollowupsInputSchema,
@@ -42,6 +43,7 @@ const INPUT_SHAPES: Record<string, Record<string, z.ZodTypeAny>> = {
   record_reply_outcome: recordReplyInputSchema.shape,
   suppress_contact: suppressContactInputSchema.shape,
   get_run_report: runReportInputSchema.shape,
+  finish_automation_run: finishRunInputSchema.shape,
   get_interested_leads: interestedLeadsInputSchema.shape,
   retry_failed_lead: retryFailedLeadInputSchema.shape,
 };

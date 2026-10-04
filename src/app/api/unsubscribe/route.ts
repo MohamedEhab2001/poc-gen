@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { parseContactKeys, verifyUnsubscribeToken } from "@/lib/automation/crypto";
 import { addSuppression, addUnsubscribe } from "@/server/automation/store/contacts";
 import { writeAudit } from "@/server/automation/support";
-import { withDatabase, withTransaction } from "@/server/automation/db";
+import { advisoryLock, contactLockKey, withDatabase, withTransaction } from "@/server/automation/db";
 import { rateLimit } from "@/server/security/rate-limit";
 
 /**
@@ -86,6 +86,9 @@ export async function POST(request: Request) {
 
   try {
     await withTransaction(async (tx) => {
+      // The shared contact lock linearizes this suppression against any
+      // concurrent send reservation on the same contact.
+      await advisoryLock(tx, contactLockKey(addressHash));
       await addUnsubscribe(tx, { addressHash, method: "one_click" });
       await addSuppression(tx, { addressHash, reason: "unsubscribe" });
     });

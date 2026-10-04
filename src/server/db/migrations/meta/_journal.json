@@ -15,6 +15,13 @@
       "when": 1791067609752,
       "tag": "0001_automation_bridge",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791073092787,
+      "tag": "0002_phase2a1_hardening",
+      "breakpoints": true
     }
   ]
 }

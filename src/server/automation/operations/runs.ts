@@ -1,13 +1,19 @@
 import "server-only";
 
-import { createRun, getRun, finishRun, listRunSteps } from "../store/runs";
+import { and, eq } from "drizzle-orm";
+import { automationRuns } from "@/server/db/schema";
+import { createRun, getRun, listRunSteps as listSteps } from "../store/runs";
 import { listRepliesSince } from "../store/messages";
 import { withDatabase, withTransaction } from "../db";
-import { writeAudit, writeAuditTx } from "../support";
+import { writeAuditTx } from "../support";
 import type { CallContext } from "../context";
 import { AutomationError } from "@/lib/automation/outcomes";
 import type { z } from "zod";
-import type { runReportInputSchema, startRunInputSchema } from "@/lib/automation/schemas";
+import type {
+  finishRunInputSchema,
+  runReportInputSchema,
+  startRunInputSchema,
+} from "@/lib/automation/schemas";
 
 /** start_automation_run: creates (or idempotently resumes) an automation run. */
 export async function startAutomationRun(
@@ -46,13 +52,12 @@ export async function startAutomationRun(
 }
 
 /**
- * get_run_report: bounded, safe summary of a run. With finish:true it also
- * closes the run (status derived from its steps) — the daily report is the
- * natural close of a scheduled cycle.
+ * get_run_report: STRICTLY read-only. Bounded, safe summary of a run — no
+ * audit rows, no state changes, no counters mutated. Run completion is the
+ * separate mutating finish_automation_run operation.
  */
 export async function getRunReport(
   input: z.infer<typeof runReportInputSchema>,
-  ctx: CallContext,
 ): Promise<{
   runId: string;
   kind: string;
@@ -69,7 +74,7 @@ export async function getRunReport(
     if (!run) {
       throw new AutomationError("run_not_found", "No such automation run.", "REJECTED");
     }
-    const steps = await listRunSteps(db, run.id, 200);
+    const steps = await listSteps(db, run.id, 200);
     const ambiguous = await listRepliesSince(db, run.startedAt, 50);
     const exceptionReplies = ambiguous
       .filter((reply) => reply.classification === "AMBIGUOUS")
@@ -79,28 +84,10 @@ export async function getRunReport(
         receivedAt: reply.receivedAt.toISOString(),
       }));
 
-    let status = run.status;
-    if (input.finish && run.status === "running") {
-      const derived = steps.some((s) => s.status === "failed")
-        ? "failed"
-        : steps.some((s) => s.status === "skipped")
-          ? "completed_with_skips"
-          : "completed";
-      await finishRun(db, run.id, derived, ctx.now);
-      await writeAudit(db, {
-        actor: ctx.principal,
-        action: "finish_automation_run",
-        targetType: "automation_run",
-        targetId: run.id,
-        metadata: { derivedStatus: derived },
-      });
-      status = derived;
-    }
-
     return {
       runId: run.id,
       kind: run.kind,
-      status,
+      status: run.status,
       requestedBy: run.requestedBy,
       counters: run.counters ?? {},
       startedAt: run.startedAt.toISOString(),
@@ -116,6 +103,73 @@ export async function getRunReport(
         }))
         .reverse(),
       exceptionReplies,
+    };
+  });
+}
+
+/**
+ * finish_automation_run: the mutating completion. Derives the final status
+ * from the run's steps (failed > completed_with_skips > completed), finishes
+ * idempotently (an already-finished run returns its current state), and
+ * writes the audit record.
+ */
+export async function finishAutomationRun(
+  input: z.infer<typeof finishRunInputSchema>,
+  ctx: CallContext,
+): Promise<{
+  runId: string;
+  kind: string;
+  status: string;
+  derivedFrom: string;
+  finishedAt?: string;
+  stepCount: number;
+  counters: Record<string, number>;
+}> {
+  return withTransaction(async (tx) => {
+    const run = await getRun(tx, input.runId);
+    if (!run) {
+      throw new AutomationError("run_not_found", "No such automation run.", "REJECTED");
+    }
+    const steps = await listSteps(tx, run.id, 200);
+
+    if (run.status === "running") {
+      const failed = steps.some((step) => step.status === "failed");
+      const skipped = steps.some((step) => step.status === "skipped");
+      const derived = failed ? "failed" : skipped ? "completed_with_skips" : "completed";
+      // Conditional update: only this call transitions a running run.
+      const updated = await tx
+        .update(automationRuns)
+        .set({ status: derived, finishedAt: ctx.now, updatedAt: ctx.now })
+        .where(and(eq(automationRuns.id, run.id), eq(automationRuns.status, "running")))
+        .returning({ status: automationRuns.status, finishedAt: automationRuns.finishedAt });
+      const row = updated[0];
+      await writeAuditTx(tx, {
+        actor: ctx.principal,
+        action: "finish_automation_run",
+        targetType: "automation_run",
+        targetId: run.id,
+        metadata: { derivedStatus: row?.status ?? derived },
+      });
+      return {
+        runId: run.id,
+        kind: run.kind,
+        status: row?.status ?? derived,
+        derivedFrom: "steps",
+        ...(ctx.now ? { finishedAt: ctx.now.toISOString() } : {}),
+        stepCount: steps.length,
+        counters: run.counters ?? {},
+      };
+    }
+
+    // Already finished: idempotent return of the persisted state.
+    return {
+      runId: run.id,
+      kind: run.kind,
+      status: run.status,
+      derivedFrom: "already_finished",
+      ...(run.finishedAt ? { finishedAt: run.finishedAt.toISOString() } : {}),
+      stepCount: steps.length,
+      counters: run.counters ?? {},
     };
   });
 }

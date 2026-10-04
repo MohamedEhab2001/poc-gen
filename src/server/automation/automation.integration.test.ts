@@ -104,7 +104,10 @@ describe.skipIf(!dbUrl)("automation bridge (integration)", () => {
   }
 
   function record(key: string, overrides: Record<string, unknown> = {}) {
-    const sv = (value: unknown, source = "google_places") => ({ value, source, verified: true });
+    // Facts come from the business's own site in these synthetic records;
+    // a google_places-sourced record would require a google_places snapshot
+    // (provider-evidence gate).
+    const sv = (value: unknown, source = "official_website") => ({ value, source, verified: true });
     return {
       schemaVersion: 1,
       id: `rec-it-${key}`,
@@ -238,28 +241,22 @@ describe.skipIf(!dbUrl)("automation bridge (integration)", () => {
     });
     expect((sameSource.results as Array<{ outcome: string }>)[0]!.outcome).toBe("matched_existing");
 
-    // Same domain (different source id) -> matched.
-    const sameDomain = await ok("ingest_leads", {
+    // Same domain, same phone, different name+address: a distinct branch —
+    // soft signals never merge (Phase 2A.1); the candidate is created.
+    const branch = await ok("ingest_leads", {
       idempotencyKey: `k-${key}-3`,
-      candidates: [candidate(`${key}d`, { business: { website: `https://${key}.example.com` } })],
-    });
-    expect((sameDomain.results as Array<{ outcome: string }>)[0]!.outcome).toBe("matched_existing");
-
-    // Same phone -> matched.
-    const samePhone = await ok("ingest_leads", {
-      idempotencyKey: `k-${key}-4`,
       candidates: [
-        candidate(`${key}p`, {
+        candidate(`${key}branch`, {
           business: {
+            website: `https://${key}.example.com`,
             phone: candidate(key).business.phone ?? "+15550000000",
-            website: `https://phone${key}.example.com`,
           },
         }),
       ],
     });
-    expect((samePhone.results as Array<{ outcome: string }>)[0]!.outcome).toBe("matched_existing");
+    expect((branch.results as Array<{ outcome: string }>)[0]!.outcome).toBe("created");
 
-    // Same name+address -> matched.
+    // Same name+address (complete) -> matched (strong signal).
     const base = candidate(key);
     const sameNameAddress = await ok("ingest_leads", {
       idempotencyKey: `k-${key}-5`,
@@ -274,9 +271,14 @@ describe.skipIf(!dbUrl)("automation bridge (integration)", () => {
         }),
       ],
     });
-    expect((sameNameAddress.results as Array<{ outcome: string }>)[0]!.outcome).toBe("matched_existing");
+    const matched = (sameNameAddress.results as Array<{ outcome: string; leadId?: string; businessId?: string }>)[0]!;
+    expect(matched.outcome).toBe("matched_existing");
+    // Matched results always carry usable identifiers (Phase 2A.1).
+    expect(matched.leadId).toBeDefined();
+    expect(matched.businessId).toBeDefined();
 
-    // Ambiguous: matches TWO distinct businesses -> explicit conflict, no merge.
+    // Identity disagreement: strong name+address says the original, but the
+    // domain belongs to a different existing business -> explicit conflict.
     await ok("ingest_leads", {
       idempotencyKey: `k-${key}-other`,
       candidates: [
@@ -287,7 +289,11 @@ describe.skipIf(!dbUrl)("automation bridge (integration)", () => {
       idempotencyKey: `k-${key}-6`,
       candidates: [
         candidate(`${key}c`, {
-          business: { website: `https://${key}.example.com`, phone: "+15559990002" },
+          business: {
+            displayName: base.business.displayName,
+            address: base.business.address,
+            website: `https://other${key}.example.com`,
+          },
         }),
       ],
     });
@@ -911,8 +917,13 @@ describe.skipIf(!dbUrl)("automation bridge (integration)", () => {
       leadId,
       classification: "AMBIGUOUS",
     });
-    const report = await ok("get_run_report", { runId, finish: true });
-    expect(report.status).toBe("completed");
+    const report = await ok("get_run_report", { runId });
+    expect(report.status).toBe("running"); // reports are read-only now
+    const finished = await ok("finish_automation_run", { idempotencyKey: `rep-run-finish-${suffix}`, runId });
+    expect(finished.status).toBe("completed");
+    const refinished = await ok("finish_automation_run", { idempotencyKey: `rep-run-finish2-${suffix}`, runId });
+    expect(refinished.status).toBe("completed");
+    expect(refinished.derivedFrom).toBe("already_finished");
     expect((report.exceptionReplies as unknown[]).length).toBeGreaterThanOrEqual(0);
     const serialized = JSON.stringify(report);
     expect(serialized).not.toMatch(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);

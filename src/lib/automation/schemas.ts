@@ -204,8 +204,11 @@ export const publishPocResultSchema = z.object({
   leadId: leadIdSchema,
   slug: slugSchema,
   shareLinkId: z.string().uuid(),
-  /** Customer URL including the plaintext token. Returned EXACTLY ONCE. */
-  shareLinkUrl: z.string().max(2048),
+  /**
+   * Customer URL including the plaintext token. Returned EXACTLY ONCE.
+   * Null on idempotent replays (the saved redacted result).
+   */
+  shareLinkUrl: z.string().max(2048).nullable(),
   expiresAt: z.string().datetime().nullable().optional(),
   maxViews: z.number().int().nullable().optional(),
   /** True when the idempotent replay returned the saved (token-redacted) result. */
@@ -216,10 +219,16 @@ export const publishPocResultSchema = z.object({
 // prepare_outreach
 // ---------------------------------------------------------------------------
 
-export const claimSchema = z.object({
-  statement: z.string().min(3).max(300),
-  evidenceRef: z.string().uuid(),
-});
+export const claimSchema = z
+  .object({
+    statement: z.string().min(3).max(300),
+    evidenceRef: z.string().uuid(),
+    /** Deterministic support: the excerpt must occur in the snapshot payload. */
+    supportingExcerpt: z.string().min(3).max(300),
+    /** Optional RFC 6901 pointer into the snapshot payload. */
+    jsonPointer: z.string().min(1).max(200).nullable().optional(),
+  })
+  .strict();
 
 export const prepareOutreachInputSchema = z.object({
   idempotencyKey: idKeySchema,
@@ -338,8 +347,6 @@ export const suppressContactResultSchema = z.object({
 
 export const runReportInputSchema = z.object({
   runId: runIdSchema,
-  /** When true, close the run with a status derived from its steps (mutating). */
-  finish: z.boolean().optional(),
 }).strict();
 
 export const runReportStepSchema = z.object({
@@ -367,6 +374,27 @@ export const runReportResultSchema = z.object({
   finishedAt: z.string().datetime().nullable().optional(),
   steps: z.array(runReportStepSchema).max(200),
   exceptionReplies: z.array(exceptionReplySchema).max(50),
+});
+
+// ---------------------------------------------------------------------------
+// finish_automation_run (mutating completion, separate from read-only reports)
+// ---------------------------------------------------------------------------
+
+export const finishRunInputSchema = z
+  .object({
+    idempotencyKey: idKeySchema,
+    runId: runIdSchema,
+  })
+  .strict();
+
+export const finishRunResultSchema = z.object({
+  runId: runIdSchema,
+  kind: z.string(),
+  status: z.string(),
+  derivedFrom: z.string(),
+  finishedAt: z.string().datetime().nullable().optional(),
+  stepCount: z.number().int(),
+  counters: z.record(z.string(), z.number()),
 });
 
 export const interestedLeadsInputSchema = z.object({

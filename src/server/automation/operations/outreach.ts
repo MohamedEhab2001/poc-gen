@@ -16,17 +16,18 @@ import {
 import { decryptContactAddress, unsubscribeToken } from "@/lib/automation/crypto";
 import { emailDomain } from "@/lib/automation/normalize";
 import { hashIdempotencyKey } from "@/lib/automation/canonical";
+import { verifyClaimSupport } from "@/lib/automation/evidence";
 import { AutomationError } from "@/lib/automation/outcomes";
 import { isLeadStatus } from "@/lib/automation/lifecycle";
 import type { LeadStatus } from "@/lib/automation/lifecycle";
 import { contactKeysOrThrow } from "../context";
 import type { CallContext } from "../context";
-import { advisoryLock, withDatabase, withTransaction } from "../db";
+import { advisoryLock, contactLockKey, withDatabase, withTransaction } from "../db";
 import { writeAudit, writeAuditTx } from "../support";
 import { addRunStep } from "../store/runs";
 import { getLeadWithBusiness, resolveEvidenceRefs, updateLeadStatus } from "../store/leads";
 import { getPocByLeadId, parseStoredRecord } from "../store/poc";
-import { checkSuppression, getVerifiedContactForBusiness } from "../store/contacts";
+import { checkSuppression, getContactByHash, getVerifiedContactForBusiness } from "../store/contacts";
 import {
   countRepliesForLead,
   countSentForDomainSince,
@@ -40,7 +41,7 @@ import {
   reserveMessage,
 } from "../store/messages";
 import { createShareLink, listShareLinksForSlug } from "@/server/share/service";
-import { getEmailProvider } from "../email/provider";
+import { getEmailProvider, sendWithTimeout } from "../email/provider";
 
 /**
  * prepare_outreach, send_outreach, list_due_followups.
@@ -53,6 +54,17 @@ import { getEmailProvider } from "../email/provider";
  */
 
 const FOLLOWUP_DELAY_DAYS = 3;
+
+/** Deterministic preview text: the first ~90 characters of the plain-text body. */
+function previewTextFrom(bodyText: string): string {
+  const firstLine = bodyText.split("\n").find((line) => line.trim().length > 0) ?? "";
+  return firstLine.trim().slice(0, 90);
+}
+
+function providerTimeoutMs(ctx: CallContext): number {
+  const parsed = Number.parseInt(process.env.OUTREACH_PROVIDER_TIMEOUT_MS ?? "", 10);
+  return Number.isFinite(parsed) && parsed >= 1000 && parsed <= 60_000 ? parsed : 15_000;
+}
 
 function requireLeadStatus(status: string): LeadStatus {
   if (!isLeadStatus(status)) {
@@ -134,7 +146,10 @@ export async function prepareOutreach(
       );
     }
 
-    // Claim validation: every referenced snapshot belongs to this lead.
+    // Claim validation: every referenced snapshot belongs to this lead AND
+    // every claim is deterministically supported by its snapshot payload.
+    // (Deterministic linkage, not semantic fact-checking — see
+    // src/lib/automation/evidence.ts.)
     const refs = [...new Set([...input.evidenceRefs, ...(input.claims ?? []).map((c) => c.evidenceRef)])];
     if (refs.length > 0) {
       const evidence = await resolveEvidenceRefs(tx, lead.id, refs);
@@ -144,6 +159,41 @@ export async function prepareOutreach(
           "One or more evidence references do not belong to this lead.",
           "REJECTED",
         );
+      }
+    }
+    if ((input.claims ?? []).length > 0) {
+      const { listSnapshotsForLead } = await import("../store/leads");
+      const snapshots = await listSnapshotsForLead(tx, lead.id);
+      const byId = new Map(snapshots.map((snapshot) => [snapshot.id, snapshot]));
+      for (const [index, claim] of (input.claims ?? []).entries()) {
+        const snapshot = byId.get(claim.evidenceRef);
+        if (!snapshot) {
+          throw new AutomationError(
+            "evidence_claim_unsupported",
+            "A claim references evidence that does not belong to this lead.",
+            "REJECTED",
+            undefined,
+            { claimIndex: index, reason: "evidence_not_found" },
+          );
+        }
+        const support = verifyClaimSupport({
+          statement: claim.statement,
+          subject: input.subject,
+          body: input.body,
+          supportingExcerpt: claim.supportingExcerpt,
+          jsonPointer: claim.jsonPointer ?? null,
+          payload: snapshot.payload,
+        });
+        if (!support.ok) {
+          // Safe details only: indices and machine reasons — never payload content.
+          throw new AutomationError(
+            "evidence_claim_unsupported",
+            "A personalized claim is not supported by its evidence snapshot.",
+            "REJECTED",
+            undefined,
+            { claimIndex: index, reason: support.reason },
+          );
+        }
       }
     }
 
@@ -190,6 +240,7 @@ export async function prepareOutreach(
       sequenceNumber,
       kind: sequenceNumber === 0 ? "initial" : "followup",
       subject: validated.subject,
+      pocUrl: pocLink,
       bodyText: validated.bodyText,
       bodyHtml: validated.bodyHtml,
       idempotencyKeyHash: hashIdempotencyKey("prepare_outreach", ctx.idempotencyKey),
@@ -276,7 +327,11 @@ export async function sendOutreach(
   const contactKeys = contactKeysOrThrow(ctx.config);
   const startOfDay = startOfUtcDay(ctx.now);
 
-  const { prepared, contact } = await withTransaction(async (tx) => {
+  // RESERVATION TRANSACTION. The shared contact-level advisory lock is held
+  // for the whole decision+reservation: suppression transactions take the
+  // SAME lock, so suppression and sending are linearized — whichever
+  // acquires the lock first commits its decision first.
+  const { prepared, contact, businessName } = await withTransaction(async (tx) => {
     const pair = await getLeadWithBusiness(tx, message.leadId);
     if (!pair) throw new AutomationError("lead_not_found", "No such lead.", "REJECTED");
     const { lead, business } = pair;
@@ -290,9 +345,12 @@ export async function sendOutreach(
       );
     }
 
-    // Transactional suppression lookup: a suppression that committed before
-    // this transaction blocks the reservation; one committing after cannot
-    // un-reserve, and the send loop re-checks before the provider call.
+    // Hold the shared contact lock across the suppression decision AND the
+    // reservation below: a suppression transaction either committed before
+    // us (we see it and stop here) or waits for our commit (and the
+    // post-commit recheck below catches it before the provider boundary).
+    await advisoryLock(tx, contactLockKey(contactRow.addressHash));
+
     const suppression = await checkSuppression(tx, contactRow.addressHash);
     if (suppression.suppressed || suppression.unsubscribed) {
       throw new AutomationError("contact_suppressed", "The contact is suppressed or unsubscribed.", "SUPPRESSED");
@@ -338,7 +396,7 @@ export async function sendOutreach(
     // idempotency hash plus this conditional update make double-sends
     // impossible across processes.
     const reserved = await reserveMessage(tx, message.id);
-    return { prepared: reserved, contact: contactRow };
+    return { prepared: reserved, contact: contactRow, businessName: business.displayName };
   });
 
   // Emergency stop: checked immediately before the provider call.
@@ -352,6 +410,32 @@ export async function sendOutreach(
     throw new AutomationError("emergency_stop", "Automation is halted by the emergency stop flag.", "FAILED");
   }
 
+  // FINAL RECHECK after the reservation committed and immediately before
+  // crossing the provider boundary. A suppression that committed while we
+  // held the lock (or right after) is visible here — the provider is NOT
+  // called. Once the provider call is in flight it cannot be recalled; a
+  // suppression landing after this point still stops every future
+  // follow-up (due-followups queries re-check suppression).
+  const recheck = await withTransaction(async (tx) => {
+    const row = await getContactByHash(tx, contact.addressHash);
+    if (!row) return false;
+    const state = await checkSuppression(tx, row.addressHash);
+    return state.suppressed || state.unsubscribed;
+  });
+  if (recheck) {
+    await withDatabase((db) =>
+      recordMessageOutcome(db, prepared.id, {
+        status: "failed",
+        failureCode: "suppressed_before_provider",
+      }),
+    );
+    throw new AutomationError(
+      "contact_suppressed",
+      "The contact was suppressed before the provider call.",
+      "SUPPRESSED",
+    );
+  }
+
   let toAddress: string;
   try {
     toAddress = decryptContactAddress(contact.encryptedAddress ?? "", contactKeys.keys);
@@ -361,23 +445,45 @@ export async function sendOutreach(
 
   const unsubscribeUrl = `${ctx.baseUrl}/api/unsubscribe?k=${unsubscribeToken(contact.addressHash, contactKeys.keys)}`;
   const provider = getEmailProvider();
-  const outcome = await provider.send({
-    toEncrypted: contact.id,
-    toAddress,
-    subject: prepared.subject,
-    text: prepared.bodyText,
-    html: prepared.bodyHtml,
-    headers: {
-      messageId: buildMessageId(prepared.id, ctx.config.fromEmail ?? "outreach@localhost"),
-      listUnsubscribe: `<${unsubscribeUrl}>`,
-      listUnsubscribePost: true,
-      from:
-        ctx.config.senderName && ctx.config.fromEmail
-          ? `${ctx.config.senderName} <${ctx.config.fromEmail}>`
-          : (ctx.config.fromEmail ?? "outreach@localhost"),
-      replyTo: ctx.config.replyTo,
+  // Bounded provider call: a hung provider cannot hold pipeline state
+  // indefinitely; a timeout resolves as delivery_unknown (never retried
+  // automatically). Note: EmailJS does not support custom Message-ID /
+  // List-Unsubscribe headers — the visible unsubscribe link in the body is
+  // the authoritative mechanism.
+  // Provider template parameters (EmailJS template; see
+  // docs/emailjs-template-setup.md). The recipient address travels ONLY to
+  // the provider over TLS — never into logs or stored results.
+  const templateParams: Record<string, string> = {
+    business_name: businessName,
+    sender_name: ctx.config.senderName ?? "POC Gen",
+    preview_text: previewTextFrom(prepared.bodyText),
+    ...(prepared.pocUrl ? { poc_url: prepared.pocUrl } : {}),
+    postal_address: ctx.config.postalAddress ?? "",
+    advertisement_disclosure: ctx.config.advertisementDisclosure ? "This is an advertisement." : "",
+  };
+
+  const outcome = await sendWithTimeout(
+    provider,
+    {
+      toEncrypted: contact.id,
+      toAddress,
+      subject: prepared.subject,
+      text: prepared.bodyText,
+      html: prepared.bodyHtml,
+      templateParams,
+      headers: {
+        messageId: buildMessageId(prepared.id, ctx.config.fromEmail ?? "outreach@localhost"),
+        listUnsubscribe: `<${unsubscribeUrl}>`,
+        listUnsubscribePost: true,
+        from:
+          ctx.config.senderName && ctx.config.fromEmail
+            ? `${ctx.config.senderName} <${ctx.config.fromEmail}>`
+            : (ctx.config.fromEmail ?? "outreach@localhost"),
+        replyTo: ctx.config.replyTo,
+      },
     },
-  });
+    providerTimeoutMs(ctx),
+  );
 
   await withDatabase((db) => recordMessageOutcome(db, prepared.id, outcome));
 

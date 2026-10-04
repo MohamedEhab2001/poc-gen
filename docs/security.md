@@ -123,22 +123,19 @@ in the Phase 5 backlog.
   postcss override to 8.5.28. `npm audit --omit=dev`: **0 vulnerabilities**.
 - Phase 2A additions: `@modelcontextprotocol/sdk` 1.32.0 and `jose` 6.2.12
   (deduped across both) — no production advisories.
-- **Known dev-only findings (pre-existing on the Phase 1.2 baseline, not
-  introduced by Phase 2A; production audit stays clean):**
-  - `braces` < 3.0.3 (high, GHSA-vfj7-8cjw-p6xm) via
-    `eslint-config-next → @next/eslint-plugin-next → fast-glob →
-    micromatch`. Lint tooling only; never shipped. The npm "fix" downgrades
-    eslint-config-next to v14 (breaking, incompatible with Next 15); it
-    resolves upstream instead when the eslint-config-next chain updates.
-    Impact if exploited: a maintainer running lint on a maliciously nested
-    glob could hit stack exhaustion — no runtime or build exposure.
-  - `esbuild` ≤ 0.24.2 (moderate, GHSA-67mh-4wv8-2f99) via
-    `drizzle-kit → @esbuild-kit/core-utils` (the legacy esbuild-kit path).
-    Migration tooling only. The npm "fix" downgrades drizzle-kit to 0.18
-    (breaking). Impact: the advisory affects esbuild's **dev server**
-    cross-origin behavior; poc-gen never runs an esbuild dev server, so the
-    practical exposure is nil. Mitigation: run drizzle-kit only against
-    trusted migration folders (this repo's committed SQL).
+- **Phase 2A.1 dependency actions:** the `esbuild` advisory
+  (GHSA-67mh-4wv8-2f99) via `drizzle-kit → @esbuild-kit/core-utils` is
+  RESOLVED with a targeted override to esbuild 0.25 (drizzle-kit generate,
+  migrations, and lint verified working after the override).
+- **Remaining security debt (dev-only, no fixed release exists):**
+  `braces` (high, GHSA-vfj7-8cjw-p6xm) via
+  `eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch`.
+  The advisory currently flags EVERY published version (`*`), the installed
+  copy is the latest 3.0.3, and the only npm-suggested "fix" is a breaking
+  eslint-config-next downgrade — so no safe resolution exists today. It is
+  lint tooling only (never shipped, never runs in CI on untrusted input);
+  impact would be stack exhaustion while linting a maliciously nested glob.
+  It clears automatically once eslint-config-next ships the chain update.
 - The postcss advisory affected every Next release up to 16.3.0-preview; the
   override installs the patched postcss independently of Next's range. The
   clean long-term fix is the deliberate Next 16 upgrade (backlog).
@@ -224,3 +221,49 @@ boundaries, and preserves the Phase 1 CSP, image-host allowlist, map
 allowlist, and provenance policy. No secrets or real business data are
 committed; production sending is disabled by default and the only email
 provider in this phase is a deterministic mock that cannot open a socket.
+
+
+## Phase 2A.1 — hardening additions
+
+- **Atomic publication:** link revocation, link creation (hash-only at
+  rest), the `qa_passed → published` and lead transitions, the audit entry,
+  and the run step commit in ONE transaction; an injected share-link
+  failure provably rolls everything back (integration-tested with a
+  database trigger). Republishing a revision revokes prior links
+  transactionally; the plaintext URL is returned exactly once and replays
+  return the redacted result.
+- **Linearized suppression/sending:** every path that decides a contact's
+  sendability (send reservation, `suppress_contact`, reply-driven
+  suppression, the public unsubscribe endpoint) holds the SAME
+  PostgreSQL advisory transaction lock keyed by the contact's keyed hash.
+  Suppression committed first ⇒ the provider is never called (including a
+  post-reservation recheck immediately before the provider boundary); a
+  call already in flight cannot be recalled but every future follow-up is
+  stopped. Provider calls are time-bounded; timeouts resolve as
+  delivery_unknown (never auto-retried). Verified with deterministic
+  barrier-based provider spies, no timing sleeps.
+- **Principal-scoped idempotency:** reservations are unique per
+  (principal, operation, key hash); completion can never touch another
+  principal's row; different principals using the same key are independent
+  (migration 0002, integration-tested).
+- **Branch-safe business identity:** domain and phone are soft signals
+  (plain indexes) that never merge; only the source key or complete
+  name+address matches automatically; identity disagreement and
+  uncertainty surface as explicit conflicts; matched results always carry
+  lead and business ids and enrich the existing lead with checksum-deduped
+  evidence without ever downgrading verified contacts.
+- **Deterministic evidence linkage:** outreach claims carry a supporting
+  excerpt (and optional JSON pointer) that must occur in the referenced
+  immutable snapshot payload; the claim statement must occur in the
+  message; provider-sourced record facts require a matching provider
+  snapshot. Deterministic linkage, not semantic fact-checking.
+- **Live email (EmailJS):** server-side `@emailjs/nodejs` provider with
+  exhaustive configuration validation (mock fails closed in production;
+  incomplete EmailJS config fails closed; private key required in
+  production), dry-run default outside production, request timeouts,
+  outcome mapping (network/timeout ⇒ delivery_unknown; definite 4xx ⇒
+  failed with safe codes), a ≥1,100 ms PostgreSQL-backed cross-instance
+  rate reservation, an allowlist HTML sanitizer on the unescaped template
+  variable, and zero logging of recipients, parameters, bodies, tokens, or
+  keys. Outbound sending is NOT inbound reply automation — replies still
+  require the external scheduler (or a future inbound connector).

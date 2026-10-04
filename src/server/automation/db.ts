@@ -60,12 +60,16 @@ export async function withDatabase<T>(fn: (db: Db) => Promise<T>): Promise<T> {
 /** True for PostgreSQL driver-level failures the scheduler may retry. */
 export function isInfrastructureError(error: unknown): boolean {
   if (error instanceof AutomationError) return false;
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    typeof (error as { code?: unknown }).code === "string" &&
-    /^[0-9A-Z]{5}$/.test((error as { code: string }).code)
+  // Drizzle wraps driver errors (DrizzleQueryError); the PostgreSQL SQLSTATE
+  // lives on the error itself or its cause.
+  const candidates = [error, (error as { cause?: unknown })?.cause];
+  return candidates.some(
+    (candidate) =>
+      typeof candidate === "object" &&
+      candidate !== null &&
+      "code" in candidate &&
+      typeof (candidate as { code?: unknown }).code === "string" &&
+      /^[0-9A-Z]{5}$/.test((candidate as { code: string }).code),
   );
 }
 
@@ -75,4 +79,15 @@ export function isInfrastructureError(error: unknown): boolean {
  */
 export async function advisoryLock(tx: Tx, key: string): Promise<void> {
   await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`);
+}
+
+/**
+ * The shared CONTACT-LEVEL lock key. Every path that decides a contact's
+ * sendability — send reservation, suppression, unsubscribe — must hold this
+ * lock across its decision+write so suppression and sending have a
+ * deterministic linearized order. Derived from the keyed address hash,
+ * never the plaintext address.
+ */
+export function contactLockKey(addressHash: string): string {
+  return `contact:${addressHash}`;
 }

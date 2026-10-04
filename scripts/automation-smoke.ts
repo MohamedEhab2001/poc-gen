@@ -140,9 +140,13 @@ async function main() {
     if (stillDue) throw new Error("lead still due after INTERESTED reply");
     log("no further follow-up returned");
 
-    // 13. produce the final run report
-    const report = await expectOk(call("get_run_report", { runId, finish: true }));
-    log(`run report: status=${String(report.status)} steps=${(report.steps as unknown[]).length}`);
+    // 13. read the final run report (strictly read-only) and close the run
+    const report = await expectOk(call("get_run_report", { runId }));
+    log(`run report (read-only): status=${String(report.status)} steps=${(report.steps as unknown[]).length}`);
+    const finished = await expectOk(
+      call("finish_automation_run", { idempotencyKey: key("finish"), runId }),
+    );
+    log(`run finished: status=${String(finished.status)} (${String(finished.derivedFrom)})`);
 
     log("SMOKE OK");
     if (customerUrl) {
@@ -221,7 +225,10 @@ function syntheticCandidate(suffix: string) {
 
 function syntheticRecord(suffix: string) {
   const now = new Date().toISOString();
-  const sv = (value: unknown, source: string, verified = false) => ({
+  // Synthetic facts are presented as coming from the business's own site;
+  // a google_places-sourced record would need google_places snapshots
+  // (deterministic provider-evidence gate).
+  const sv = (value: unknown, source = "official_website", verified = true) => ({
     value,
     source,
     verified,
@@ -234,23 +241,23 @@ function syntheticRecord(suffix: string) {
     expiresAt: new Date(Date.now() + 30 * 86_400_000).toISOString(),
     themeId: "heritage-bistro",
     identity: {
-      name: sv("Harbor Fig Kitchen", "google_places", true),
-      primaryCategory: sv("Restaurant", "google_places", true),
-      categories: sv(["Restaurant", "Cafe"], "google_places", true),
-      businessStatus: sv("operational", "google_places", true),
+      name: sv("Harbor Fig Kitchen"),
+      primaryCategory: sv("Restaurant"),
+      categories: sv(["Restaurant", "Cafe"]),
+      businessStatus: sv("operational"),
     },
     hero: {
       headline: sv("Coastal cooking, wood-fired and unfussy", "manual"),
     },
     contact: {
-      phone: sv(`+1 (503) 555-01${suffix.slice(0, 2).padEnd(2, "0")}`, "google_places", true),
+      phone: sv(`+1 (503) 555-01${suffix.slice(0, 2).padEnd(2, "0")}`),
       website: sv(`https://harborfig-${suffix}.example.com`, "official_website", true),
     },
     location: {
-      formattedAddress: sv(`${suffix} Smoke Test Way, Portland, OR 97209`, "google_places", true),
-      city: sv("Portland", "google_places", true),
-      region: sv("Oregon", "google_places"),
-      country: sv("United States", "google_places"),
+      formattedAddress: sv(`${suffix} Smoke Test Way, Portland, OR 97209`),
+      city: sv("Portland"),
+      region: sv("Oregon"),
+      country: sv("United States"),
     },
     media: { images: [] },
     poc: {

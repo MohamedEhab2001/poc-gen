@@ -40,12 +40,82 @@ describe("automation configuration resolution", () => {
     expect(config.productionProblems.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("rejects unimplemented email providers", () => {
+  it("rejects unknown email providers; selects mock or emailjs exhaustively", () => {
+    const unknown = resolveAutomationConfig({ OUTREACH_EMAIL_PROVIDER: "ses" }, "development");
+    expect(unknown.productionProblems.join(" ")).toMatch(/unknown/);
+    expect(resolveAutomationConfig({ OUTREACH_EMAIL_PROVIDER: "mock" }, "development").emailProvider).toBe("mock");
+    expect(resolveAutomationConfig({ OUTREACH_EMAIL_PROVIDER: "emailjs" }, "development").emailProvider).toBe("emailjs");
+    expect(resolveAutomationConfig({}, "development").emailProvider).toBe("mock");
+  });
+
+  it("mock fails closed in production when live sending is enabled", () => {
     const config = resolveAutomationConfig(
-      { OUTREACH_SEND_ENABLED: "true", OUTREACH_EMAIL_PROVIDER: "ses" },
-      "development",
+      {
+        OUTREACH_SEND_ENABLED: "true",
+        OUTREACH_EMAIL_PROVIDER: "mock",
+        OUTREACH_SENDER_NAME: "S",
+        OUTREACH_FROM_EMAIL: "s@example.com",
+        OUTREACH_POSTAL_ADDRESS: "1 Way",
+        CONTACT_DATA_ENCRYPTION_KEYS: `k:${KEY}`,
+        CONTACT_DATA_ACTIVE_KEY_ID: "k",
+      },
+      "production",
     );
-    expect(config.productionProblems.join(" ")).toMatch(/not implemented/);
+    expect(config.productionComplete).toBe(false);
+    expect(config.productionProblems.join(" ")).toMatch(/mock.*fails closed in production/s);
+  });
+
+  it("incomplete EmailJS configuration fails closed when sending is enabled", () => {
+    const base = {
+      OUTREACH_SEND_ENABLED: "true",
+      OUTREACH_EMAIL_PROVIDER: "emailjs",
+      OUTREACH_SENDER_NAME: "S",
+      OUTREACH_FROM_EMAIL: "s@example.com",
+      OUTREACH_POSTAL_ADDRESS: "1 Way",
+      CONTACT_DATA_ENCRYPTION_KEYS: `k:${KEY}`,
+      CONTACT_DATA_ACTIVE_KEY_ID: "k",
+      EMAILJS_SERVICE_ID: "service_x",
+    };
+    const missing = resolveAutomationConfig(base, "production");
+    expect(missing.productionProblems.join(" ")).toMatch(/EmailJS configuration is incomplete/);
+    const complete = resolveAutomationConfig(
+      {
+        ...base,
+        EMAILJS_TEMPLATE_ID: "template_x",
+        EMAILJS_PUBLIC_KEY: "pk",
+        EMAILJS_PRIVATE_KEY: "priv",
+      },
+      "production",
+    );
+    expect(complete.productionProblems.join(" ")).not.toMatch(/EmailJS/);
+  });
+
+  it("EMAILJS_PRIVATE_KEY is required in production with live sending", () => {
+    const config = resolveAutomationConfig(
+      {
+        OUTREACH_SEND_ENABLED: "true",
+        OUTREACH_EMAIL_PROVIDER: "emailjs",
+        EMAILJS_SERVICE_ID: "s",
+        EMAILJS_TEMPLATE_ID: "t",
+        EMAILJS_PUBLIC_KEY: "pk",
+        OUTREACH_SENDER_NAME: "S",
+        OUTREACH_FROM_EMAIL: "s@example.com",
+        OUTREACH_POSTAL_ADDRESS: "1 Way",
+        CONTACT_DATA_ENCRYPTION_KEYS: `k:${KEY}`,
+        CONTACT_DATA_ACTIVE_KEY_ID: "k",
+      },
+      "production",
+    );
+    expect(config.productionProblems.join(" ")).toMatch(/EMAILJS_PRIVATE_KEY/);
+  });
+
+  it("EMAILJS_DRY_RUN defaults to true outside production and is honored explicitly", () => {
+    expect(resolveAutomationConfig({}, "development").emailjsDryRun).toBe(true);
+    expect(resolveAutomationConfig({}, "test").emailjsDryRun).toBe(true);
+    expect(resolveAutomationConfig({}, "production").emailjsDryRun).toBe(false);
+    expect(resolveAutomationConfig({ EMAILJS_DRY_RUN: "true" }, "production").emailjsDryRun).toBe(true);
+    expect(resolveAutomationConfig({ EMAILJS_DRY_RUN: "false" }, "development").emailjsDryRun).toBe(false);
+    expect(resolveAutomationConfig({ EMAILJS_REQUEST_TIMEOUT_MS: "2000" }, "development").emailjsRequestTimeoutMs).toBe(2000);
   });
 
   it("production MCP requires complete OAuth configuration (fail closed)", () => {

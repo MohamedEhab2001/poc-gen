@@ -63,11 +63,14 @@ jobs:
 
       - name: PostgreSQL integration tests (fail if skipped)
         run: |
-          npx vitest run --no-file-parallelism integration.test.ts 2>&1 | tee /tmp/pg-tests.log
+          npm run test:integration 2>&1 | tee /tmp/pg-tests.log
           if grep -qE "skipped" /tmp/pg-tests.log; then
             echo "::error::PostgreSQL integration tests were skipped — they must run in CI."
             exit 1
           fi
+
+      - name: Whitespace/conflict markers check
+        run: git diff --check
 
       - name: Production build (no network fonts)
         run: npm run build

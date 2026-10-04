@@ -22,6 +22,8 @@ export interface InsertMessageInput {
   sequenceNumber: number;
   kind: "initial" | "followup";
   subject: string;
+  /** Resolved share URL (token included — same sensitivity as the body). */
+  pocUrl: string;
   bodyText: string;
   bodyHtml: string;
   idempotencyKeyHash: string;
@@ -37,6 +39,7 @@ export async function insertMessage(tx: Tx, input: InsertMessageInput): Promise<
       sequenceNumber: input.sequenceNumber,
       kind: input.kind,
       subject: input.subject,
+      pocUrl: input.pocUrl,
       bodyText: input.bodyText,
       bodyHtml: input.bodyHtml,
       status: "prepared",

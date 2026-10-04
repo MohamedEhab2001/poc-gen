@@ -16,7 +16,7 @@ import { canTransition, isLeadStatus } from "@/lib/automation/lifecycle";
 import type { LeadStatus } from "@/lib/automation/lifecycle";
 import { contactKeysOrThrow } from "../context";
 import type { CallContext } from "../context";
-import { withDatabase, withTransaction } from "../db";
+import { advisoryLock, contactLockKey, withDatabase, withTransaction } from "../db";
 import { writeAuditTx } from "../support";
 import { addRunStep } from "../store/runs";
 import { getLeadWithBusiness, updateLeadStatus } from "../store/leads";
@@ -75,11 +75,14 @@ export async function recordReplyOutcome(input: ReplyInput, ctx: CallContext) {
       receivedAt,
     });
 
-    // Compliance records first, independent of lifecycle legality.
+    // Compliance records first, independent of lifecycle legality. The
+    // shared contact lock linearizes this suppression against any
+    // concurrent send reservation on the same contact.
     let suppressionCreated = false;
     const contacts = await listContactsForBusiness(tx, business.id);
     const targetContact = contacts.length > 0 ? contacts[0]! : null;
     if (["NOT_INTERESTED", "UNSUBSCRIBE", "BOUNCE"].includes(input.classification) && targetContact) {
+      await advisoryLock(tx, contactLockKey(targetContact.addressHash));
       suppressionCreated = await addSuppression(tx, {
         addressHash: targetContact.addressHash,
         reason:
@@ -257,6 +260,9 @@ export async function suppressContact(
 
   for (const addressHash of addressHashes) {
     await withTransaction(async (tx) => {
+      // Same shared lock as send_outreach: linearizes this suppression
+      // against concurrent send decisions on this contact.
+      await advisoryLock(tx, contactLockKey(addressHash));
       const created = await addSuppression(tx, {
         addressHash,
         reason: input.reason,

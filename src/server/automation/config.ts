@@ -24,8 +24,16 @@ export interface AutomationConfig {
   replyTo: string | null;
   postalAddress: string | null;
   advertisementDisclosure: boolean;
-  /** Only "mock" is implemented; anything else fails closed. */
-  emailProvider: "mock";
+  /** "mock" (development/test only) or "emailjs" (the live provider). */
+  emailProvider: "mock" | "emailjs";
+  emailjsServiceId: string | null;
+  emailjsTemplateId: string | null;
+  emailjsPublicKey: string | null;
+  /** Required in production when live sending is enabled. */
+  emailjsPrivateKey: string | null;
+  emailjsRequestTimeoutMs: number;
+  /** Default true outside production; EmailJS is never called when true. */
+  emailjsDryRun: boolean;
 
   contactKeysConfigured: boolean;
   contactActiveKeyId: string | null;
@@ -78,6 +86,22 @@ export function resolveAutomationConfig(
   const postalAddress = env.OUTREACH_POSTAL_ADDRESS ?? null;
   const sendingEnabled = parseBool(env.OUTREACH_SEND_ENABLED);
 
+  const rawProvider = env.OUTREACH_EMAIL_PROVIDER ?? "";
+  const provider = rawProvider === "emailjs" ? "emailjs" : rawProvider === "" || rawProvider === "mock" ? "mock" : null;
+  if (provider === null) {
+    problems.push(`OUTREACH_EMAIL_PROVIDER "${rawProvider}" is unknown; only "mock" and "emailjs" are implemented.`);
+  }
+  const emailjsServiceId = env.EMAILJS_SERVICE_ID ?? null;
+  const emailjsTemplateId = env.EMAILJS_TEMPLATE_ID ?? null;
+  const emailjsPublicKey = env.EMAILJS_PUBLIC_KEY ?? null;
+  const emailjsPrivateKey = env.EMAILJS_PRIVATE_KEY ?? null;
+  // Dry run defaults ON outside production; production must opt in
+  // explicitly (and EMAILJS_DRY_RUN=false alone is not enough — sending
+  // still requires OUTREACH_SEND_ENABLED=true).
+  const emailjsDryRun = env.EMAILJS_DRY_RUN !== undefined
+    ? parseBool(env.EMAILJS_DRY_RUN)
+    : !isProduction;
+
   if (sendingEnabled) {
     if (!senderName) problems.push("OUTREACH_SENDER_NAME is required when sending is enabled.");
     if (!fromEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(fromEmail)) {
@@ -87,8 +111,14 @@ export function resolveAutomationConfig(
     if (!contactKeysConfigured) {
       problems.push("CONTACT_DATA_ENCRYPTION_KEYS is required when sending is enabled.");
     }
-    if (env.OUTREACH_EMAIL_PROVIDER && env.OUTREACH_EMAIL_PROVIDER !== "mock") {
-      problems.push(`OUTREACH_EMAIL_PROVIDER "${env.OUTREACH_EMAIL_PROVIDER}" is not implemented; only "mock" is available.`);
+    if (isProduction && provider === "mock") {
+      problems.push('OUTREACH_EMAIL_PROVIDER "mock" is development/test only and fails closed in production with sending enabled; use "emailjs".');
+    }
+    if (provider === "emailjs" && (!emailjsServiceId || !emailjsTemplateId || !emailjsPublicKey || !emailjsPrivateKey)) {
+      problems.push("EmailJS configuration is incomplete (EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, EMAILJS_PRIVATE_KEY are all required when sending is enabled with the emailjs provider).");
+    }
+    if (provider === "emailjs" && isProduction && !emailjsPrivateKey) {
+      problems.push("EMAILJS_PRIVATE_KEY is required in production when live sending is enabled.");
     }
   }
 
@@ -132,7 +162,13 @@ export function resolveAutomationConfig(
     replyTo,
     postalAddress,
     advertisementDisclosure: parseBool(env.OUTREACH_ADVERTISEMENT_DISCLOSURE),
-    emailProvider: "mock",
+    emailProvider: provider === "emailjs" ? "emailjs" : "mock",
+    emailjsServiceId,
+    emailjsTemplateId,
+    emailjsPublicKey,
+    emailjsPrivateKey,
+    emailjsRequestTimeoutMs: parseInt_(env.EMAILJS_REQUEST_TIMEOUT_MS, 10_000, 1_000, 60_000),
+    emailjsDryRun,
     contactKeysConfigured,
     contactActiveKeyId,
     mcpPublicBaseUrl: env.MCP_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? null,

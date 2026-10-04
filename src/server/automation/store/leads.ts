@@ -15,6 +15,7 @@ import { AutomationError } from "@/lib/automation/outcomes";
 import { assertLeadTransition } from "@/lib/automation/lifecycle";
 import type { LeadStatus } from "@/lib/automation/lifecycle";
 import type { Db, Queryable, Tx } from "../db";
+export { upsertContact as upsertContactRef } from "./contacts";
 
 /**
  * Businesses, leads, and immutable evidence snapshots.
@@ -62,51 +63,92 @@ export function primaryDedupLockKey(input: BusinessIdentityInput, keys: Normaliz
   return `biz:nameaddr:${keys.normalizedNameKey}|${keys.normalizedAddressKey ?? ""}`;
 }
 
-export interface DuplicateMatch {
-  businessIds: string[];
-  /** Which strategies produced matches. */
-  strategies: string[];
+export interface DuplicateAnalysis {
+  /** Strong-signal match: (source key) or (exact name + complete address). At most one. */
+  strongMatch: { businessId: string; strategies: string[] } | null;
+  /** Businesses matched ONLY by soft signals (domain, phone), excluding any strong match. */
+  softMatchIds: string[];
+  /** Strategies that actually matched (never strategies merely attempted). */
+  strategiesMatched: string[];
 }
 
-/** Finds existing businesses matching ANY dedup strategy (locked by caller). */
-export async function findBusinessDuplicates(
+/** An address key is "sufficiently complete" for identity when it carries a street number and enough detail. */
+export function isCompleteAddressKey(addressKey: string | null): addressKey is string {
+  if (!addressKey || addressKey.length < 8) return false;
+  return /\d/.test(addressKey);
+}
+
+/**
+ * Identity analysis for duplicate detection.
+ *
+ * STRONG signals (may match automatically):
+ *   1. exact (source_type, source_external_id);
+ *   2. exact normalized name + sufficiently complete normalized address.
+ * SOFT signals (never merge by themselves — chain branches legitimately
+ * share a website or phone): normalized domain, normalized phone.
+ *
+ * A soft match that points at a DIFFERENT business than a strong match is an
+ * identity disagreement and must surface as a conflict, never a merge.
+ */
+export async function analyzeBusinessDuplicates(
   tx: Tx,
   input: BusinessIdentityInput,
   keys: NormalizedBusinessKeys,
-): Promise<DuplicateMatch> {
-  const conditions = [];
-  const strategies: string[] = [];
+): Promise<DuplicateAnalysis> {
+  const strategiesMatched: string[] = [];
 
-  if (input.sourceExternalId) {
-    conditions.push(
-      and(eq(businesses.sourceType, input.sourceType), eq(businesses.sourceExternalId, input.sourceExternalId)),
-    );
-    strategies.push("source_key");
-  }
-  if (keys.normalizedDomain) {
-    conditions.push(eq(businesses.normalizedDomain, keys.normalizedDomain));
-    strategies.push("domain");
-  }
-  if (keys.normalizedPhone) {
-    conditions.push(eq(businesses.normalizedPhone, keys.normalizedPhone));
-    strategies.push("phone");
-  }
-  if (keys.normalizedAddressKey) {
-    conditions.push(
-      and(eq(businesses.normalizedNameKey, keys.normalizedNameKey), eq(businesses.normalizedAddressKey, keys.normalizedAddressKey)),
-    );
-    strategies.push("name_address");
-  }
-  if (conditions.length === 0) {
-    return { businessIds: [], strategies: [] };
-  }
+  // Strong 1: source key.
+  const sourceRows = input.sourceExternalId
+    ? await tx
+        .select({ id: businesses.id })
+        .from(businesses)
+        .where(
+          and(eq(businesses.sourceType, input.sourceType), eq(businesses.sourceExternalId, input.sourceExternalId)),
+        )
+    : [];
 
-  const rows = await tx
-    .select({ id: businesses.id })
-    .from(businesses)
-    .where(or(...conditions));
-  const businessIds = [...new Set(rows.map((row) => row.id))];
-  return { businessIds, strategies };
+  // Strong 2: exact name + complete address.
+  const nameAddressRows =
+    isCompleteAddressKey(keys.normalizedAddressKey) && keys.normalizedNameKey.length >= 4
+      ? await tx
+          .select({ id: businesses.id })
+          .from(businesses)
+          .where(
+            and(
+              eq(businesses.normalizedNameKey, keys.normalizedNameKey),
+              eq(businesses.normalizedAddressKey, keys.normalizedAddressKey),
+            ),
+          )
+      : [];
+
+  const strongIds = [...new Set([...sourceRows, ...nameAddressRows].map((row) => row.id))];
+  if (sourceRows.length > 0) strategiesMatched.push("source_key");
+  if (nameAddressRows.length > 0) strategiesMatched.push("name_address");
+
+  // Soft signals: domain and phone. They never merge by themselves; they are
+  // reported so the caller can detect identity disagreement (conflict).
+  const softConditions = [];
+  if (keys.normalizedDomain) softConditions.push(eq(businesses.normalizedDomain, keys.normalizedDomain));
+  if (keys.normalizedPhone) softConditions.push(eq(businesses.normalizedPhone, keys.normalizedPhone));
+  const softRows =
+    softConditions.length > 0
+      ? await tx.select({ id: businesses.id }).from(businesses).where(or(...softConditions))
+      : [];
+  const softIds = [...new Set(softRows.map((row) => row.id))].filter((id) => !strongIds.includes(id));
+  if (softRows.length > 0 && keys.normalizedDomain) strategiesMatched.push("domain");
+  if (softRows.length > 0 && keys.normalizedPhone) strategiesMatched.push("phone");
+
+  return {
+    strongMatch:
+      strongIds.length > 0
+        ? {
+            businessId: strongIds[0]!,
+            strategies: strategiesMatched.filter((s) => s === "source_key" || s === "name_address"),
+          }
+        : null,
+    softMatchIds: softIds,
+    strategiesMatched: [...new Set(strategiesMatched)],
+  };
 }
 
 export async function insertBusiness(
@@ -163,6 +205,11 @@ export async function insertLead(
   const first = inserted[0];
   if (!first) throw new AutomationError("insert_failed", "The lead row could not be created.", "FAILED");
   return first;
+}
+
+export async function getLeadByBusinessId(db: Queryable, businessId: string): Promise<LeadRow | null> {
+  const rows = await db.select().from(leads).where(eq(leads.businessId, businessId)).limit(1);
+  return rows[0] ?? null;
 }
 
 export async function getLead(db: Queryable, id: string): Promise<LeadRow | null> {

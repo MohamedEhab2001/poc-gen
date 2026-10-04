@@ -60,10 +60,12 @@ export const businesses = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    // Strong identity signals: unique. Domain and phone are SOFT signals
+    // (chain branches legitimately share them) — plain indexes only.
     uniqueIndex("businesses_source_key").on(table.sourceType, table.sourceExternalId),
-    uniqueIndex("businesses_domain_key").on(table.normalizedDomain),
-    uniqueIndex("businesses_phone_key").on(table.normalizedPhone),
     uniqueIndex("businesses_name_address_key").on(table.normalizedNameKey, table.normalizedAddressKey),
+    index("businesses_domain_idx").on(table.normalizedDomain),
+    index("businesses_phone_idx").on(table.normalizedPhone),
     index("businesses_name_idx").on(table.normalizedNameKey),
   ],
 );
@@ -296,6 +298,8 @@ export const outreachMessages = pgTable(
     /** initial | followup */
     kind: varchar("kind", { length: 16 }).notNull(),
     subject: varchar("subject", { length: 200 }).notNull(),
+    /** Resolved share URL (token included — same at-rest sensitivity as the body). */
+    pocUrl: varchar("poc_url", { length: 2048 }),
     bodyText: text("body_text").notNull(),
     bodyHtml: text("body_html").notNull(),
     /** prepared | reserved | sent | failed | delivery_unknown */
@@ -355,10 +359,23 @@ export const automationIdempotency = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("automation_idempotency_operation_key_key").on(table.operation, table.keyHash),
+    // Idempotency is scoped by the authenticated principal: the same key
+    // under a different principal is an independent reservation.
+    uniqueIndex("automation_idempotency_principal_key").on(table.principal, table.operation, table.keyHash),
     index("automation_idempotency_expires_idx").on(table.expiresAt),
   ],
 );
+
+/**
+ * Cross-instance provider rate limiting (EmailJS allows ~1 request/second).
+ * One row per provider: the next reserved slot time. Reservations happen
+ * transactionally under an advisory lock; waiting happens outside the tx.
+ */
+export const providerRateLimits = pgTable("provider_rate_limits", {
+  name: varchar("name", { length: 64 }).primaryKey(),
+  nextSlotAt: timestamp("next_slot_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Audit trail for every mutation. Metadata is redacted before insert. */
 export const auditLogs = pgTable(
@@ -395,4 +412,5 @@ export type UnsubscribeRow = typeof unsubscribes.$inferSelect;
 export type OutreachMessageRow = typeof outreachMessages.$inferSelect;
 export type ReplyEventRow = typeof replyEvents.$inferSelect;
 export type AutomationIdempotencyRow = typeof automationIdempotency.$inferSelect;
+export type ProviderRateLimitRow = typeof providerRateLimits.$inferSelect;
 export type AuditLogRow = typeof auditLogs.$inferSelect;
