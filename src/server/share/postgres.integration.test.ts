@@ -5,7 +5,7 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { eq } from "drizzle-orm";
 import { getDb, closeDb } from "@/server/db/client";
-import { resolveDatabaseUrl } from "@/server/db/url";
+import { resolveIntegrationTestDatabaseUrl } from "@/server/db/url";
 import { shareLinks } from "@/server/db/schema";
 import { PostgresShareLinkStore } from "./store";
 import type { ShareLinkRecord } from "./store";
@@ -22,7 +22,11 @@ import type { ShareLinkRecord } from "./store";
  * Unit tests cover the same semantics on the in-memory and JSON adapters;
  * only the real conditional UPDATE behavior can be proven here.
  */
-const dbUrl = resolveDatabaseUrl();
+// SAFETY GATE: this suite rebuilds schemas destructively. The URL must
+// come from TEST_DATABASE_URL only (never a DATABASE_URL fallback), must
+// differ from DATABASE_URL, and must name an unmistakable test database.
+// Throws before any DROP when set-but-unsafe; null (skip) when unset.
+const dbUrl = resolveIntegrationTestDatabaseUrl();
 
 describe.skipIf(!dbUrl)("Postgres share-link store (integration)", () => {
   const store = new PostgresShareLinkStore();
@@ -178,10 +182,10 @@ describe.skipIf(!dbUrl)("Postgres share-link store (integration)", () => {
 
   it("production store selection never falls back to JSON (real selection matrix)", async () => {
     const { selectShareLinkStoreKind } = await import("./store");
-    expect(selectShareLinkStoreKind({ DATABASE_URL: dbUrl }, "production")).toBe("postgres");
+    expect(selectShareLinkStoreKind({ DATABASE_URL: dbUrl ?? undefined }, "production")).toBe("postgres");
     expect(selectShareLinkStoreKind({}, "production")).toBe("unavailable");
     expect(
-      selectShareLinkStoreKind({ TEST_DATABASE_URL: dbUrl }, "production"),
+      selectShareLinkStoreKind({ TEST_DATABASE_URL: dbUrl ?? undefined }, "production"),
     ).toBe("unavailable");
   });
 });

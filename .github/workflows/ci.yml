@@ -30,10 +30,11 @@ jobs:
           --health-retries 10
 
     env:
-      # Both point at the CI service database so the shared resolver selects
-      # PostgreSQL in test mode and the migration step uses the same URL.
+      # Two SEPARATE databases: DATABASE_URL drives the migrate step only;
+      # destructive integration tests require a distinct, unmistakably-named
+      # TEST_DATABASE_URL (the safety gate refuses equal URLs).
       DATABASE_URL: postgres://testuser:testpass@localhost:5432/poc_test
-      TEST_DATABASE_URL: postgres://testuser:testpass@localhost:5432/poc_test
+      TEST_DATABASE_URL: postgres://testuser:testpass@localhost:5432/poc_gen_test
 
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +46,10 @@ jobs:
 
       - name: Install dependencies (lockfile-enforced)
         run: npm ci
+
+      - name: Create the dedicated test database
+        run: |
+          psql "$DATABASE_URL" -c 'CREATE DATABASE poc_gen_test'
 
       - name: Apply database migrations
         run: npm run db:migrate
@@ -58,8 +63,10 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Synthetic automation smoke (mock providers only)
+      - name: Synthetic automation smoke (mock/dry-run email only)
         run: npm run automation:smoke -- --database=$TEST_DATABASE_URL
+        env:
+          OUTREACH_SEND_ENABLED: "false"
 
       - name: PostgreSQL integration tests (fail if skipped)
         run: |

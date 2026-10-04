@@ -8,7 +8,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { eq, sql } from "drizzle-orm";
 import postgres from "postgres";
-import { resolveDatabaseUrl } from "@/server/db/url";
+import { resolveIntegrationTestDatabaseUrl } from "@/server/db/url";
 import { getDb, closeDb } from "@/server/db/client";
 import {
   businesses,
@@ -37,7 +37,11 @@ import { DISCLAIMER } from "@/data/businesses/helpers";
  * suppression, limits, and fail-closed behavior.
  */
 
-const dbUrl = resolveDatabaseUrl();
+// SAFETY GATE: this suite rebuilds schemas destructively. The URL must
+// come from TEST_DATABASE_URL only (never a DATABASE_URL fallback), must
+// differ from DATABASE_URL, and must name an unmistakable test database.
+// Throws before any DROP when set-but-unsafe; null (skip) when unset.
+const dbUrl = resolveIntegrationTestDatabaseUrl();
 
 describe.skipIf(!dbUrl)("automation bridge (integration)", () => {
   const ALL_SCOPES = ["poc:read", "poc:write", "outreach:prepare", "outreach:send", "reports:read"] as const;

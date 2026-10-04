@@ -287,6 +287,11 @@ export async function dispatchOperation(
   }
   const input = parsed.data as Record<string, unknown>;
 
+  // Ownership flag: completeIdempotency may only ever touch the ledger row
+  // THIS request created. Replay, in-progress, and conflict outcomes belong
+  // to a different request's reservation and must never be overwritten.
+  let ownsReservation = false;
+
   try {
     if (!operation.mutating) {
       const ctx = buildCallContext(auth, "");
@@ -318,7 +323,11 @@ export async function dispatchOperation(
       const saved = (acquisition.result as { value?: unknown } | null)?.value ?? acquisition.result;
       return { ok: true, result: { ...(saved as Record<string, unknown>), replayed: true } };
     }
+    if (acquisition.kind === "new") {
+      ownsReservation = true;
+    }
     if (acquisition.kind === "in_progress") {
+      // Someone else's pending reservation: do not touch the ledger row.
       throw new AutomationError(
         "idempotency_in_progress",
         "The same idempotency key is still executing.",
@@ -335,20 +344,25 @@ export async function dispatchOperation(
     const stored = operation.sanitizeForStorage
       ? operation.sanitizeForStorage(result as Record<string, unknown>)
       : (result as Record<string, unknown>);
-    await completeIdempotency({
-      db: getDb(),
-      operation: name,
-      principal: auth.principal,
-      idempotencyKey,
-      status: "completed",
-      result: stored,
-    });
+    if (ownsReservation) {
+      await completeIdempotency({
+        db: getDb(),
+        operation: name,
+        principal: auth.principal,
+        idempotencyKey,
+        status: "completed",
+        result: stored,
+      });
+    }
     // Auditing: every mutating operation writes its own specific, audited
     // entry inside its transaction (see the operation modules); the
     // dispatcher deliberately does not add a second generic row.
     return { ok: true, result };
   } catch (error) {
-    if (operation.mutating) {
+    if (operation.mutating && ownsReservation) {
+      // Only failures of THIS request's own reservation are recorded;
+      // replay/in-progress/conflict errors from acquireIdempotency leave the
+      // original row untouched.
       const idempotencyKey = String(input?.idempotencyKey ?? "");
       if (idempotencyKey) {
         await completeIdempotency({

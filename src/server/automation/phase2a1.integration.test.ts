@@ -8,7 +8,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { eq, sql } from "drizzle-orm";
 import postgres from "postgres";
-import { resolveDatabaseUrl } from "@/server/db/url";
+import { resolveIntegrationTestDatabaseUrl } from "@/server/db/url";
 import { getDb, closeDb } from "@/server/db/client";
 import { leads, pocRecords, shareLinks, sourceSnapshots, businesses, contacts } from "@/server/db/schema";
 import { dispatchOperation } from "./registry";
@@ -27,7 +27,11 @@ import { DISCLAIMER } from "@/data/businesses/helpers";
  * the PostgreSQL-backed EmailJS rate limiter. Run with TEST_DATABASE_URL.
  */
 
-const dbUrl = resolveDatabaseUrl();
+// SAFETY GATE: this suite rebuilds schemas destructively. The URL must
+// come from TEST_DATABASE_URL only (never a DATABASE_URL fallback), must
+// differ from DATABASE_URL, and must name an unmistakable test database.
+// Throws before any DROP when set-but-unsafe; null (skip) when unset.
+const dbUrl = resolveIntegrationTestDatabaseUrl();
 
 describe.skipIf(!dbUrl)("phase 2a.1 hardening (integration)", () => {
   const ALL_SCOPES = ["poc:read", "poc:write", "outreach:prepare", "outreach:send", "reports:read"] as const;
@@ -683,6 +687,89 @@ describe.skipIf(!dbUrl)("phase 2a.1 hardening (integration)", () => {
     expect(clean.state).toBe("draft");
   });
 
+  // ------------------------------- Idempotency ledger integrity (2A.2 fix)
+
+  it("conflicts and in-progress responses never overwrite the original ledger entry", async () => {
+    const key = `idfix${suffix}`;
+    const operation = "start_automation_run";
+    const idemKey = `idfix-key-${key}`;
+    const requestA = { idempotencyKey: idemKey, kind: "idfix_run" };
+
+    // 1. Same key + request: executes, then replays the ORIGINAL result.
+    const first = await call(operation, requestA);
+    expect(first.ok).toBe(true);
+    const replay = await call(operation, requestA);
+    expect(replay.ok).toBe(true);
+    if (replay.ok) {
+      const result = replay.result as Record<string, unknown>;
+      expect(result.replayed).toBe(true);
+      expect(result.kind).toBe("idfix_run");
+    }
+
+    // 2. Same key + DIFFERENT request: conflict.
+    const conflict = await call(operation, { idempotencyKey: idemKey, kind: "different_kind" });
+    expect(conflict.ok).toBe(false);
+    if (!conflict.ok) expect(conflict.failure.code).toBe("idempotency_key_conflict");
+
+    // 3. Replaying the ORIGINAL request after the conflict still returns the
+    //    ORIGINAL successful result (the conflict must not have overwritten
+    //    the ledger row with a failure).
+    const replayAfterConflict = await call(operation, requestA);
+    expect(replayAfterConflict.ok).toBe(true);
+    if (replayAfterConflict.ok) {
+      const result = replayAfterConflict.result as Record<string, unknown>;
+      expect(result.replayed).toBe(true);
+      expect(result.kind).toBe("idfix_run");
+    }
+    const ledgerRow = await ledgerRowFor("integration-test", operation, idemKey);
+    expect(ledgerRow?.status).toBe("completed");
+    const stored = JSON.stringify(ledgerRow?.result);
+    expect(stored).toContain("idfix_run");
+    expect(stored).not.toContain("idempotency_key_conflict");
+
+    // 4. An in_progress response does not change a pending row: seed a
+    //    pending reservation for principal-b directly, then dispatch the
+    //    same request and verify the row is untouched.
+    const { hashIdempotencyKey, hashRequest } = await import("@/lib/automation/canonical");
+    const { automationIdempotency } = await import("@/server/db/schema");
+    const { randomUUID } = await import("node:crypto");
+    const pendingKey = `idfix-pending-${key}`;
+    const pendingRequest = { idempotencyKey: pendingKey, kind: "idfix_pending" };
+    await getDb().insert(automationIdempotency).values({
+      id: randomUUID(),
+      operation,
+      principal: "integration-test",
+      keyHash: hashIdempotencyKey(operation, pendingKey),
+      requestHash: hashRequest(operation, pendingRequest),
+      status: "pending",
+      result: null,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    const inProgress = await call(operation, pendingRequest);
+    expect(inProgress.ok).toBe(false);
+    if (!inProgress.ok) {
+      expect(inProgress.failure.code).toBe("idempotency_in_progress");
+      expect(inProgress.failure.outcome).toBe("RETRYABLE");
+    }
+    const pendingRow = await ledgerRowFor("integration-test", operation, pendingKey);
+    expect(pendingRow?.status).toBe("pending"); // unchanged by the failed call
+    expect(pendingRow?.result).toBeNull();
+
+    // 5. Principal scoping still holds: another principal runs the same key
+    //    independently and owns only its own row.
+    const other = await callAs("idfix-principal-b", operation, {
+      idempotencyKey: idemKey,
+      kind: "idfix_run_b",
+    });
+    expect(other.ok).toBe(true);
+    const rowA = await ledgerRowFor("integration-test", operation, idemKey);
+    const rowB = await ledgerRowFor("idfix-principal-b", operation, idemKey);
+    expect(rowA?.status).toBe("completed");
+    expect(JSON.stringify(rowA?.result)).toContain("idfix_run");
+    expect(JSON.stringify(rowB?.result)).toContain("idfix_run_b");
+    expect(rowB?.status).toBe("completed");
+  });
+
   // -------------------------------------- Part 7: PostgreSQL-backed throttle
 
   it("provider rate slots reserve strictly spaced, cross-instance, with bounded waits", async () => {
@@ -710,6 +797,24 @@ describe.skipIf(!dbUrl)("phase 2a.1 hardening (integration)", () => {
     expect(await waitForSlot(t0 - 1_000, realClock, 1_000)).toBe(true);
   });
 });
+
+async function ledgerRowFor(principal: string, operation: string, key: string) {
+  const { hashIdempotencyKey } = await import("@/lib/automation/canonical");
+  const { automationIdempotency } = await import("@/server/db/schema");
+  const { and, eq } = await import("drizzle-orm");
+  const rows = await getDb()
+    .select()
+    .from(automationIdempotency)
+    .where(
+      and(
+        eq(automationIdempotency.principal, principal),
+        eq(automationIdempotency.operation, operation),
+        eq(automationIdempotency.keyHash, hashIdempotencyKey(operation, key)),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
 
 async function countAuditRows(): Promise<number> {
   const rows = await getDb().execute(sql`SELECT count(*)::int AS count FROM audit_logs`);
