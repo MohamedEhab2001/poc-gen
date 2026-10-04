@@ -144,7 +144,7 @@ npm ci
 npm run build
 
 log "Applying database migrations."
-npm run db:migrate
+DOTENV_CONFIG_PATH="${APP_DIR}/.env.production" npm run db:migrate
 
 if ! pm2 describe "${APP_NAME}" >/dev/null 2>&1 && ss -ltnH "sport = :${APP_PORT}" | grep -q .; then
   fail "Port ${APP_PORT} is already in use by another service."
