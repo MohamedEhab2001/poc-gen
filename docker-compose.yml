@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# poc-gen deployment: one app container + PostgreSQL. No Redis, no worker,
+# no queue — the external scheduler drives the automation tools.
+#
+# Usage:
+#   1. Put your real environment in `.env` next to this file (it is loaded
+#      via env_file and never baked into the image):
+#        AUTH_SECRET=<openssl rand -base64 48>
+#        ADMIN_EMAILS=you@example.com
+#        OPERATOR_PASSWORD=<or configure Google OAuth>
+#        CONTACT_DATA_ENCRYPTION_KEYS=<id>:<openssl rand -base64 32>
+#        CONTACT_DATA_ACTIVE_KEY_ID=<id>
+#        EMAILJS_SERVICE_ID / TEMPLATE_ID / PUBLIC_KEY / PRIVATE_KEY
+#        OUTREACH_SENDER_NAME / FROM_EMAIL / REPLY_TO / POSTAL_ADDRESS
+#        OUTREACH_SEND_ENABLED=false   EMAILJS_DRY_RUN=true   (safe defaults)
+#        MCP_PUBLIC_BASE_URL=https://your-host   (+ MCP_* OAuth set when ready)
+#   2. docker compose up -d --build
+#   3. Migrations apply automatically on container start.
+# ---------------------------------------------------------------------------
+
+name: poc-gen
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      # Change these on a real host (they live only in this file / .env):
+      POSTGRES_USER: ${POSTGRES_USER:-poc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-poc}
+      POSTGRES_DB: ${POSTGRES_DB:-poc_gen}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Not published to the host by default; the app reaches it on the
+    # internal network. Uncomment to inspect with a local client:
+    # ports:
+    #   - "5432:5432"
+
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Infrastructure wiring — always points at the compose database and
+      # overrides anything else, so the app can never hit another database.
+      DATABASE_URL: postgres://${POSTGRES_USER:-poc}:${POSTGRES_PASSWORD:-poc}@db:5432/${POSTGRES_DB:-poc_gen}
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  db-data:

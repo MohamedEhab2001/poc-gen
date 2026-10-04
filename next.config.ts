@@ -28,6 +28,9 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // Self-contained server bundle for the Docker deployment (see Dockerfile).
+  // Local `next start` keeps working; this only ADDS .next/standalone.
+  output: "standalone",
   images: {
     // Demo POC records use remote placeholder photography. The optimizer's
     // cold upstream fetch can exceed the browser's image timeout on a first
