@@ -16,12 +16,13 @@ describe("automation operation registry", () => {
     expect(AUTOMATION_SCOPES).toEqual(["poc:read", "poc:write", "outreach:prepare", "outreach:send", "reports:read"]);
   });
 
-  it("registers all fifteen operations with scopes and mutation flags", () => {
+  it("registers all sixteen operations with scopes and mutation flags", () => {
     const operations = listAutomationOperations();
     const names = operations.map((op) => op.name).sort();
     expect(names).toEqual(
       [
         "health",
+        "get_poc_authoring_guide",
         "start_automation_run",
         "ingest_leads",
         "upsert_poc_record",
@@ -44,13 +45,20 @@ describe("automation operation registry", () => {
     const mutating = new Set(
       operations.filter((op) => op.mutating).map((op) => op.name),
     );
-    expect(mutating.size).toBe(11);
-    for (const readOnly of ["health", "list_due_followups", "get_run_report", "get_interested_leads"]) {
+    expect(mutating.size).toBe(11); // the guide is read-only
+    for (const readOnly of [
+      "health",
+      "get_poc_authoring_guide",
+      "list_due_followups",
+      "get_run_report",
+      "get_interested_leads",
+    ]) {
       expect(mutating.has(readOnly), readOnly).toBe(false);
     }
     // Scope separation: reads never need write scopes.
     const scopes = new Map(operations.map((op) => [op.name, op.scope]));
     expect(scopes.get("health")).toBe("poc:read");
+    expect(scopes.get("get_poc_authoring_guide")).toBe("poc:read");
     expect(scopes.get("get_run_report")).toBe("reports:read");
     expect(scopes.get("publish_poc")).toBe("poc:write");
     expect(scopes.get("send_outreach")).toBe("outreach:send");
@@ -91,6 +99,29 @@ describe("automation operation registry", () => {
     if (!result.ok) {
       expect(result.failure.code).toBe("insufficient_scope");
       expect(result.failure.details).toEqual({ requiredScope: "poc:write" });
+    }
+  });
+
+  it("get_poc_authoring_guide is readable with poc:read and rejected without it", async () => {
+    const allowed = await dispatchOperation("get_poc_authoring_guide", {}, {
+      principal: "unit",
+      scopes: ["poc:read"],
+    });
+    expect(allowed.ok).toBe(true);
+    if (allowed.ok) {
+      const guide = allowed.result as { themes: unknown[]; minimalRecordExample: unknown };
+      expect(guide.themes.length).toBe(13);
+      expect(guide.minimalRecordExample).toBeDefined();
+    }
+
+    const denied = await dispatchOperation("get_poc_authoring_guide", {}, {
+      principal: "unit",
+      scopes: ["reports:read"], // no poc:read
+    });
+    expect(denied.ok).toBe(false);
+    if (!denied.ok) {
+      expect(denied.failure.code).toBe("insufficient_scope");
+      expect(denied.failure.details).toEqual({ requiredScope: "poc:read" });
     }
   });
 

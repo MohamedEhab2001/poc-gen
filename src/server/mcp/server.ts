@@ -32,6 +32,7 @@ import type { AuthenticatedPrincipal } from "./auth";
 
 const INPUT_SHAPES: Record<string, Record<string, z.ZodTypeAny>> = {
   health: {},
+  get_poc_authoring_guide: {},
   start_automation_run: startRunInputSchema.shape,
   ingest_leads: ingestLeadsInputSchema.shape,
   upsert_poc_record: upsertPocInputSchema.shape,
@@ -53,7 +54,7 @@ export function buildAutomationMcpServer(principal: AuthenticatedPrincipal): Mcp
     { name: "poc-gen-automation", version: "2a" },
     {
       instructions:
-        "Autonomous lead-to-POC automation bridge. Every mutating tool requires an idempotencyKey; replays with the same key and request return the saved result. Failed operations return structured { ok:false, code, outcome, message } objects; outcome RETRYABLE carries retryAfterSeconds.",
+        "Autonomous lead-to-POC automation bridge. Every mutating tool requires an idempotencyKey; replays with the same key and request return the saved result. Failed operations return structured { ok:false, code, outcome, message } objects; outcome RETRYABLE carries retryAfterSeconds. Call get_poc_authoring_guide before the first POC-writing operation when the record contract or theme catalog is not already known.",
     },
   );
 

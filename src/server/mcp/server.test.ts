@@ -22,12 +22,13 @@ async function connectedClient(scopes: string[]) {
 }
 
 describe("MCP server (official SDK client, in-memory transport)", () => {
-  it("initializes and lists all fifteen tools with bounded schemas", async () => {
+  it("initializes and lists all sixteen tools with bounded schemas", async () => {
     const client = await connectedClient([...AUTOMATION_SCOPES]);
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name).sort()).toEqual(
       [
         "health",
+        "get_poc_authoring_guide",
         "start_automation_run",
         "ingest_leads",
         "upsert_poc_record",

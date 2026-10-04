@@ -19,6 +19,7 @@ import {
   upsertPocInputSchema,
 } from "@/lib/automation/schemas";
 import { AutomationError, toStructuredFailure } from "@/lib/automation/outcomes";
+import { buildPocAuthoringGuide } from "@/lib/automation/authoring-guide";
 import { isInfrastructureError } from "./db";
 import type { CallAuth, CallContext } from "./context";
 import { buildCallContext } from "./context";
@@ -91,6 +92,14 @@ const registry: Record<string, OperationDefinition> = {
     inputSchema: startRunInputSchema,
     handler: (input, ctx) => startAutomationRun(input as never, ctx),
   },
+  get_poc_authoring_guide: {
+    description:
+      "Read-only authoring guide for POC records: the live theme catalog (id, name, character, supportedCategories, typePairing, motion), a compact schema-valid minimalRecordExample, the Sourced-field format, allowed enum values, and the authoring rules. No database access. Call this before the first POC-writing operation when the record contract or theme catalog is not already known.",
+    scope: "poc:read",
+    mutating: false,
+    inputSchema: z.object({}).strict(),
+    handler: () => Promise.resolve(buildPocAuthoringGuide()),
+  },
   ingest_leads: {
     description:
       "Ingest up to 10 researched lead candidates with evidence snapshots. Deduplicates transactionally; returns created / matched_existing / conflict / rejected / invalid per candidate.",
@@ -101,7 +110,7 @@ const registry: Record<string, OperationDefinition> = {
   },
   upsert_poc_record: {
     description:
-      "Store or update the complete BusinessPocRecord for one lead (schema-validated, evidence-backed, theme checked). Writes the previous version to immutable revisions.",
+      "Store or update the complete BusinessPocRecord for one lead. The exact nested validation schema is enforced (invalid fields are rejected with per-path issues); get_poc_authoring_guide provides the compact authoring example and theme catalog. Evidence-backed and theme checked; writes the previous version to immutable revisions.",
     scope: "poc:write",
     mutating: true,
     inputSchema: upsertPocInputSchema,
