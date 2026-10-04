@@ -30,7 +30,7 @@ export function listUnresolved(record: ResolvedBusiness): PlaceholderReport[] {
       field: "hero.image",
       source: "fallback",
       outcome: "fallback",
-      note: "Theme placeholder artwork in use",
+      note: "Honest theme concept artwork in use; prefer licensed business media when available",
     });
   }
   if (!record.gallery) {

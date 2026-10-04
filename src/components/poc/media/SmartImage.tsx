@@ -1,6 +1,7 @@
 import Image from "next/image";
 import type { ResolvedImage } from "@/lib/poc/types";
 import { AttributionLine } from "@/components/poc/attribution/AttributionLine";
+import { ConceptHeroArt } from "./ConceptHeroArt";
 
 function provenanceLabel(image: ResolvedImage): string {
   if (image.outcome === "fallback") return "placeholder";
@@ -44,7 +45,9 @@ export function SmartImage({
   const isSvg = image.url.endsWith(".svg");
   const altText = alt ?? image.alt;
 
-  const picture = isSvg ? (
+  const picture = image.outcome === "fallback" && image.role === "hero" ? (
+    <ConceptHeroArt image={image} className={className} fill={fill} />
+  ) : isSvg ? (
     // eslint-disable-next-line @next/next/no-img-element -- optimizer skips decorative local SVG placeholders
     <img
       src={image.url}

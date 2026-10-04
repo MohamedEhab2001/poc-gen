@@ -97,15 +97,16 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
         </div>
         {record.hero.image ? (
           <div className="poc-container pb-12">
-            <SmartImage
-              image={record.hero.image}
-              priority
-              width={1600}
-              height={860}
-              sizes="100vw"
-              className="h-auto w-full object-cover"
-              attributionClassName="mt-2 text-right font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--muted)]"
-            />
+            <div className="relative h-[clamp(360px,48vw,620px)] overflow-hidden border-y-2 border-[var(--text)]">
+              <SmartImage
+                image={record.hero.image}
+                priority
+                fill
+                sizes="(min-width: 1120px) 1120px, 100vw"
+                className="h-full w-full object-cover"
+                attributionClassName="mt-2 text-right font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--muted)]"
+              />
+            </div>
           </div>
         ) : null}
       </section>

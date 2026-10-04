@@ -30,6 +30,7 @@ function minimalRecord(overrides: {
       ...(overrides.headline
         ? { headline: overrides.headline }
         : { headline: { value: "Neighborhood cooking", source: "business_owner", verified: true } }),
+      subheadline: { value: "A warm neighborhood table with seasonal cooking.", source: "business_owner", verified: true },
       ...(overrides.image
         ? {
             image: {
@@ -46,6 +47,15 @@ function minimalRecord(overrides: {
             },
           }
         : {}),
+    },
+    contact: { phone: { value: "+1 555 010 0123", source: "business_owner", verified: true } },
+    location: {
+      formattedAddress: { value: "12 Test Street, Portland, OR", source: "business_owner", verified: true },
+      city: { value: "Portland", source: "business_owner", verified: true },
+    },
+    content: {
+      aboutTitle: { value: "Our table", source: "business_owner", verified: true },
+      aboutBody: { value: "A neighborhood restaurant built around seasonal cooking.", source: "business_owner", verified: true },
     },
     media: { images: [] },
     poc: { disclaimer: DISCLAIMER, createdAt: "2026-01-01T00:00:00Z" },
@@ -68,6 +78,8 @@ describe("deterministic QA gates", () => {
         "RECORD_DISPOSITION",
         "RENDER_MODEL_OK",
         "IMAGE_ORIGINS",
+        "HERO_VISUAL_STRATEGY",
+        "VISUAL_CONTENT_DEPTH",
         "MAP_ORIGIN",
         "PLACEHOLDER_TOKENS",
         "CTA_PROTOCOLS",
@@ -77,6 +89,32 @@ describe("deterministic QA gates", () => {
         "RENDER_POLICY",
       ]),
     );
+  });
+
+  it("reports honest concept art and blocks visually empty publish records", () => {
+    const concept = runDeterministicQa(minimalRecord({}), FUTURE);
+    const hero = concept.checks.find((check) => check.code === "HERO_VISUAL_STRATEGY");
+    expect(hero?.status).toBe("warn");
+    expect(hero?.details).toMatchObject({ strategy: "theme_concept_art" });
+
+    const thin = recordSchema.parse({
+      schemaVersion: 1,
+      id: "rec-visually-thin",
+      slug: "visually-thin",
+      status: "active",
+      themeId: "coffee-editorial",
+      identity: {
+        name: { value: "Thin Cafe", source: "manual", verified: true },
+        primaryCategory: { value: "Cafe", source: "manual", verified: true },
+        categories: { value: ["Cafe"], source: "manual", verified: true },
+        businessStatus: { value: "operational", source: "manual", verified: true },
+      },
+      hero: { headline: { value: "Thin Cafe", source: "manual", verified: true } },
+      media: { images: [] },
+      poc: { disclaimer: DISCLAIMER, createdAt: "2026-01-01T00:00:00Z" },
+    });
+    const report = runDeterministicQa(thin, FUTURE);
+    expect(report.blockingFailures).toContain("VISUAL_CONTENT_DEPTH");
   });
 
   it("fails expired records on disposition and expiry", () => {

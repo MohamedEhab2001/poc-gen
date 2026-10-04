@@ -408,7 +408,7 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
       field: "hero.image",
       source: "fallback",
       outcome: "fallback",
-      note: "No renderable hero image; theme placeholder artwork used",
+      note: "No renderable hero image; named theme concept artwork used",
     });
   }
 

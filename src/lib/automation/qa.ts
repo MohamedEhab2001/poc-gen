@@ -146,6 +146,53 @@ function checkImageOrigins(model: ResolvedBusiness): QaCheck {
 }
 
 /**
+ * Deterministic visual-readiness signals that can be evaluated without a
+ * browser screenshot. Theme concept art is an honest supported strategy, but
+ * it remains visible as a warning so the scheduler can prefer a licensed
+ * business photo when one exists. Very thin pages fail before publication.
+ */
+function checkVisualReadiness(model: ResolvedBusiness): QaCheck[] {
+  const heroStrategy = model.hero.image?.outcome === "fallback" ? "theme_concept_art" : "business_media";
+  const heroCheck: QaCheck = {
+    code: "HERO_VISUAL_STRATEGY",
+    severity: "warning",
+    status: heroStrategy === "theme_concept_art" ? "warn" : "pass",
+    details: { strategy: heroStrategy, themeId: model.themeId },
+  };
+
+  const signals = {
+    heroSubheadline: Boolean(model.hero.subheadline),
+    primaryAction: Boolean(model.cta.primary),
+    location: Boolean(model.location?.hasPlace),
+    contact: Boolean(
+      model.contact.phone ||
+        model.contact.email ||
+        model.contact.website ||
+        model.contact.socials.length > 0,
+    ),
+    about: Boolean(model.about),
+    menuOrGallery: Boolean(model.menu || model.gallery),
+    hours: Boolean(model.hours),
+    reputation: Boolean(model.reputation),
+  };
+  const present = Object.values(signals).filter(Boolean).length;
+  const contentCheck: QaCheck = {
+    code: "VISUAL_CONTENT_DEPTH",
+    severity: "blocking",
+    status: present >= 3 ? "pass" : "fail",
+    details: {
+      present,
+      required: 3,
+      missing: Object.entries(signals)
+        .filter(([, value]) => !value)
+        .map(([key]) => key),
+    },
+  };
+
+  return [heroCheck, contentCheck];
+}
+
+/**
  * Re-runs the central render policy over every sourced wrapper in the raw
  * record and asserts normalization hid every blocked value. The policy
  * outcome per value is recomputed with the same field classification
@@ -236,6 +283,10 @@ export function runDeterministicQa(record: BusinessPocRecord, now: Date = new Da
 
   // 4. Allowed image origins for everything that renders.
   checks.push(checkImageOrigins(model));
+
+  // 4b. Deterministic visual readiness. Screenshot/vision review can build
+  //     on these stable codes without treating concept art as photography.
+  checks.push(...checkVisualReadiness(model));
 
   // 5. Map embed origin.
   const embedOk = model.location?.embedUrl == null || isTrustedMapEmbed(model.location.embedUrl);

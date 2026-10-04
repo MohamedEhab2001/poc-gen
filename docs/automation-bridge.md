@@ -132,8 +132,9 @@ There is no review queue and no override parameter. Outcomes:
   ingestion — weak candidates never enter the system.
 - Invalid records fail the shared Zod schema; invalid **stored** JSON fails
   closed on read (structured log, never renders).
-- Untrusted image origins are replaced by the theme placeholder (render
-  policy); provider content rendering without attribution/license fails QA.
+- Untrusted image origins are replaced by honest, named theme concept artwork
+  (render policy); provider content rendering without attribution/license
+  fails QA.
 - Unverified contacts cannot be prepared for or sent to.
 - Permanently closed or expired businesses cannot publish or send.
 - A QA failure cannot be overridden; unknown request keys are invalid input.
@@ -141,7 +142,8 @@ There is no review queue and no override parameter. Outcomes:
   link is created and immediately before the provider call.
 
 QA checks (all blocking unless noted): `SCHEMA_VALID`, `RECORD_DISPOSITION`,
-`RENDER_MODEL_OK`, `IMAGE_ORIGINS`, `MAP_ORIGIN`, `PLACEHOLDER_TOKENS`,
+`RENDER_MODEL_OK`, `IMAGE_ORIGINS`, `HERO_VISUAL_STRATEGY` (warning when
+theme concept art is used), `VISUAL_CONTENT_DEPTH`, `MAP_ORIGIN`, `PLACEHOLDER_TOKENS`,
 `CTA_PROTOCOLS`, `ATTRIBUTION_METADATA`, `BUSINESS_OPEN`, `NOT_EXPIRED`,
 `RENDER_POLICY` (re-runs the central policy; blocked values must all be
 hidden by normalization). Screenshot and AI-vision checks are *not

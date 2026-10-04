@@ -1,9 +1,10 @@
 import type { ThemeId } from "./schema";
 
 /**
- * Placeholder and fallback material. Theme placeholder artwork is a local,
- * non-photographic SVG per theme: abstract pattern work that stands in for
- * missing imagery without implying it depicts the actual business.
+ * Placeholder and fallback material. These local paths identify the theme
+ * concept-art variant rendered by SmartImage when licensed business media is
+ * unavailable. The public UI renders named, non-photographic art rather than
+ * implying the fallback depicts the actual business.
  */
 export const themePlaceholderHero: Record<ThemeId, string> = {
   "heritage-bistro": "/poc-placeholders/heritage-bistro-hero.svg",
