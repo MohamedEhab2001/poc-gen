@@ -39,8 +39,7 @@ for copy/paste fidelity.
 ## 2. Where to obtain the keys
 
 - **Template ID** — top of the template editor page (`template_…`).
-- **Public Key** — **Account → General** (the account-wide public key,
-  `U_7Kb…`-shaped).
+- **Public Key** — **Account → General** (the account-wide public key).
 - **Private Key** — **Account → Security**. Private keys are shown once when
   generated; store it in your secrets manager immediately.
 - While on **Account → Security**, enable **"Allow API requests from
