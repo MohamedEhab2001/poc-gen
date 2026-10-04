@@ -84,20 +84,65 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          ssh \
-            -i "$HOME/.ssh/poc_gen_deploy" \
-            -p "$VPS_SSH_PORT" \
-            -o IdentitiesOnly=yes \
-            "$VPS_USER@$VPS_HOST" \
-            'install -d -m 700 /tmp/poc-gen-deploy'
+          ssh_options=(
+            -i "$HOME/.ssh/poc_gen_deploy"
+            -p "$VPS_SSH_PORT"
+            -o IdentitiesOnly=yes
+            -o ConnectTimeout=15
+            -o ConnectionAttempts=3
+            -o ServerAliveInterval=15
+            -o ServerAliveCountMax=3
+          )
+          scp_options=(
+            -i "$HOME/.ssh/poc_gen_deploy"
+            -P "$VPS_SSH_PORT"
+            -o IdentitiesOnly=yes
+            -o ConnectTimeout=15
+            -o ConnectionAttempts=3
+            -o ServerAliveInterval=15
+            -o ServerAliveCountMax=3
+          )
 
-          scp \
-            -i "$HOME/.ssh/poc_gen_deploy" \
-            -P "$VPS_SSH_PORT" \
-            -o IdentitiesOnly=yes \
-            scripts/deploy-vps.sh \
-            /tmp/poc-gen.env.production \
-            "$VPS_USER@$VPS_HOST:/tmp/poc-gen-deploy/"
+          connected=false
+          for attempt in 1 2 3 4; do
+            if ssh "${ssh_options[@]}" \
+              "$VPS_USER@$VPS_HOST" \
+              'install -d -m 700 /tmp/poc-gen-deploy'; then
+              connected=true
+              break
+            fi
+
+            echo "::warning::SSH connection attempt ${attempt}/4 failed."
+            if [[ "$attempt" -lt 4 ]]; then
+              sleep $((attempt * 5))
+            fi
+          done
+
+          if [[ "$connected" != true ]]; then
+            echo "::error::Could not reach the VPS over SSH. Check the VPS/provider firewall and SSH service."
+            exit 1
+          fi
+
+          transferred=false
+          for attempt in 1 2 3; do
+            if scp "${scp_options[@]}" \
+              scripts/deploy-vps.sh \
+              /tmp/poc-gen.env.production \
+              "$VPS_USER@$VPS_HOST:/tmp/poc-gen-deploy/"; then
+              transferred=true
+              break
+            fi
+
+            echo "::warning::SCP transfer attempt ${attempt}/3 failed."
+            if [[ "$attempt" -lt 3 ]]; then
+              sleep $((attempt * 5))
+            fi
+          done
+
+          if [[ "$transferred" != true ]]; then
+            echo "::error::Connected to the VPS, but could not transfer the deployment files."
+            exit 1
+          fi
 
       - name: Deploy application
         shell: bash
@@ -107,6 +152,10 @@ jobs:
             -i "$HOME/.ssh/poc_gen_deploy" \
             -p "$VPS_SSH_PORT" \
             -o IdentitiesOnly=yes \
+            -o ConnectTimeout=15 \
+            -o ConnectionAttempts=3 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
             "$VPS_USER@$VPS_HOST" \
             "APP_NAME='$APP_NAME' APP_DIR='$APP_DIR' APP_PORT='$APP_PORT' BRANCH='main' DOMAIN='$DOMAIN' EXPECTED_IP='$VPS_HOST' LETSENCRYPT_EMAIL='$LETSENCRYPT_EMAIL' REPO_URL='https://github.com/${{ github.repository }}.git' ENV_FILE_SOURCE='/tmp/poc-gen-deploy/poc-gen.env.production' bash /tmp/poc-gen-deploy/deploy-vps.sh"
 
@@ -119,6 +168,8 @@ jobs:
               -i "$HOME/.ssh/poc_gen_deploy" \
               -p "$VPS_SSH_PORT" \
               -o IdentitiesOnly=yes \
+              -o ConnectTimeout=15 \
+              -o ConnectionAttempts=2 \
               "$VPS_USER@$VPS_HOST" \
               'rm -rf /tmp/poc-gen-deploy' 2>/dev/null || true
           fi
