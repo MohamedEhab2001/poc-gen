@@ -24,6 +24,7 @@ import { isInfrastructureError } from "./db";
 import type { CallAuth, CallContext } from "./context";
 import { buildCallContext } from "./context";
 import { acquireIdempotency, completeIdempotency } from "./support";
+import { addRunStep } from "./store/runs";
 import { assertAutomationProductionConfig, getAutomationConfig } from "./config";
 import { getDb } from "@/server/db/client";
 import { finishAutomationRun, getRunReport, startAutomationRun } from "./operations/runs";
@@ -300,6 +301,7 @@ export async function dispatchOperation(
   // THIS request created. Replay, in-progress, and conflict outcomes belong
   // to a different request's reservation and must never be overwritten.
   let ownsReservation = false;
+  let ctx: ReturnType<typeof buildCallContext> | null = null;
 
   try {
     if (!operation.mutating) {
@@ -308,6 +310,7 @@ export async function dispatchOperation(
       return { ok: true, result };
     }
 
+    ctx = null; // reset per dispatch (defense in depth)
     // Mutating path: idempotency is mandatory.
     const idempotencyKey = String(input.idempotencyKey ?? "");
     if (idempotencyKey.length === 0) {
@@ -317,7 +320,7 @@ export async function dispatchOperation(
         "REJECTED",
       );
     }
-    const ctx = buildCallContext(auth, idempotencyKey);
+    ctx = buildCallContext(auth, idempotencyKey);
     ctx.runId = typeof input.runId === "string" ? input.runId : null;
 
     const acquisition = await acquireIdempotency({
@@ -373,6 +376,7 @@ export async function dispatchOperation(
       // replay/in-progress/conflict errors from acquireIdempotency leave the
       // original row untouched.
       const idempotencyKey = String(input?.idempotencyKey ?? "");
+      const failure = toStructuredFailure(error);
       if (idempotencyKey) {
         await completeIdempotency({
           db: getDb(),
@@ -380,8 +384,32 @@ export async function dispatchOperation(
           principal: auth.principal,
           idempotencyKey,
           status: "failed",
-          result: toStructuredFailure(error),
+          result: failure,
         }).catch(() => undefined);
+      }
+      // Persist a FAILED RUN STEP outside the rolled-back business
+      // transaction so finish_automation_run derives the true status.
+      // Safe fields only (operation, lead id, structured code/outcome);
+      // diagnostic recording must never mask the original failure.
+      if (ctx?.runId) {
+        const maybeLeadId = typeof (input as Record<string, unknown> | null)?.leadId === "string"
+          ? ((input as Record<string, unknown>).leadId as string)
+          : null;
+        await addRunStep(getDb(), {
+          runId: ctx.runId,
+          operation: name,
+          leadId: maybeLeadId,
+          status: "failed",
+          errorCode: failure.code,
+          startedAt: ctx.now,
+          finishedAt: new Date(),
+          summary: { outcome: failure.outcome },
+        }).catch((stepError: unknown) => {
+          console.error(
+            `[automation] failed to record diagnostic run step for ${name} (run=${ctx?.runId ?? "unknown"}):`,
+            stepError instanceof Error ? stepError.name : "unknown",
+          );
+        });
       }
     }
     if (isInfrastructureError(error)) {

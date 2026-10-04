@@ -60,7 +60,10 @@ export const OUTREACH_ELIGIBLE_STATUSES: ReadonlySet<LeadStatus> = new Set([
 const TRANSITIONS: Readonly<Record<LeadStatus, readonly LeadStatus[]>> = {
   DISCOVERED: ["QUALIFIED", "REJECTED", "QUARANTINED", "FAILED"],
   QUALIFIED: ["ENRICHED", "REJECTED", "QUARANTINED", "SUPPRESSED", "FAILED"],
-  ENRICHED: ["CONTACT_VERIFIED", "REJECTED", "QUARANTINED", "SUPPRESSED", "FAILED"],
+  // POC generation does NOT require a verified contact: ENRICHED may go
+  // straight to POC_GENERATED. Contact verification gates OUTREACH only
+  // (prepare_outreach / send_outreach enforce contact_not_verified).
+  ENRICHED: ["CONTACT_VERIFIED", "POC_GENERATED", "REJECTED", "QUARANTINED", "SUPPRESSED", "FAILED"],
   CONTACT_VERIFIED: ["POC_GENERATED", "REJECTED", "QUARANTINED", "SUPPRESSED", "FAILED"],
   POC_GENERATED: ["QA_PASSED", "REJECTED", "QUARANTINED", "FAILED"],
   QA_PASSED: ["PUBLISHED", "POC_GENERATED", "REJECTED", "FAILED"],

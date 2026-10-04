@@ -67,12 +67,19 @@ handlers, and route handlers never write statuses.
 
 ```
 DISCOVERED -> QUALIFIED -> ENRICHED -> CONTACT_VERIFIED -> POC_GENERATED -> QA_PASSED -> PUBLISHED -> OUTREACH_READY -> CONTACTED -> FOLLOW_UP_1 -> FOLLOW_UP_2
-     |            |            |               |                 |              |            |             |             |             |
-     +-> REJECTED/QUARANTINED/FAILED <------- (available from each pipeline stage) --------+
+     |            |            |                                |
+     |            |            +-> POC_GENERATED (no contact) ---+
+     +-> REJECTED/QUARANTINED/FAILED <---- (available from each pipeline stage)
                                                     |
 OUTREACH_READY/CONTACTED/FOLLOW_UP_* -> INTERESTED | NOT_INTERESTED | UNSUBSCRIBED | BOUNCED | SUPPRESSED | FAILED
 ```
 
+- **Contact verification is an outreach gate, not a POC-generation gate:**
+  an evidence-backed `ENRICHED` lead may go straight to `POC_GENERATED`,
+  `QA_PASSED`, and `PUBLISHED` with no contact on file. Publishing without
+  a contact never permits outreach — `prepare_outreach`/`send_outreach`
+  fail with `contact_not_verified` until a verified contact exists (adding
+  one later by re-ingestion re-enables outreach under the existing rules).
 - Terminal states (`INTERESTED`, `NOT_INTERESTED`, `UNSUBSCRIBED`,
   `BOUNCED`, `SUPPRESSED`, `REJECTED`, `QUARANTINED`) never transition back
   into outreach automatically.

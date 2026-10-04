@@ -12,7 +12,7 @@ import {
   normalizePhoneKey,
 } from "@/lib/automation/normalize";
 import { AutomationError } from "@/lib/automation/outcomes";
-import { assertLeadTransition } from "@/lib/automation/lifecycle";
+import { canTransition } from "@/lib/automation/lifecycle";
 import type { LeadStatus } from "@/lib/automation/lifecycle";
 import type { Db, Queryable, Tx } from "../db";
 export { upsertContact as upsertContactRef } from "./contacts";
@@ -248,7 +248,17 @@ export interface UpdateLeadInput {
  */
 export async function updateLeadStatus(tx: Tx, input: UpdateLeadInput): Promise<LeadRow> {
   if (input.from !== input.to) {
-    assertLeadTransition(input.from, input.to);
+    // Lifecycle violations are terminal data-shape failures: surface the
+    // transition itself as a safe structured error (never internal_error).
+    if (!canTransition(input.from, input.to)) {
+      throw new AutomationError(
+        "illegal_lead_transition",
+        `Illegal lead transition ${input.from} -> ${input.to}.`,
+        "REJECTED",
+        undefined,
+        { from: input.from, to: input.to },
+      );
+    }
   }
   const updated = await tx
     .update(leads)
