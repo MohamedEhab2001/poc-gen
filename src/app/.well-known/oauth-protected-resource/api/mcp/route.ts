@@ -2,17 +2,12 @@ import { NextResponse } from "next/server";
 import { getAutomationConfig } from "@/server/automation/config";
 import { getMcpProtectedResourceMetadata } from "@/server/mcp/resource-metadata";
 
-/**
- * RFC 9728 protected resource metadata for the remote MCP server, telling
- * OAuth-capable MCP clients which authorization server to use. Only
- * operator-configured values are emitted; nothing here is caller-supplied.
- */
+/** Path-aware RFC 9728 alias for clients that derive metadata from /api/mcp. */
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const config = getAutomationConfig();
   return NextResponse.json(
-    getMcpProtectedResourceMetadata(config, request.url),
+    getMcpProtectedResourceMetadata(getAutomationConfig(), request.url),
     { headers: { "Cache-Control": "no-store" } },
   );
 }

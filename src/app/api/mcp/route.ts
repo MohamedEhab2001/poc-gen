@@ -3,6 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { authenticateAutomationRequest, authFailureResponse } from "@/server/mcp/auth";
 import { buildAutomationMcpServer, correlationId } from "@/server/mcp/server";
 import { getAutomationConfig } from "@/server/automation/config";
+import { getMcpWwwAuthenticate } from "@/server/mcp/resource-metadata";
 import { rateLimit } from "@/server/security/rate-limit";
 
 /**
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
     const response = authFailureResponse(auth.failure);
     return genericJson(response.status, { jsonrpc: "2.0", error: { code: -32000, message: response.body.error as string } }, {
       ...(response.status === 401
-        ? { "WWW-Authenticate": 'Bearer realm="poc-gen-mcp", error="invalid_token"' }
+        ? { "WWW-Authenticate": getMcpWwwAuthenticate(config, request.url) }
         : {}),
     });
   }

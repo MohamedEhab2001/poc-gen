@@ -172,7 +172,9 @@ expired, malformed, and insufficient-scope credentials are all rejected
 generically (401/403, no detail leakage). Until an authorization server is
 registered, production stays fail-closed: the endpoint answers 503 rather
 than weakening authentication. `/.well-known/oauth-protected-resource`
-advertises the configured issuer to clients.
+advertises the configured issuer and exact `/api/mcp` resource URI to clients;
+unauthorized MCP responses also advertise that metadata URL in the RFC 9728
+`WWW-Authenticate` header.
 
 **Development:** `ALLOW_DEV_MCP_BEARER=true` + `DEV_MCP_BEARER_TOKEN`
 enables a static bearer (constant-time compared, all scopes). This is
@@ -193,6 +195,8 @@ stack traces or driver messages, and credentials never in query strings.
 1. Deploy with `DATABASE_URL` set; run `npm run db:migrate`.
 2. Register an OAuth client / token issuer whose JWTs carry your chosen
    scopes; set the four `MCP_*` variables above plus `MCP_PUBLIC_BASE_URL`.
+   Use the exact `https://<host>/api/mcp` URI as the OAuth API identifier and
+   `MCP_EXPECTED_AUDIENCE`.
 3. Add the connector in the client (ChatGPT: Settings → Connectors → add
    MCP server) pointing at `https://<host>/api/mcp`. Discovery via
    `/.well-known/oauth-protected-resource` is supported.
