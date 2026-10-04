@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { randomBytes } from "node:crypto";
 
 /**
@@ -40,7 +41,10 @@ export function configureSmokeEnvironment(argv: string[]): string {
   process.env.AUTOMATION_ENABLED = "true";
   process.env.AUTOMATION_EMERGENCY_STOP = "false";
   process.env.OUTREACH_SEND_ENABLED = "true";
-  process.env.OUTREACH_EMAIL_PROVIDER = "mock";
+  // Default to the mock provider; exporting OUTREACH_EMAIL_PROVIDER=emailjs
+  // (with EMAILJS_DRY_RUN=true and the EMAILJS_* configuration) exercises
+  // the real provider-selection path in dry run — still zero network calls.
+  process.env.OUTREACH_EMAIL_PROVIDER ??= "mock";
   process.env.OUTREACH_SENDER_NAME = "POC Gen Smoke";
   process.env.OUTREACH_FROM_EMAIL = "smoke@poc-gen.invalid";
   process.env.OUTREACH_REPLY_TO = "smoke@poc-gen.invalid";

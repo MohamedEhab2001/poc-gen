@@ -14,7 +14,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/server/db/migrate.ts",
     "automation:smoke": "node --import tsx --conditions=react-server scripts/automation-smoke.ts",
-    "test:integration": "vitest run --no-file-parallelism integration.test.ts"
+    "test:integration": "vitest run --no-file-parallelism integration.test.ts",
+    "automation:test-email": "node --import tsx --conditions=react-server scripts/emailjs-test-send.ts"
   },
   "dependencies": {
     "@emailjs/nodejs": "^5.0.2",

@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 import { randomBytes } from "node:crypto";
-import { buildTemplateParams } from "./emailjs";
+import emailjsSdk from "@emailjs/nodejs";
+import { buildTemplateParams, EmailJsProvider } from "./emailjs";
 import { sendWithTimeout } from "./provider";
 import type { EmailProvider, OutgoingEmail } from "./provider";
 import { sanitizeOutreachHtml } from "@/lib/automation/html-sanitize";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function key(): string {
   return randomBytes(32).toString("base64");
@@ -89,6 +94,30 @@ describe("EmailJS provider unit behavior", () => {
     };
     const outcome = await sendWithTimeout(throwing, message, 5_000);
     expect(outcome).toEqual({ status: "delivery_unknown" });
+  });
+
+  it("dry run returns a deterministic sent outcome and never calls the EmailJS SDK", async () => {
+    const sendSpy = vi.spyOn(emailjsSdk, "send").mockResolvedValue({ status: 200, text: "should-not-be-called" } as never);
+    try {
+      const provider = new EmailJsProvider({
+        serviceId: "service_test",
+        templateId: "template_test",
+        publicKey: "public-test",
+        privateKey: null, // dry run permits a missing private key
+        requestTimeoutMs: 5_000,
+        dryRun: true,
+      });
+      const first = await provider.send(message);
+      const second = await provider.send(message);
+      expect(first.status).toBe("sent");
+      if (first.status === "sent") {
+        expect(first.providerMessageId).toMatch(/^emailjs-dryrun-/);
+      }
+      expect(second.status).toBe("sent"); // deterministic
+      expect(sendSpy).not.toHaveBeenCalled(); // zero network requests
+    } finally {
+      sendSpy.mockRestore();
+    }
   });
 
   it("secrets never appear in module output strings", () => {

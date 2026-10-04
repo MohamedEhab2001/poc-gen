@@ -116,7 +116,7 @@ async function main() {
     // 9. send through the mock provider
     const sent = await expectOk(call("send_outreach", { idempotencyKey: key("send"), runId, messageId }));
     if (sent.status !== "sent") throw new Error(`send unexpected: ${JSON.stringify(sent)}`);
-    log(`mock send ok; lead status ${String(sent.leadStatus)}`);
+    log(`send ok (provider: ${process.env.OUTREACH_EMAIL_PROVIDER ?? "mock"}); lead status ${String(sent.leadStatus)}`);
 
     // 10. list a due follow-up (simulate time passing: smoke-only update)
     const { leads } = await import("@/server/db/schema");

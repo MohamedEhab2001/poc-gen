@@ -88,15 +88,27 @@ Rules enforced by the application:
 
 ## 5. Send one explicitly authorized test email
 
-Only when you are ready, and only to an address you control:
+The project ships a one-off command for exactly this (it reuses the
+production EmailJS provider, including the rate throttle, and sends exactly
+one message):
 
-1. Set `EMAILJS_DRY_RUN=false` **and** `OUTREACH_SEND_ENABLED=true` in the
-   deployment environment (or locally for a one-off run).
-2. Ingest a synthetic lead whose contact is your own controlled address,
-   then prepare + send via the tools, or use the smoke flow with a candidate
-   whose `contact.address` is your address.
-3. Confirm the received email: subject, CTA link works, unsubscribe link
-   works, footer shows sender identity + postal address.
+```bash
+npm run automation:test-email -- --to=you@yourdomain.com --confirm-live-send
+```
+
+Preconditions the command enforces itself:
+
+- `--to=` must be an address **you control**;
+- `--confirm-live-send` is required;
+- `EMAILJS_DRY_RUN=false` must be set explicitly (it refuses otherwise);
+- the full `EMAILJS_*` configuration must be present;
+- a local `DATABASE_URL` (or `TEST_DATABASE_URL`) is used only for the
+  provider's rate-throttle slot.
+
+The message contains non-functional test links, the compliance footer, and
+the unsubscribe link, and the command never prints the recipient or any
+secret. Check the received email (subject, CTA, footer, unsubscribe), then
+immediately re-disable sending (next section).
 
 ## 6. Keep live sending disabled afterwards
 
