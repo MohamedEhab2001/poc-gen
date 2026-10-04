@@ -312,7 +312,7 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
                   height={560}
                   sizes="(min-width: 1024px) 24vw, 48vw"
                   className="h-auto w-full rounded-[var(--radius)] object-cover transition-transform duration-500 hover:scale-105"
-                  attributionClassName="sr-only"
+                  attributionClassName="px-1 pt-1.5 text-[10.5px] text-[var(--muted)]"
                 />
               </li>
             ))}

@@ -264,6 +264,7 @@ export default function AtelierLookbookTheme({ record }: ThemeProps) {
                         fill
                         sizes="(min-width: 1024px) 66vw, 92vw"
                         className="h-full w-full object-cover"
+                        showAttribution={false}
                       />
                     </div>
                   </ParallaxImage>

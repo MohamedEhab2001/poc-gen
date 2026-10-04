@@ -7,7 +7,7 @@ import type {
   runQaInputSchema,
   upsertPocInputSchema,
 } from "@/lib/automation/schemas";
-import { themeIds } from "@/lib/poc/schema";
+import { recordSchema, themeIds } from "@/lib/poc/schema";
 import { runDeterministicQa } from "@/lib/automation/qa";
 import { recordExternalProviders } from "@/lib/automation/evidence";
 import { AutomationError } from "@/lib/automation/outcomes";
@@ -40,6 +40,23 @@ import {
   upsertPocRow,
 } from "../store/poc";
 import { createShareLinkWithin } from "@/server/share/service";
+import { applyGenerationMedia, resolvePocMedia } from "@/server/media/resolve-poc-media";
+import type { PocMediaResolution } from "@/server/media/types";
+import { resolveTrustedPlaceId } from "@/server/media/trusted-place";
+
+/**
+ * Generation-time concept imagery. Runs BEFORE the transaction (no network
+ * while holding database locks) and never throws: provider trouble simply
+ * leaves the record on its existing media and ConceptHeroArt.
+ */
+async function resolveGenerationMedia(record: z.infer<typeof upsertPocInputSchema>["record"]): Promise<PocMediaResolution | null> {
+  try {
+    return await resolvePocMedia({ record, placeId: null, desiredHeroCount: 1, desiredGalleryCount: 3 });
+  } catch {
+    console.warn("[media] Generation media resolution failed; storing the record without concept imagery.");
+    return null;
+  }
+}
 import { PostgresShareLinkStore } from "@/server/share/store";
 
 /**
@@ -68,10 +85,12 @@ export async function upsertPocRecord(
     );
   }
 
+  const media = await resolveGenerationMedia(input.record);
+
   return withTransaction(async (tx) => {
     const pair = await getLeadWithBusiness(tx, input.leadId);
     if (!pair) throw new AutomationError("lead_not_found", "No such lead.", "REJECTED");
-    const { lead } = pair;
+    const { lead, business } = pair;
 
     // Evidence references must belong to this lead; factual claims need at
     // least one snapshot behind them.
@@ -99,8 +118,8 @@ export async function upsertPocRecord(
     // entire record. (Deterministic linkage, not semantic verification of
     // each fact.)
     const requiredProviders = recordExternalProviders(input.record);
+    const snapshots = await listSnapshotsForLead(tx, lead.id);
     if (requiredProviders.length > 0) {
-      const snapshots = await listSnapshotsForLead(tx, lead.id);
       const snapshotProviders = new Set(snapshots.map((snapshot) => snapshot.provider));
       const missing = requiredProviders.filter((provider) => !snapshotProviders.has(provider));
       if (missing.length > 0) {
@@ -114,10 +133,28 @@ export async function upsertPocRecord(
       }
     }
 
+    // Automated media: the trusted place id comes only from the lead's own
+    // Google identity/evidence (Google photos then resolve at render time and
+    // are never stored); Unsplash concept imagery is stored for stability.
+    // Server-managed resolution metadata always replaces caller input.
+    const trustedPlaceId = resolveTrustedPlaceId({
+      recordPlaceId: input.record.identity.placeId,
+      business: { sourceType: business.sourceType, sourceExternalId: business.sourceExternalId },
+      snapshots,
+    });
+    const record = recordSchema.parse(
+      applyGenerationMedia(
+        input.record,
+        media ?? { hero: null, gallery: [], heroSource: "concept_art", promotedHeroUrl: null, conceptQuery: null, notes: [] },
+        trustedPlaceId,
+        ctx.now,
+      ),
+    );
+
     const row = await upsertPocRow(tx, {
       leadId: lead.id,
       slug: input.record.slug,
-      record: input.record,
+      record,
       recordSchemaVersion: input.record.schemaVersion,
       reason: input.reason,
       changedBy: ctx.principal,
@@ -145,6 +182,11 @@ export async function upsertPocRecord(
         revisionCreated: row.version > 1,
         evidenceCount: evidence.valid.length,
         themeId: input.record.themeId,
+        media: {
+          heroSource: media?.heroSource ?? "concept_art",
+          trustedPlaceId: trustedPlaceId !== null,
+          notes: media?.notes ?? ["resolution_failed"],
+        },
       },
     });
 
@@ -156,7 +198,7 @@ export async function upsertPocRecord(
         status: "completed",
         startedAt: ctx.now,
         finishedAt: ctx.now,
-        summary: { version: row.version, slug: row.slug },
+        summary: { version: row.version, slug: row.slug, heroSource: media?.heroSource ?? "concept_art" },
       });
     }
 

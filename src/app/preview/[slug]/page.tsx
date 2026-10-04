@@ -13,6 +13,7 @@ import { themeIds } from "@/lib/poc/schema";
 import type { BusinessPocRecord } from "@/lib/poc/schema";
 import { themeMeta } from "@/lib/poc/theme-meta";
 import { requireOperator } from "@/server/auth/authorize";
+import { withRuntimeMedia } from "@/server/media/resolve-poc-media";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -40,7 +41,7 @@ export default async function PreviewPage({ params, searchParams }: PageProps) {
     ? query.theme
     : null;
   const themed: BusinessPocRecord = themeOverride ? { ...raw, themeId: themeOverride } : raw;
-  const record = normalizeRecord(themed);
+  const record = normalizeRecord(await withRuntimeMedia(themed));
 
   const viewport =
     query.viewport === "mobile" || query.viewport === "tablet" ? query.viewport : "desktop";

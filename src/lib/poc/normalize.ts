@@ -22,6 +22,7 @@ import type {
   ServiceFlag,
   ThemePalette,
 } from "./types";
+import { dedupeImages, isBusinessSpecificSource, mediaSourceOf, pickBestHero } from "./media";
 import { isAllowedImageUrl, isHexColor, isTrustedMapEmbed, safeExternalUrl, telHref, mailtoHref } from "./url";
 import type { ActionLink, PocImage, Sourced } from "./schema";
 
@@ -46,17 +47,26 @@ function titleFromSlug(slug: string): string {
     .join(" ");
 }
 
-function resolveImage(image: PocImage, outcome: Outcome): ResolvedImage {
+function resolveImage(
+  image: PocImage,
+  outcome: Outcome,
+  source: PocImage["source"],
+  fallback: ResolvedImage | null,
+): ResolvedImage {
   return {
     url: image.url,
     alt: image.alt,
     role: image.role ?? "gallery",
-    source: image.source,
+    source,
     outcome,
     width: image.width ?? null,
     height: image.height ?? null,
     attribution: image.attribution ?? null,
     focalPoint: image.focalPoint ?? null,
+    mediaSource: mediaSourceOf(source),
+    isBusinessSpecific: isBusinessSpecificSource(source),
+    averageColor: image.averageColor ?? null,
+    fallback,
   };
 }
 
@@ -255,7 +265,9 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
       return null;
     }
     provenance.push({ field, source, outcome });
-    return resolveImage(image, outcome);
+    // Local paths cannot fail at the network edge; external images carry
+    // the theme concept art as their render-time failure fallback.
+    return resolveImage(image, outcome, source, image.url.startsWith("/") ? null : conceptArt);
   }
 
   /**
@@ -326,6 +338,24 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
   const businessStatus =
     factualValue("identity.businessStatus", record.identity.businessStatus) ?? "unknown";
 
+  // Theme concept art: the final, zero-network visual tier. Also attached to
+  // every external image as its load-failure fallback.
+  const conceptArt: ResolvedImage = {
+    url: themePlaceholderHero[themeId],
+    alt: `Abstract ${themeMeta[themeId].name.toLowerCase()} pattern standing in for a photograph of ${name}`,
+    role: "hero",
+    source: "fallback",
+    outcome: "fallback",
+    width: 1600,
+    height: 900,
+    attribution: null,
+    focalPoint: { x: 0.5, y: 0.5 },
+    mediaSource: "concept_art",
+    isBusinessSpecific: false,
+    averageColor: null,
+    fallback: null,
+  };
+
   // Location resolves first: the policy-resolved city feeds hero fallbacks,
   // so blocked data can never leak into generated copy.
   const locationRaw = record.location;
@@ -380,30 +410,29 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
     });
   }
 
-  // Hero image (fallback rule 3 plus policy and host gates)
+  // Hero image (fallback rule 3 plus policy and host gates), tiered:
+  // business-specific media (the explicit hero wrapper first, then the best
+  // landscape media hero) → Unsplash concept photography → theme concept art.
   const heroFromRecord = imageValue("hero.image", record.hero.image?.value, record.hero.image);
-  const heroFromMedia = record.media.images.find((img) => img.role === "hero");
-  const heroFromMediaResolved = heroFromMedia ? imageValue("hero.image", heroFromMedia) : null;
+  const heroMediaRaw = dedupeImages(record.media.images.filter((img) => img.role === "hero"));
+  const heroFromMedia = heroMediaRaw
+    .map((img) => imageValue("hero.image", img))
+    .filter((img): img is ResolvedImage => img !== null);
+  const heroCandidates = heroFromRecord ? [heroFromRecord, ...heroFromMedia] : heroFromMedia;
+  const businessHero = heroFromRecord?.isBusinessSpecific
+    ? heroFromRecord
+    : pickBestHero(heroCandidates.filter((img) => img.isBusinessSpecific));
+  const conceptPhotoHero = pickBestHero(heroCandidates.filter((img) => img.mediaSource === "unsplash"));
   let heroImage: ResolvedImage;
-  if (heroFromRecord) {
-    heroImage = heroFromRecord;
-  } else if (heroFromMediaResolved) {
-    heroImage = heroFromMediaResolved;
+  if (businessHero) {
+    heroImage = businessHero;
+  } else if (conceptPhotoHero) {
+    heroImage = conceptPhotoHero;
   } else {
-    if (record.hero.image?.value || heroFromMedia) {
+    if (record.hero.image?.value || heroMediaRaw.length > 0) {
       warnings.push("hero.image was blocked by policy or host validation; theme placeholder used.");
     }
-    heroImage = {
-      url: themePlaceholderHero[themeId],
-      alt: `Abstract ${themeMeta[themeId].name.toLowerCase()} pattern standing in for a photograph of ${name}`,
-      role: "hero",
-      source: "fallback",
-      outcome: "fallback",
-      width: 1600,
-      height: 900,
-      attribution: null,
-      focalPoint: { x: 0.5, y: 0.5 },
-    };
+    heroImage = conceptArt;
     provenance.push({
       field: "hero.image",
       source: "fallback",
@@ -587,12 +616,22 @@ export function normalizeRecord(record: BusinessPocRecord): ResolvedBusiness {
     }
   }
 
-  // Gallery (fallback rule 4: reduce or hide, never repeat; policy + host gates)
-  const galleryImages = record.media.images
-    .filter((img) => img.role === undefined || img.role === "gallery")
+  // Gallery (fallback rule 4: reduce or hide, never repeat; policy + host
+  // gates). Concept stock photography never mixes with real photos of the
+  // business: Unsplash images render only when no business-specific gallery
+  // image survives.
+  const galleryResolved = dedupeImages(
+    record.media.images.filter(
+      (img) => (img.role === undefined || img.role === "gallery") && img.url !== heroImage.url,
+    ),
+  )
     .map((img) => imageValue("media.images", img))
-    .filter((img): img is ResolvedImage => img !== null)
-    .filter((img, index, all) => all.findIndex((other) => other.url === img.url) === index);
+    .filter((img): img is ResolvedImage => img !== null);
+  const businessGallery = galleryResolved.filter((img) => img.isBusinessSpecific);
+  const galleryImages =
+    businessGallery.length > 0
+      ? businessGallery
+      : galleryResolved.filter((img) => img.mediaSource === "unsplash");
   const blockedGallery = record.media.images.filter(
     (img) =>
       (img.role === undefined || img.role === "gallery") &&

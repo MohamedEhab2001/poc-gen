@@ -323,7 +323,7 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
                     height={560}
                     sizes="(min-width: 1024px) 24vw, 48vw"
                     className="h-auto w-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:scale-110"
-                    attributionClassName="sr-only"
+                    attributionClassName="px-4 pb-3 pt-1 text-center text-[10px] font-bold text-[var(--muted)]"
                   />
                 </div>
               </StaggerItem>

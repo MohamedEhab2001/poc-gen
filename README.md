@@ -131,6 +131,17 @@ The shared map primitive ([`src/components/poc/map/MapSection.tsx`](src/componen
 
 Every mode ships a text alternative; iframes are lazy-loaded and titled; maps never trap mobile scroll.
 
+## POC imagery
+
+Media resolves automatically ([`src/server/media/`](src/server/media)), in strict priority order:
+
+1. **Verified business media** already in the record — never replaced; the best landscape photo becomes the hero.
+2. **Google Places photos** of the exact business — only when the place id is confirmed by the lead's own Google identity/evidence (never guessed from a name). Google photo names expire and must not be cached, so they resolve per request on the server (`cache: "no-store"`, key in a header) into a transient copy of the record; the stored record keeps only the place id. Credits show the Google contributor and "Photo via Google Maps".
+3. **Unsplash concept imagery** — a deterministic, category-aware search (`orientation=landscape`, `content_filter=high`) at `upsert_poc_record` time; selection is seeded by the record id so rebuilds look the same. Images are hotlinked from `photo.urls`, `download_location` is triggered for each selected photo, and every image is `source: "unsplash"`, never business-specific, with the visible credit "Concept imagery · Photo by {photographer} on Unsplash" (photographer and Unsplash linked with referral parameters). Concept stock never mixes into a gallery of real photos.
+4. **Theme concept art** (`ConceptHeroArt`) — the zero-network fallback for missing keys, timeouts, quota errors, empty results, and images that fail to load in the browser.
+
+Both keys are optional; provider failures never block record storage, QA, or rendering. QA (`MEDIA_SOURCE_INTEGRITY`, `MEDIA_ALT_TEXT`, `MEDIA_DUPLICATES`) rejects stock presented as business media, concept imagery without its disclosure, Google images without a place id, and persisted Google photo URIs.
+
 ## Repository and the future pipeline
 
 Records are read exclusively through the `BusinessPocRepository` interface in [`repository.ts`](src/lib/poc/repository.ts). The default adapter loads the fixture set through the Zod boundary. A documented PostgreSQL adapter point lives in the same file — records stay JSON documents in the database and the schema remains the single validation boundary, so externally sourced details (ratings, hours) can be refreshed at render time.
@@ -151,6 +162,8 @@ All optional for local development (see [`.env.example`](.env.example)):
 |---|---|
 | `NEXT_PUBLIC_SITE_URL` | Canonical origin used in metadata URLs. |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Enables keyed map embeds when records lack an `embedUrl`. |
+| `GOOGLE_PLACES_API_KEY` | Server-only. Real Google place photos for leads whose Google evidence carries a place id (see [POC imagery](#poc-imagery)). |
+| `UNSPLASH_ACCESS_KEY` | Server-only. Unsplash concept imagery when no real photo of the business exists. |
 | `POC_INGESTION_TOKEN` | Reserved for the future ingestion adapter. |
 | `DATABASE_URL` | Reserved for the PostgreSQL repository adapter. |
 | `R2_*` | Reserved for a future generated-asset store. |

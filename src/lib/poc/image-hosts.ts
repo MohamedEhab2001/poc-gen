@@ -13,6 +13,17 @@ export const BASE_IMAGE_HOSTS: readonly string[] = [
   "i.picsum.photos",
 ];
 
+/**
+ * Exact CDN hosts used by the automated media providers. Unsplash serves stock
+ * concept imagery from one host; Google Place Photos (skipHttpRedirect)
+ * returns short-lived photo URIs on lh3.googleusercontent.com. Neither URL
+ * carries an API key. No wildcards: any other host returned by a provider is
+ * dropped by the resolver.
+ */
+export const UNSPLASH_IMAGE_HOST = "images.unsplash.com";
+export const GOOGLE_PHOTO_HOST = "lh3.googleusercontent.com";
+export const PROVIDER_IMAGE_HOSTS: readonly string[] = [UNSPLASH_IMAGE_HOST, GOOGLE_PHOTO_HOST];
+
 const HOSTNAME_PATTERN = /^(?!-)[a-z0-9-]{1,63}(?<!-)(?:\.[a-z0-9-]{1,63})+$/;
 
 /**
@@ -65,7 +76,7 @@ export function hostnameFromBaseUrl(raw: string | undefined): string | null {
 
 /**
  * Resolves the full allowlist for the given environment: base placeholder
- * hosts, POC_IMAGE_HOST_ALLOWLIST entries, and the R2 public hostname when
+ * hosts, the exact media-provider CDN hosts, POC_IMAGE_HOST_ALLOWLIST entries, and the R2 public hostname when
  * configured. Deduplicated, order-stable.
  */
 export function resolveImageHosts(env: Record<string, string | undefined> = {}): string[] {
@@ -73,7 +84,7 @@ export function resolveImageHosts(env: Record<string, string | undefined> = {}):
   const fromR2 = env.R2_PUBLIC_BASE_URL
     ? [hostnameFromBaseUrl(env.R2_PUBLIC_BASE_URL)].filter((host): host is string => host !== null)
     : [];
-  return [...new Set([...BASE_IMAGE_HOSTS, ...fromList, ...fromR2])];
+  return [...new Set([...BASE_IMAGE_HOSTS, ...PROVIDER_IMAGE_HOSTS, ...fromList, ...fromR2])];
 }
 
 /**

@@ -7,8 +7,9 @@ import type {
   SocialLink,
   ThemeId,
 } from "./schema";
+import type { PocMediaSource } from "./media";
 
-export type { BusinessPocRecord, DataOrigin, ThemeId };
+export type { BusinessPocRecord, DataOrigin, ThemeId, PocMediaSource };
 
 /**
  * The outcome of resolving one piece of record data. Themes and the internal
@@ -32,6 +33,14 @@ export interface ResolvedImage {
   height: number | null;
   attribution: Attribution | null;
   focalPoint: { x: number; y: number } | null;
+  /** Media tier: real business media, Google place photo, Unsplash concept, or concept art. */
+  mediaSource: PocMediaSource;
+  /** True only for real photos of this business (never Unsplash or concept art). */
+  isBusinessSpecific: boolean;
+  /** Loading backdrop color when the provider supplied one. */
+  averageColor: string | null;
+  /** Theme concept art shown if this (external) image fails to load. */
+  fallback: ResolvedImage | null;
 }
 
 export interface ResolvedCta {

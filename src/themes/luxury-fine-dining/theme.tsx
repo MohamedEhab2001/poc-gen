@@ -189,7 +189,7 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
                     sizes={index === 0 ? "(min-width: 768px) 60vw, 100vw" : "(min-width: 768px) 40vw, 100vw"}
                     fill={index !== 0}
                     className="h-full w-full object-cover transition-transform duration-[1200ms] ease-out hover:scale-[1.03]"
-                    attributionClassName="sr-only"
+                    attributionClassName="mt-2 text-[10.5px] tracking-[0.08em] text-[#8a8270]"
                   />
                 </div>
               ))}

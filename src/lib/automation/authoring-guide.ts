@@ -68,6 +68,7 @@ export function buildPocAuthoringGuide(): AuthoringGuide {
       "Never invent factual business data; unknown values are omitted or null where allowed.",
       "Every factual value must use the Sourced wrapper (see sourcedFieldFormat).",
       "Images must carry valid provenance; untrusted origins are replaced by the theme placeholder at render time.",
+      "Do not pick pictures: upsert_poc_record resolves media automatically (record media → Google place photos at render time via the lead's evidenced place id → Unsplash concept imagery → theme concept art). Set identity.placeId only from Google evidence; never author media.resolution, unsplash images, or googleusercontent URLs.",
       "Reviews and menus must include provenance; AI-derived menus must use sample mode with the demonstration notice.",
       "Pick the theme from supportedCategories and the business character (themes[].character).",
       "Run run_poc_qa and require a pass before publish_poc; QA failures cannot be overridden.",

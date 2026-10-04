@@ -5,6 +5,7 @@ import { getRecordDisposition } from "@/lib/poc/disposition";
 import { normalizeRecord } from "@/lib/poc/normalize";
 import { renderTheme } from "@/lib/poc/render";
 import { getShareableRecord } from "@/server/poc/service";
+import { withRuntimeMedia } from "@/server/media/resolve-poc-media";
 import { PocRepositoryUnavailableError } from "@/server/poc/repository-pg";
 import { consumeShareLink, peekShareLink } from "@/server/share/service";
 import { ShareStoreUnavailableError } from "@/server/share/store";
@@ -54,7 +55,8 @@ export default async function SharedPocPage({
     const consumed = await consumeShareLink(token);
     if (!consumed) notFound();
 
-    const record = normalizeRecord(raw);
+    // Google place photos resolve per request (never stored, never cached).
+    const record = normalizeRecord(await withRuntimeMedia(raw));
 
     return (
       <>

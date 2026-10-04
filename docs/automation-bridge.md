@@ -135,6 +135,12 @@ There is no review queue and no override parameter. Outcomes:
 - Untrusted image origins are replaced by honest, named theme concept artwork
   (render policy); provider content rendering without attribution/license
   fails QA.
+- `upsert_poc_record` resolves media automatically (see README "POC
+  imagery"): it confirms a trusted Google place id against the lead's own
+  Google identity/evidence (stored in `media.resolution`; Google photos then
+  resolve per request and are never stored) and stores Unsplash concept
+  imagery when no real photo exists. Missing keys or provider failures never
+  block the write; the record falls back to theme concept art.
 - Unverified contacts cannot be prepared for or sent to.
 - Permanently closed or expired businesses cannot publish or send.
 - A QA failure cannot be overridden; unknown request keys are invalid input.
@@ -143,7 +149,11 @@ There is no review queue and no override parameter. Outcomes:
 
 QA checks (all blocking unless noted): `SCHEMA_VALID`, `RECORD_DISPOSITION`,
 `RENDER_MODEL_OK`, `IMAGE_ORIGINS`, `HERO_VISUAL_STRATEGY` (warning when
-theme concept art is used), `VISUAL_CONTENT_DEPTH`, `MAP_ORIGIN`, `PLACEHOLDER_TOKENS`,
+theme concept art is used), `MEDIA_SOURCE_INTEGRITY` (Unsplash images are
+disclosed concept imagery and never business-specific; stock never poses as
+business media; Google images need a place id; Google photo URIs are never
+persisted), `MEDIA_ALT_TEXT`, `MEDIA_DUPLICATES` (warning; removed at
+render), `VISUAL_CONTENT_DEPTH`, `MAP_ORIGIN`, `PLACEHOLDER_TOKENS`,
 `CTA_PROTOCOLS`, `ATTRIBUTION_METADATA`, `BUSINESS_OPEN`, `NOT_EXPIRED`,
 `RENDER_POLICY` (re-runs the central policy; blocked values must all be
 hidden by normalization). Screenshot and AI-vision checks are *not

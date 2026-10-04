@@ -1,7 +1,8 @@
 import { getRecordDisposition } from "@/lib/poc/disposition";
 import { normalizeRecord } from "@/lib/poc/normalize";
 import { renderPolicy } from "@/lib/poc/policy";
-import type { BusinessPocRecord } from "@/lib/poc/schema";
+import type { BusinessPocRecord, PocImage } from "@/lib/poc/schema";
+import { CONCEPT_LABEL_PREFIX, MEDIA_SOURCES, isGooglePhotoUrl, isUnsplashUrl } from "@/lib/poc/media";
 import { isAllowedImageUrl, isTrustedMapEmbed, mailtoHref, safeExternalUrl, telHref } from "@/lib/poc/url";
 import type { ResolvedBusiness } from "@/lib/poc/types";
 
@@ -151,13 +152,21 @@ function checkImageOrigins(model: ResolvedBusiness): QaCheck {
  * it remains visible as a warning so the scheduler can prefer a licensed
  * business photo when one exists. Very thin pages fail before publication.
  */
-function checkVisualReadiness(model: ResolvedBusiness): QaCheck[] {
-  const heroStrategy = model.hero.image?.outcome === "fallback" ? "theme_concept_art" : "business_media";
+function checkVisualReadiness(record: BusinessPocRecord, model: ResolvedBusiness): QaCheck[] {
+  const tier = model.hero.image?.mediaSource ?? "concept_art";
+  const heroStrategy =
+    tier === "concept_art" ? "theme_concept_art" : tier === "unsplash" ? "concept_photography" : "business_media";
   const heroCheck: QaCheck = {
     code: "HERO_VISUAL_STRATEGY",
     severity: "warning",
     status: heroStrategy === "theme_concept_art" ? "warn" : "pass",
-    details: { strategy: heroStrategy, themeId: model.themeId },
+    details: {
+      strategy: heroStrategy,
+      themeId: model.themeId,
+      // Google place photos resolve at render time; a stored record can only
+      // say whether that tier is available.
+      googlePlacePhotosEligible: Boolean(record.media.resolution?.trustedPlaceId),
+    },
   };
 
   const signals = {
@@ -190,6 +199,84 @@ function checkVisualReadiness(model: ResolvedBusiness): QaCheck[] {
   };
 
   return [heroCheck, contentCheck];
+}
+
+/** Every stored image with the field path it lives at. */
+function recordImages(record: BusinessPocRecord): Array<[string, PocImage]> {
+  const out: Array<[string, PocImage]> = [];
+  if (record.brand?.logo?.value) out.push(["brand.logo", record.brand.logo.value]);
+  if (record.hero.image?.value) out.push(["hero.image", record.hero.image.value]);
+  record.media.images.forEach((image, index) => out.push([`media.images[${index}]`, image]));
+  return out;
+}
+
+/**
+ * Media integrity. Never requires a provider: a record with no photos and
+ * no credentials passes on ConceptHeroArt. What it forbids is mislabeled
+ * media — stock imagery presented as the business, concept imagery without
+ * its disclosure/credit, Google photos without a place id, or expiring
+ * Google photo URIs persisted into the record.
+ */
+function checkMedia(record: BusinessPocRecord, model: ResolvedBusiness): QaCheck[] {
+  const problems: string[] = [];
+  const flag = (field: string, reason: string) => problems.push(`${field}:${reason}`);
+
+  for (const [field, image] of recordImages(record)) {
+    if (image.source === "unsplash") {
+      if (!isUnsplashUrl(image.url)) flag(field, "unsplash_host");
+      if (image.role === "logo" || field === "brand.logo") flag(field, "unsplash_logo");
+      if (image.verified) flag(field, "unsplash_marked_verified");
+      const label = image.attribution?.label ?? "";
+      if (!label.startsWith(CONCEPT_LABEL_PREFIX) || !label.includes("on Unsplash") || !image.attribution?.authorName) {
+        flag(field, "unsplash_attribution");
+      }
+    } else if (isUnsplashUrl(image.url)) {
+      flag(field, "stock_image_as_business_media");
+    }
+    if (image.source === "google_places" && !record.identity.placeId) flag(field, "google_without_place_id");
+    if (isGooglePhotoUrl(image.url)) flag(field, "google_photo_uri_persisted");
+  }
+
+  const rendered = [model.hero.image, model.wordmark.image, ...(model.gallery?.images ?? [])].filter(
+    (image): image is NonNullable<typeof image> => image !== null,
+  );
+  for (const image of rendered) {
+    if (!MEDIA_SOURCES.includes(image.mediaSource)) flag(image.role ?? "image", "unknown_media_source");
+    if (image.mediaSource === "unsplash" && image.isBusinessSpecific) flag(image.role ?? "image", "concept_marked_business");
+    if (image.mediaSource === "concept_art" && image.isBusinessSpecific) flag(image.role ?? "image", "concept_marked_business");
+  }
+
+  const missingAlt: string[] = [];
+  if (!model.hero.image?.alt.trim()) missingAlt.push("hero.image");
+  (model.gallery?.images ?? []).forEach((image, index) => {
+    if (!image.alt.trim()) missingAlt.push(`gallery[${index}]`);
+  });
+
+  const urls = record.media.images.map((image) => image.url.trim());
+  const duplicates = urls.length - new Set(urls).size;
+
+  return [
+    {
+      code: "MEDIA_SOURCE_INTEGRITY",
+      severity: "blocking",
+      status: problems.length === 0 ? "pass" : "fail",
+      details: { heroSource: model.hero.image?.mediaSource ?? "concept_art", ...(problems.length > 0 ? { problems: problems.slice(0, 10) } : {}) },
+    },
+    {
+      code: "MEDIA_ALT_TEXT",
+      severity: "blocking",
+      status: missingAlt.length === 0 ? "pass" : "fail",
+      ...(missingAlt.length > 0 ? { details: { missing: missingAlt.slice(0, 10) } } : {}),
+    },
+    {
+      // Duplicates are removed at render (never shown twice); flagged so the
+      // generator can tidy the record.
+      code: "MEDIA_DUPLICATES",
+      severity: "warning",
+      status: duplicates === 0 ? "pass" : "warn",
+      ...(duplicates > 0 ? { details: { removedAtRender: duplicates } } : {}),
+    },
+  ];
 }
 
 /**
@@ -286,7 +373,10 @@ export function runDeterministicQa(record: BusinessPocRecord, now: Date = new Da
 
   // 4b. Deterministic visual readiness. Screenshot/vision review can build
   //     on these stable codes without treating concept art as photography.
-  checks.push(...checkVisualReadiness(model));
+  checks.push(...checkVisualReadiness(record, model));
+
+  // 4c. Media source integrity, alt text, and duplicate removal.
+  checks.push(...checkMedia(record, model));
 
   // 5. Map embed origin.
   const embedOk = model.location?.embedUrl == null || isTrustedMapEmbed(model.location.embedUrl);

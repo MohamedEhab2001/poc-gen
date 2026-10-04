@@ -2,6 +2,9 @@ import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "url";
 
 export default defineConfig({
+  // tsconfig keeps jsx "preserve" for Next.js; component tests need React's
+  // automatic runtime instead.
+  oxc: { jsx: { runtime: "automatic" } },
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],

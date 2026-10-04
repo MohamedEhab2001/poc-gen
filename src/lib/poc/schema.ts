@@ -45,6 +45,12 @@ export const dataOriginSchema = z.enum([
   "ai_derived",
   "manual",
   "fallback",
+  /**
+   * Unsplash stock photography resolved automatically as CONCEPT imagery.
+   * Never business-specific: it only ever illustrates the category and must
+   * carry a visible "Concept imagery · Photo by … on Unsplash" credit.
+   */
+  "unsplash",
 ]);
 
 export const attributionSchema = z.object({
@@ -87,7 +93,29 @@ export const pocImageSchema = z.object({
   height: z.number().int().positive().nullable().optional(),
   blurDataUrl: z.string().nullable().optional(),
   focalPoint: focalPointSchema.nullable().optional(),
+  /** Dominant color (#rrggbb) used as the loading backdrop when known. */
+  averageColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
+  /** Provider asset id (for example the Unsplash photo id) for deduplication. */
+  providerId: z.string().max(64).nullable().optional(),
 });
+
+/** Google place ids: opaque URL-safe tokens (no resource-name prefix). */
+export const placeIdSchema = z.string().regex(/^[A-Za-z0-9_-]{4,256}$/);
+
+/**
+ * Server-managed media resolution metadata, written only by the automation
+ * bridge at generation time (any caller-supplied value is overwritten).
+ * Google photo names/URIs are NEVER stored here: they expire and must not be
+ * cached, so Google photos resolve at render time from the trusted place id.
+ */
+export const mediaResolutionSchema = z
+  .object({
+    /** Place id confirmed against the lead's own Google evidence. */
+    trustedPlaceId: placeIdSchema.nullable().optional(),
+    /** Deterministic Unsplash query used for the stored concept imagery. */
+    conceptQuery: z.string().max(120).nullable().optional(),
+  })
+  .strict();
 
 export const actionKindSchema = z.enum([
   "order",
@@ -273,6 +301,7 @@ export const recordSchema = z
     media: z.object({
       images: z.array(pocImageSchema).max(24),
       galleryTitle: sourced(z.string().min(1).max(80)).optional(),
+      resolution: mediaResolutionSchema.nullable().optional(),
     }),
 
     offering: z
@@ -370,6 +399,7 @@ export type BusinessPocRecord = z.infer<typeof recordSchema>;
 export type DataOrigin = z.infer<typeof dataOriginSchema>;
 export type Attribution = z.infer<typeof attributionSchema>;
 export type PocImage = z.infer<typeof pocImageSchema>;
+export type MediaResolution = z.infer<typeof mediaResolutionSchema>;
 export type ActionLink = z.infer<typeof actionLinkSchema>;
 export type ActionKind = z.infer<typeof actionKindSchema>;
 export type SocialLink = z.infer<typeof socialLinkSchema>;

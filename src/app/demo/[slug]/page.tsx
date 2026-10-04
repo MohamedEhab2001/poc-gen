@@ -7,6 +7,7 @@ import { normalizeRecord } from "@/lib/poc/normalize";
 import { renderTheme } from "@/lib/poc/render";
 import { getPocRepository } from "@/lib/poc/repository";
 import { requireOperator } from "@/server/auth/authorize";
+import { withRuntimeMedia } from "@/server/media/resolve-poc-media";
 
 /**
  * Static generic metadata: /demo performs no record lookup at metadata time
@@ -42,7 +43,7 @@ export default async function DemoPage({ params }: { params: Promise<{ slug: str
   const disposition = getRecordDisposition(raw);
   if (disposition === "not_found") notFound();
 
-  const record = normalizeRecord(raw);
+  const record = normalizeRecord(disposition === "render" ? await withRuntimeMedia(raw) : raw);
 
   if (disposition === "expired") {
     return <ExpiredState conceptLabel={record.poc.conceptLabel} />;

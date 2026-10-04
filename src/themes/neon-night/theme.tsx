@@ -324,7 +324,7 @@ export default function NeonNightTheme({ record }: ThemeProps) {
                     height={740}
                     sizes="(min-width: 1024px) 24vw, 48vw"
                     className="h-auto w-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:scale-105"
-                    attributionClassName="sr-only"
+                    attributionClassName="px-2 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[var(--muted)]"
                   />
                 </li>
               ))}

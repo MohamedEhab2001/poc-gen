@@ -217,3 +217,84 @@ describe("deterministic QA gates", () => {
     expect(runDeterministicQa(sunsetRamenExpired, FUTURE).passed).toBe(false);
   });
 });
+
+describe("media QA", () => {
+  const concept = {
+    id: "concept-hero-1",
+    url: "https://images.unsplash.com/photo-123?ixid=abc&w=1920",
+    alt: "Concept photo of a bistro dining room: illustrative stock imagery, not a photo of QA Test Bistro",
+    role: "hero" as const,
+    source: "unsplash" as const,
+    verified: false,
+    width: 1920,
+    height: 1280,
+    attribution: {
+      label: "Concept imagery · Photo by Jo Doe on Unsplash",
+      url: "https://unsplash.com/?utm_source=poc_gen&utm_medium=referral",
+      authorName: "Jo Doe",
+      authorUrl: "https://unsplash.com/@jodoe?utm_source=poc_gen&utm_medium=referral",
+    },
+  };
+  const withImages = (images: unknown[], extra: Record<string, unknown> = {}) =>
+    minimalRecord({ record: { media: { images, ...extra } } as unknown as Partial<BusinessPocRecord> });
+  const integrity = (record: BusinessPocRecord) =>
+    runDeterministicQa(record, FUTURE).checks.find((check) => check.code === "MEDIA_SOURCE_INTEGRITY");
+
+  it("passes on ConceptHeroArt with no media and no provider credentials", () => {
+    const report = runDeterministicQa(minimalRecord({}), FUTURE);
+    expect(report.passed).toBe(true);
+    expect(integrity(minimalRecord({}))).toMatchObject({ status: "pass", details: { heroSource: "concept_art" } });
+    expect(report.checks.find((check) => check.code === "MEDIA_ALT_TEXT")?.status).toBe("pass");
+  });
+
+  it("passes correctly disclosed Unsplash concept imagery as concept photography", () => {
+    const report = runDeterministicQa(withImages([concept]), FUTURE);
+    expect(report.passed).toBe(true);
+    expect(report.checks.find((check) => check.code === "HERO_VISUAL_STRATEGY")?.details).toMatchObject({
+      strategy: "concept_photography",
+    });
+  });
+
+  it("fails Unsplash imagery without its concept disclosure or credit", () => {
+    const check = integrity(withImages([{ ...concept, attribution: { label: "Photo by Jo Doe on Unsplash", authorName: "Jo Doe" } }]));
+    expect(check?.status).toBe("fail");
+    expect(check?.details?.problems).toEqual(["media.images[0]:unsplash_attribution"]);
+    const missing = integrity(withImages([{ ...concept, attribution: null }]));
+    expect(missing?.status).toBe("fail");
+  });
+
+  it("fails stock imagery presented as business media or marked verified", () => {
+    const disguised = integrity(withImages([{ ...concept, source: "official_website" }]));
+    expect(disguised?.details?.problems).toEqual(["media.images[0]:stock_image_as_business_media"]);
+    const verified = integrity(withImages([{ ...concept, verified: true }]));
+    expect(verified?.details?.problems).toEqual(["media.images[0]:unsplash_marked_verified"]);
+  });
+
+  it("requires a place id for Google images and rejects persisted Google photo URIs", () => {
+    const google = {
+      id: "g1",
+      url: "https://picsum.photos/seed/g/1600/1000",
+      alt: "Dining room",
+      role: "gallery" as const,
+      source: "google_places" as const,
+      attribution: { label: "Photo via Google Maps" },
+    };
+    expect(integrity(withImages([google]))?.details?.problems).toEqual(["media.images[0]:google_without_place_id"]);
+    const persisted = integrity(
+      minimalRecord({
+        record: {
+          identity: { ...minimalRecord({}).identity, placeId: "ChIJN1t_tDeuEmsRUsoyG83frY4" },
+          media: { images: [{ ...google, url: "https://lh3.googleusercontent.com/places/abc=s1600" }] },
+        } as Partial<BusinessPocRecord>,
+      }),
+    );
+    expect(persisted?.details?.problems).toEqual(["media.images[0]:google_photo_uri_persisted"]);
+  });
+
+  it("flags duplicate images (removed at render) and missing alt text", () => {
+    const photo = { id: "p1", url: "https://picsum.photos/seed/p/1200/900", alt: "", role: "gallery" as const, source: "official_website" as const };
+    const report = runDeterministicQa(withImages([photo, { ...photo, id: "p2" }]), FUTURE);
+    expect(report.checks.find((check) => check.code === "MEDIA_DUPLICATES")).toMatchObject({ status: "warn", details: { removedAtRender: 1 } });
+    expect(report.blockingFailures).toContain("MEDIA_ALT_TEXT");
+  });
+});
