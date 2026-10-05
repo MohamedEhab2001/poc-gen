@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomBytes, randomUUID } from "node:crypto";
-import { mkdtemp, cp, rm, mkdir } from "node:fs/promises";
+import { mkdtemp, cp, readdir, rm, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -59,11 +59,10 @@ describe.skipIf(!dbUrl)("contactless POC pipeline (integration)", () => {
     const staging = await mkdtemp(join(tmpdir(), "poc-gen-migrations-"));
     try {
       await mkdir(`${staging}/meta`, { recursive: true });
-      for (const file of [
-        "0000_share_links.sql",
-        "0001_automation_bridge.sql",
-        "0002_phase2a1_hardening.sql",
-      ]) {
+      const migrationFiles = (await readdir("src/server/db/migrations"))
+        .filter((file) => /^\d{4}_.+\.sql$/.test(file))
+        .sort();
+      for (const file of migrationFiles) {
         await cp(`src/server/db/migrations/${file}`, `${staging}/${file}`);
       }
       await cp("src/server/db/migrations/meta", `${staging}/meta`, { recursive: true });
