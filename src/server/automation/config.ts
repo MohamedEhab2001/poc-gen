@@ -155,7 +155,10 @@ export function resolveAutomationConfig(
     minLeadScore: parseInt_(env.AUTOMATION_MIN_LEAD_SCORE, 40, 0, 100),
     sendingEnabled,
     dailySendLimit: parseInt_(env.OUTREACH_DAILY_SEND_LIMIT, 50, 1, 10_000),
-    perDomainDailyLimit: parseInt_(env.OUTREACH_PER_DOMAIN_DAILY_LIMIT, 2, 1, 100),
+    // A campaign batch may send up to three messages. A lower domain limit
+    // would incorrectly block distinct businesses that use a shared mailbox
+    // provider such as Gmail, Outlook, or Yahoo after the first message.
+    perDomainDailyLimit: parseInt_(env.OUTREACH_PER_DOMAIN_DAILY_LIMIT, 3, 3, 100),
     maxFollowups: Math.min(2, parseInt_(env.OUTREACH_MAX_FOLLOWUPS, 2, 0, 2)),
     senderName,
     fromEmail,

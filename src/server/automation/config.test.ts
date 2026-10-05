@@ -24,6 +24,18 @@ describe("automation configuration resolution", () => {
     expect(config.maxFollowups).toBe(2); // hard cap: one initial + two follow-ups
   });
 
+  it("keeps the per-domain limit high enough for a three-message campaign batch", () => {
+    expect(resolveAutomationConfig({}, "development").perDomainDailyLimit).toBe(3);
+    expect(
+      resolveAutomationConfig({ OUTREACH_PER_DOMAIN_DAILY_LIMIT: "1" }, "production")
+        .perDomainDailyLimit,
+    ).toBe(3);
+    expect(
+      resolveAutomationConfig({ OUTREACH_PER_DOMAIN_DAILY_LIMIT: "7" }, "production")
+        .perDomainDailyLimit,
+    ).toBe(7);
+  });
+
   it("rejects malformed contact keys (fail closed)", () => {
     const config = resolveAutomationConfig({ CONTACT_DATA_ENCRYPTION_KEYS: "bad" }, "production");
     expect(config.productionComplete).toBe(false);

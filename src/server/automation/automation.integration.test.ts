@@ -818,11 +818,11 @@ describe.skipIf(!dbUrl)("automation bridge (integration)", () => {
     }
   });
 
-  it("per-domain daily limits block the third message to one domain", async () => {
+  it("per-domain daily limits allow three messages and block the fourth to one domain", async () => {
     const key = `dom${suffix}`;
     const domain = `${key}.example`;
     const sent: string[] = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       const sub = `${key}d${i}`;
       const { leadId, snapshotIds } = await pipeline(sub);
       // Force a shared email domain for this test only.
@@ -843,15 +843,16 @@ describe.skipIf(!dbUrl)("automation bridge (integration)", () => {
     }
     const { countSentForDomainSince } = await import("./store/messages");
     const domainCount = await countSentForDomainSince(getDb(), domain, new Date(0));
-    process.env.OUTREACH_PER_DOMAIN_DAILY_LIMIT = String(domainCount + 1);
+    process.env.OUTREACH_PER_DOMAIN_DAILY_LIMIT = String(domainCount + 3);
     try {
       const outcomes = await Promise.all(
         sent.map((messageId, i) => call("send_outreach", { idempotencyKey: `dom-${key}-send-${i}`, messageId })),
       );
       const okCount = outcomes.filter((r) => r.ok).length;
       const limited = outcomes.filter((r) => !r.ok && r.failure.code === "per_domain_send_limit").length;
-      expect(okCount + limited).toBe(3);
-      expect(okCount).toBeLessThan(3); // the limit bit on at least one
+      expect(okCount + limited).toBe(4);
+      expect(okCount).toBe(3);
+      expect(limited).toBe(1);
     } finally {
       process.env.OUTREACH_PER_DOMAIN_DAILY_LIMIT = "50";
     }
