@@ -6,7 +6,6 @@ import {
   getOperationInputSchema,
   listAutomationOperations,
 } from "./registry";
-import { randomUUID } from "node:crypto";
 import { ingestLeadsInputSchema } from "@/lib/automation/schemas";
 
 const ALL_SCOPES = [...AUTOMATION_SCOPES];
@@ -16,7 +15,7 @@ describe("automation operation registry", () => {
     expect(AUTOMATION_SCOPES).toEqual(["poc:read", "poc:write", "outreach:prepare", "outreach:send", "reports:read"]);
   });
 
-  it("registers all sixteen operations with scopes and mutation flags", () => {
+  it("registers all twenty operations with scopes and mutation flags", () => {
     const operations = listAutomationOperations();
     const names = operations.map((op) => op.name).sort();
     expect(names).toEqual(
@@ -24,6 +23,10 @@ describe("automation operation registry", () => {
         "health",
         "get_poc_authoring_guide",
         "start_automation_run",
+        "create_state_campaign",
+        "plan_campaign_state",
+        "get_campaign_progress",
+        "record_campaign_batch",
         "ingest_leads",
         "upsert_poc_record",
         "run_poc_qa",
@@ -45,13 +48,14 @@ describe("automation operation registry", () => {
     const mutating = new Set(
       operations.filter((op) => op.mutating).map((op) => op.name),
     );
-    expect(mutating.size).toBe(11); // the guide is read-only
+    expect(mutating.size).toBe(14); // campaign progress is read-only; the other campaign tools mutate
     for (const readOnly of [
       "health",
       "get_poc_authoring_guide",
       "list_due_followups",
       "get_run_report",
       "get_interested_leads",
+      "get_campaign_progress",
     ]) {
       expect(mutating.has(readOnly), readOnly).toBe(false);
     }
@@ -60,6 +64,7 @@ describe("automation operation registry", () => {
     expect(scopes.get("health")).toBe("poc:read");
     expect(scopes.get("get_poc_authoring_guide")).toBe("poc:read");
     expect(scopes.get("get_run_report")).toBe("reports:read");
+    expect(scopes.get("get_campaign_progress")).toBe("reports:read");
     expect(scopes.get("publish_poc")).toBe("poc:write");
     expect(scopes.get("send_outreach")).toBe("outreach:send");
     expect(scopes.get("prepare_outreach")).toBe("outreach:prepare");

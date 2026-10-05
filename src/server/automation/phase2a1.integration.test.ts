@@ -770,7 +770,69 @@ describe.skipIf(!dbUrl)("phase 2a.1 hardening (integration)", () => {
     expect(rowB?.status).toBe("completed");
   });
 
-  // -------------------------------------- Part 7: PostgreSQL-backed throttle
+  // -------------------------------------- Part 7: durable state campaign cursor
+
+  it("persists search-area progress and advances only after two empty statewide sweeps", async () => {
+    const created = await ok("create_state_campaign", {
+      idempotencyKey: `campaign-create-${suffix}`,
+      name: `US restaurants ${suffix}`,
+      stateQueue: [
+        { code: "TX", name: "Texas" },
+        { code: "FL", name: "Florida" },
+      ],
+      maxSendsPerRun: 3,
+    });
+    const campaignId = String(created.campaignId);
+
+    await ok("plan_campaign_state", {
+      idempotencyKey: `campaign-plan-${suffix}`,
+      campaignId,
+      stateCode: "TX",
+      areas: [
+        { key: "austin-metro", label: "Austin metro" },
+        { key: "houston-metro", label: "Houston metro" },
+      ],
+    });
+
+    const firstArea = await ok("record_campaign_batch", {
+      idempotencyKey: `campaign-area-1-${suffix}`,
+      campaignId,
+      stateCode: "TX",
+      completedAreaKeys: ["austin-metro"],
+      counters: { discovered: 2, qualified: 0, queued: 0, contacted: 0, rejected: 2 },
+    });
+    expect(firstArea.consecutiveEmptyRuns).toBe(0); // area batches do not close a state
+    expect(firstArea.advanced).toBe(false);
+
+    const firstSweep = await ok("record_campaign_batch", {
+      idempotencyKey: `campaign-sweep-1-${suffix}`,
+      campaignId,
+      stateCode: "TX",
+      completedAreaKeys: ["houston-metro"],
+      counters: { discovered: 0, qualified: 0, queued: 0, contacted: 0, rejected: 0 },
+      statewideSweep: true,
+    });
+    expect(firstSweep.consecutiveEmptyRuns).toBe(1);
+    expect(firstSweep.advanced).toBe(false);
+
+    const secondSweep = await ok("record_campaign_batch", {
+      idempotencyKey: `campaign-sweep-2-${suffix}`,
+      campaignId,
+      stateCode: "TX",
+      completedAreaKeys: [],
+      counters: { discovered: 0, qualified: 0, queued: 0, contacted: 0, rejected: 0 },
+      statewideSweep: true,
+    });
+    expect(secondSweep.advanced).toBe(true);
+    expect(secondSweep.advancedTo).toEqual({ code: "FL", name: "Florida" });
+
+    const progress = await ok("get_campaign_progress", { campaignId, nextAreaLimit: 5 });
+    expect(progress.status).toBe("active");
+    expect(progress.currentStateIndex).toBe(1);
+    expect(progress.currentState).toMatchObject({ code: "FL", status: "active" });
+  });
+
+  // -------------------------------------- Part 8: PostgreSQL-backed throttle
 
   it("provider rate slots reserve strictly spaced, cross-instance, with bounded waits", async () => {
     const fakeClock: InjectedClock = {

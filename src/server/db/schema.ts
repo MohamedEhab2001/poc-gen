@@ -225,6 +225,97 @@ export const automationRunSteps = pgTable(
 );
 
 /**
+ * Persistent geographic campaign cursor. The external scheduler remains the
+ * worker, while PostgreSQL is the source of truth for which US state and
+ * search areas are complete. This prevents a fresh automation invocation from
+ * restarting a nationwide search or silently skipping states.
+ */
+export const outreachCampaigns = pgTable(
+  "outreach_campaigns",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    name: varchar("name", { length: 96 }).notNull(),
+    country: varchar("country", { length: 64 }).notNull().default("United States"),
+    /** Ordered [{ code, name }] queue. The current index advances atomically. */
+    stateQueue: jsonb("state_queue").$type<Array<{ code: string; name: string }>>().notNull(),
+    currentStateIndex: integer("current_state_index").notNull().default(0),
+    /** active | paused | completed */
+    status: varchar("status", { length: 24 }).notNull().default("active"),
+    maxSendsPerRun: integer("max_sends_per_run").notNull().default(3),
+    version: integer("version").notNull().default(1),
+    createdBy: varchar("created_by", { length: 200 }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("outreach_campaigns_name_key").on(table.name),
+    index("outreach_campaigns_status_idx").on(table.status),
+  ],
+);
+
+/** One durable aggregate row for every state in a campaign's queue. */
+export const outreachCampaignStates = pgTable(
+  "outreach_campaign_states",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    campaignId: varchar("campaign_id", { length: 36 })
+      .notNull()
+      .references(() => outreachCampaigns.id),
+    stateCode: varchar("state_code", { length: 2 }).notNull(),
+    stateName: varchar("state_name", { length: 64 }).notNull(),
+    queueIndex: integer("queue_index").notNull(),
+    /** pending | active | completed */
+    status: varchar("status", { length: 24 }).notNull().default("pending"),
+    plannedAreaCount: integer("planned_area_count").notNull().default(0),
+    processedAreaCount: integer("processed_area_count").notNull().default(0),
+    consecutiveEmptyRuns: integer("consecutive_empty_runs").notNull().default(0),
+    statewideSweepCount: integer("statewide_sweep_count").notNull().default(0),
+    discoveredCount: integer("discovered_count").notNull().default(0),
+    qualifiedCount: integer("qualified_count").notNull().default(0),
+    queuedCount: integer("queued_count").notNull().default(0),
+    contactedCount: integer("contacted_count").notNull().default(0),
+    rejectedCount: integer("rejected_count").notNull().default(0),
+    lastRunId: varchar("last_run_id", { length: 36 }),
+    lastSearchAt: timestamp("last_search_at", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("outreach_campaign_states_campaign_state_key").on(table.campaignId, table.stateCode),
+    uniqueIndex("outreach_campaign_states_campaign_queue_key").on(table.campaignId, table.queueIndex),
+    index("outreach_campaign_states_status_idx").on(table.campaignId, table.status),
+  ],
+);
+
+/** Planned city / metro / county search units within one campaign state. */
+export const outreachCampaignAreas = pgTable(
+  "outreach_campaign_areas",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    campaignStateId: varchar("campaign_state_id", { length: 36 })
+      .notNull()
+      .references(() => outreachCampaignStates.id),
+    areaKey: varchar("area_key", { length: 96 }).notNull(),
+    label: varchar("label", { length: 120 }).notNull(),
+    /** pending | completed */
+    status: varchar("status", { length: 24 }).notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    lastRunId: varchar("last_run_id", { length: 36 }),
+    lastSearchedAt: timestamp("last_searched_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("outreach_campaign_areas_state_area_key").on(table.campaignStateId, table.areaKey),
+    index("outreach_campaign_areas_pending_idx").on(table.campaignStateId, table.status),
+  ],
+);
+
+/**
  * Verified-or-not contact channels. The full raw address is stored only as
  * an AEAD envelope; the plain-text column holds ONLY the address domain
  * (needed for per-domain rate limits and safe to expose internally).
@@ -406,6 +497,9 @@ export type PocRecordRow = typeof pocRecords.$inferSelect;
 export type PocRevisionRow = typeof pocRevisions.$inferSelect;
 export type AutomationRunRow = typeof automationRuns.$inferSelect;
 export type AutomationRunStepRow = typeof automationRunSteps.$inferSelect;
+export type OutreachCampaignRow = typeof outreachCampaigns.$inferSelect;
+export type OutreachCampaignStateRow = typeof outreachCampaignStates.$inferSelect;
+export type OutreachCampaignAreaRow = typeof outreachCampaignAreas.$inferSelect;
 export type ContactRow = typeof contacts.$inferSelect;
 export type SuppressionRow = typeof suppressions.$inferSelect;
 export type UnsubscribeRow = typeof unsubscribes.$inferSelect;

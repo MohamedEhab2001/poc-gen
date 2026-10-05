@@ -15,6 +15,9 @@ returns structured state so the scheduler can branch:
 
 ```
 ChatGPT Scheduled Task (MCP client)
+  -> get_campaign_progress    (resume the durable state + area cursor)
+  -> create_state_campaign   (once, for a new ordered US-state campaign)
+  -> plan_campaign_state     (once per state; city/metro/county areas)
   -> start_automation_run
   -> ingest_leads            (researched candidates + evidence)
   -> upsert_poc_record       (complete, schema-valid record)
@@ -22,7 +25,8 @@ ChatGPT Scheduled Task (MCP client)
   -> publish_poc             (ONE transaction: publish + secure share link)
   -> finish_automation_run   (close the run; reports stay read-only)
   -> prepare_outreach        (validated, footered draft)
-  -> send_outreach           (mock provider in this phase)
+  -> send_outreach           (configured provider; policy gates enforced)
+  -> record_campaign_batch   (area completion + bounded aggregate counters)
   -> list_due_followups / record_reply_outcome
   -> get_run_report          (strictly read-only)
 
@@ -38,8 +42,8 @@ Phase 5 worker can be added without changing these service contracts.
 
 ## Database entities
 
-Migration `0001_automation_bridge.sql` (applied on top of `0000_share_links`;
-see *Migration and setup* below) adds:
+The committed migrations (applied in order; see *Migration and setup* below)
+add:
 
 | Table | Purpose |
 |---|---|
@@ -49,6 +53,9 @@ see *Migration and setup* below) adds:
 | `poc_records` | Current document per lead: unique slug, JSONB record (validated by the shared Zod schema on every read), schema version, optimistic version, state (`draft`/`qa_passed`/`published`/`expired`/`archived`/`failed`), QA report, publication stamps. |
 | `poc_revisions` | Immutable history: the previous record version, the reason, and the automation principal that changed it — written in the same transaction as the update. |
 | `automation_runs` / `automation_run_steps` | Run audit trail: kind, status, requested-by, counters, per-step operation/lead/status/error/attempt and redacted summaries. |
+| `outreach_campaigns` | Durable ordered state queue, current state index, campaign status, and the maximum sends allowed per scheduled run. |
+| `outreach_campaign_states` | One aggregate row per state: planned/processed areas, discovery and outreach counters, empty statewide sweeps, and lifecycle timestamps. |
+| `outreach_campaign_areas` | Idempotent city/metro/county work units for the current state, each marked pending or completed. |
 | `contacts` | Verified public business contacts: keyed hash for dedup/suppression, AEAD-encrypted raw address, domain-only plain column for rate limits. |
 | `outreach_messages` | Prepared/sent messages: sequence (one initial + ≤2 follow-ups enforced by a unique `(lead, sequence)`), body, idempotency-key hash, reservation and delivery state. |
 | `reply_events` | Externally classified replies (received via `record_reply_outcome`). |
@@ -106,6 +113,10 @@ keys (e.g. `force`, `skipChecks`) are rejected outright.
 |---|---|---|---|
 | `health` | `poc:read` | no | Capabilities + flags; no secrets. |
 | `start_automation_run` | `poc:write` | yes | Creates/resumes a run. |
+| `create_state_campaign` | `poc:write` | yes | Creates an ordered state queue once; the campaign name is unique and the first state becomes active. |
+| `plan_campaign_state` | `poc:write` | yes | Adds bounded city/metro/county search units to the current state without duplicating existing area keys. |
+| `get_campaign_progress` | `reports:read` | no | Looks up a campaign by stable name or id and returns its current state, counters, send cap, and next pending areas. Call before every scheduled batch. |
+| `record_campaign_batch` | `poc:write` | yes | Atomically completes searched areas and adds bounded counters. Advances only after all planned areas are complete and two consecutive empty statewide sweeps pass. |
 | `ingest_leads` | `poc:write` | yes | ≤10 candidates/call; per-candidate `created`/`matched_existing`/`conflict`/`rejected`/`invalid`; weak scores rejected; transactional dedup under an advisory lock. |
 | `upsert_poc_record` | `poc:write` | yes | recordSchema-validated; evidence refs must belong to the lead; theme must be in the 13-theme registry; writes the revision transactionally. |
 | `run_poc_qa` | `poc:write` | yes | Deterministic gates (below); blocking failure ⇒ REJECTED (or QUARANTINED for suspicious model/policy inconsistencies). |
@@ -119,6 +130,26 @@ keys (e.g. `force`, `skipChecks`) are rejected outright.
 | `finish_automation_run` | `poc:write` | yes | Closes a running run with a status derived from its steps (failed / completed_with_skips / completed); idempotent; audited. |
 | `get_interested_leads` | `reports:read` | no | Safe summaries + share-link view counts. |
 | `retry_failed_lead` | `poc:write` | yes | The explicit, audited FAILED-exit. |
+
+### State-by-state campaign loop
+
+PostgreSQL owns the nationwide cursor; the external scheduler owns research
+and decides when to call the next bounded operation. For each invocation:
+
+1. Call `get_campaign_progress` with the campaign's stable name and work only
+   on the returned current state. The returned id is used by later writes.
+2. If that state has no area plan yet, build a comprehensive but bounded list
+   of city, metro, or county units and save it with `plan_campaign_state`.
+3. Research only the returned pending areas, run the normal lead-to-POC and
+   outreach pipeline, and never exceed `maxSendsPerRun`.
+4. Call `record_campaign_batch` once with the completed area keys and actual
+   aggregate results, even when no candidate qualified.
+5. After all planned areas are complete, run broad statewide searches. The
+   state advances atomically only after two consecutive statewide sweeps find
+   zero qualified candidates. Empty area batches do not count as sweeps.
+
+Every mutating call remains idempotent, so a scheduler retry cannot duplicate
+an area completion or advance a state twice.
 
 ### Automatic gates and fail-closed behavior
 
