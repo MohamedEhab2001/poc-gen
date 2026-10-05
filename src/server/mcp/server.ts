@@ -4,12 +4,16 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { dispatchOperation, listAutomationOperations } from "@/server/automation/registry";
 import {
+  createCampaignInputSchema,
   finishRunInputSchema,
+  getCampaignProgressInputSchema,
   ingestLeadsInputSchema,
   interestedLeadsInputSchema,
   listDueFollowupsInputSchema,
+  planCampaignStateInputSchema,
   prepareOutreachInputSchema,
   publishPocInputSchema,
+  recordCampaignBatchInputSchema,
   recordReplyInputSchema,
   retryFailedLeadInputSchema,
   runQaInputSchema,
@@ -34,6 +38,10 @@ const INPUT_SHAPES: Record<string, Record<string, z.ZodTypeAny>> = {
   health: {},
   get_poc_authoring_guide: {},
   start_automation_run: startRunInputSchema.shape,
+  create_state_campaign: createCampaignInputSchema.shape,
+  plan_campaign_state: planCampaignStateInputSchema.shape,
+  get_campaign_progress: getCampaignProgressInputSchema.shape,
+  record_campaign_batch: recordCampaignBatchInputSchema.shape,
   ingest_leads: ingestLeadsInputSchema.shape,
   upsert_poc_record: upsertPocInputSchema.shape,
   run_poc_qa: runQaInputSchema.shape,
@@ -51,7 +59,7 @@ const INPUT_SHAPES: Record<string, Record<string, z.ZodTypeAny>> = {
 
 export function buildAutomationMcpServer(principal: AuthenticatedPrincipal): McpServer {
   const server = new McpServer(
-    { name: "poc-gen-automation", version: "2a" },
+    { name: "poc-gen-automation", version: "2b" },
     {
       instructions:
         "Autonomous lead-to-POC automation bridge. Every mutating tool requires an idempotencyKey; replays with the same key and request return the saved result. Failed operations return structured { ok:false, code, outcome, message } objects; outcome RETRYABLE carries retryAfterSeconds. Call get_poc_authoring_guide before the first POC-writing operation when the record contract or theme catalog is not already known.",
