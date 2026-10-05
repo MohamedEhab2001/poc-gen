@@ -22,7 +22,7 @@ describe("evidence claim verification", () => {
   const base = {
     statement: "Rated 4.8 stars by 212 reviewers",
     subject: "Your concept page is ready",
-    body: "We saw you are Rated 4.8 stars by 212 reviewers and put together a private concept page.",
+    body: "We saw you are Rated 4.8 stars by 212 reviewers and put together an unofficial homepage mockup.",
     supportingExcerpt: "212",
     payload,
   };

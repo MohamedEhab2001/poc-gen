@@ -10,6 +10,13 @@ describe("outreach HTML sanitizer (EmailJS {{{body_html}}} boundary)", () => {
     );
   });
 
+  it("keeps only the generated layout classes on paragraphs and divs", () => {
+    const html = '<div class="outreach-message" onclick="x"><p class="outreach-intro">Hello</p></div>';
+    expect(sanitizeOutreachHtml(html)).toBe(
+      '<div class="outreach-message"><p class="outreach-intro">Hello</p></div>',
+    );
+  });
+
   it("adds rel attributes to links", () => {
     const out = sanitizeOutreachHtml('<a href="https://x.example">a</a>');
     expect(out).toContain('rel="noopener noreferrer"');

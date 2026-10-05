@@ -178,7 +178,7 @@ const registry: Record<string, OperationDefinition> = {
   },
   prepare_outreach: {
     description:
-      "Validate and store an outreach draft (subject, body with the {{poc_link}} placeholder, evidence references). Enforces non-deceptive subjects and the compliance footer.",
+      "Validate and store a concise outreach draft (subject, body with the {{poc_link}} placeholder, evidence references). Write only the personalized business-specific paragraph: do not add a greeting, sender introduction, signature, or compliance footer because the renderer adds them. Use a natural subject such as 'Quick homepage idea for [business]'. Never say 'private concept', describe how the business was discovered, or use surveillance-like language. Enforces non-deceptive/non-spammy wording and the compliance footer.",
     scope: "outreach:prepare",
     mutating: true,
     inputSchema: prepareOutreachInputSchema,

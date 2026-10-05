@@ -138,7 +138,8 @@ describe("normalize: hero fallback copy", () => {
       hero: { primaryAction: null, secondaryAction: null },
     };
     const vm = normalizeRecord(quiet);
-    expect(vm.hero.headline).toBeTruthy();
+    expect(vm.hero.headline).toBe(quiet.identity.name.value);
+    expect(vm.hero.subheadline).toBe(`${quiet.identity.primaryCategory.value} in ${quiet.location?.city?.value}.`);
     expect(vm.provenance.some((entry) => entry.field === "hero.headline" && entry.outcome === "fallback")).toBe(true);
   });
 });

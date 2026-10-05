@@ -159,6 +159,8 @@ describe.skipIf(!dbUrl)("phase 2a.1 hardening (integration)", () => {
     process.env.OUTREACH_SEND_ENABLED = "true";
     process.env.OUTREACH_EMAIL_PROVIDER = "mock";
     process.env.OUTREACH_SENDER_NAME = "Integration Test";
+    process.env.OUTREACH_SENDER_INTRO = "I'm Integration Test, a software engineer who builds practical websites.";
+    process.env.OUTREACH_SENDER_LINKEDIN_URL = "https://www.linkedin.com/in/integration-test";
     process.env.OUTREACH_FROM_EMAIL = "it2@poc-gen.invalid";
     process.env.OUTREACH_REPLY_TO = "it2@poc-gen.invalid";
     process.env.OUTREACH_POSTAL_ADDRESS = "2 Integration Way, Portland, OR";
@@ -300,7 +302,7 @@ describe.skipIf(!dbUrl)("phase 2a.1 hardening (integration)", () => {
       idempotencyKey: `it2-pr-${key}`,
       leadId,
       subject: `A concept for Second Kitchen ${key}`,
-      body: "Your private concept page: {{poc_link}}",
+      body: "A small unofficial homepage mockup: {{poc_link}}",
       evidenceRefs: snapshotIds,
     });
     const spy = providerSpy();
@@ -327,7 +329,7 @@ describe.skipIf(!dbUrl)("phase 2a.1 hardening (integration)", () => {
       idempotencyKey: `it2-pr-${key}`,
       leadId,
       subject: `A concept for Second Kitchen ${key}`,
-      body: "Your private concept page: {{poc_link}}",
+      body: "A small unofficial homepage mockup: {{poc_link}}",
       evidenceRefs: snapshotIds,
     });
 
@@ -368,7 +370,7 @@ describe.skipIf(!dbUrl)("phase 2a.1 hardening (integration)", () => {
       idempotencyKey: `it2-pr-${key}`,
       leadId,
       subject: `A concept for Second Kitchen ${key}`,
-      body: "Your private concept page: {{poc_link}}",
+      body: "A small unofficial homepage mockup: {{poc_link}}",
       evidenceRefs: snapshotIds,
     });
     const spy = providerSpy();

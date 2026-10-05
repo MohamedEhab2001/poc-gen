@@ -33,8 +33,7 @@ export function fallbackHeadline(input: {
   primaryCategory: string;
   city: string | null;
 }): string {
-  const place = input.city ? ` in ${input.city}` : "";
-  return `${input.primaryCategory}${place}`;
+  return input.name;
 }
 
 export function fallbackSubheadline(input: {
@@ -42,7 +41,7 @@ export function fallbackSubheadline(input: {
   city: string | null;
 }): string {
   const place = input.city ? ` in ${input.city}` : "";
-  return `A welcoming spot for ${input.primaryCategory.toLowerCase()}${place}.`;
+  return `${input.primaryCategory}${place}.`;
 }
 
 /** Outcome for a sourced value given its origin and confidence. */

@@ -179,7 +179,7 @@ async function expectOk(
 const SMOKE_BODY = [
   "Hi {{business}} team,",
   "",
-  "I put together a private concept page showing how a refreshed website could present {{business}} — the layout, photography placement, and the reservation flow.",
+  "I put together an unofficial homepage mockup showing how a refreshed website could present {{business}} — the layout, photography placement, and the reservation flow.",
   "",
   "It is an unofficial concept, not a published site: {{poc_link}}",
   "",

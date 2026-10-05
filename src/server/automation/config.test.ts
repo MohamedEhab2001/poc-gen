@@ -47,9 +47,34 @@ describe("automation configuration resolution", () => {
       { OUTREACH_SEND_ENABLED: "true", CONTACT_DATA_ENCRYPTION_KEYS: `k:${KEY}`, CONTACT_DATA_ACTIVE_KEY_ID: "k" },
       "production",
     );
-    // Missing sender name / from email / postal address.
+    // Missing sender name / intro / LinkedIn / from email / postal address.
     expect(config.productionComplete).toBe(false);
     expect(config.productionProblems.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("requires a real HTTPS LinkedIn profile when sending is enabled", () => {
+    const base = {
+      OUTREACH_SEND_ENABLED: "true",
+      OUTREACH_SENDER_NAME: "S",
+      OUTREACH_SENDER_INTRO: "I'm S, a software engineer.",
+      OUTREACH_FROM_EMAIL: "s@example.com",
+      OUTREACH_POSTAL_ADDRESS: "1 Way",
+      CONTACT_DATA_ENCRYPTION_KEYS: `k:${KEY}`,
+      CONTACT_DATA_ACTIVE_KEY_ID: "k",
+    };
+    expect(resolveAutomationConfig(base, "development").productionProblems.join(" ")).toMatch(/LinkedIn/);
+    expect(
+      resolveAutomationConfig(
+        { ...base, OUTREACH_SENDER_LINKEDIN_URL: "http://example.com/profile" },
+        "development",
+      ).productionProblems.join(" "),
+    ).toMatch(/LinkedIn/);
+    expect(
+      resolveAutomationConfig(
+        { ...base, OUTREACH_SENDER_LINKEDIN_URL: "https://www.linkedin.com/in/test-sender" },
+        "development",
+      ).productionProblems.join(" "),
+    ).not.toMatch(/LinkedIn/);
   });
 
   it("rejects unknown email providers; selects mock or emailjs exhaustively", () => {
@@ -66,6 +91,8 @@ describe("automation configuration resolution", () => {
         OUTREACH_SEND_ENABLED: "true",
         OUTREACH_EMAIL_PROVIDER: "mock",
         OUTREACH_SENDER_NAME: "S",
+        OUTREACH_SENDER_INTRO: "I'm S, a software engineer.",
+        OUTREACH_SENDER_LINKEDIN_URL: "https://www.linkedin.com/in/test-sender",
         OUTREACH_FROM_EMAIL: "s@example.com",
         OUTREACH_POSTAL_ADDRESS: "1 Way",
         CONTACT_DATA_ENCRYPTION_KEYS: `k:${KEY}`,
@@ -82,6 +109,8 @@ describe("automation configuration resolution", () => {
       OUTREACH_SEND_ENABLED: "true",
       OUTREACH_EMAIL_PROVIDER: "emailjs",
       OUTREACH_SENDER_NAME: "S",
+      OUTREACH_SENDER_INTRO: "I'm S, a software engineer.",
+      OUTREACH_SENDER_LINKEDIN_URL: "https://www.linkedin.com/in/test-sender",
       OUTREACH_FROM_EMAIL: "s@example.com",
       OUTREACH_POSTAL_ADDRESS: "1 Way",
       CONTACT_DATA_ENCRYPTION_KEYS: `k:${KEY}`,
@@ -111,6 +140,8 @@ describe("automation configuration resolution", () => {
         EMAILJS_TEMPLATE_ID: "t",
         EMAILJS_PUBLIC_KEY: "pk",
         OUTREACH_SENDER_NAME: "S",
+        OUTREACH_SENDER_INTRO: "I'm S, a software engineer.",
+        OUTREACH_SENDER_LINKEDIN_URL: "https://www.linkedin.com/in/test-sender",
         OUTREACH_FROM_EMAIL: "s@example.com",
         OUTREACH_POSTAL_ADDRESS: "1 Way",
         CONTACT_DATA_ENCRYPTION_KEYS: `k:${KEY}`,
