@@ -1,6 +1,7 @@
 import { ArrowUpRight, Phone, Star } from "lucide-react";
 import type { ThemeProps } from "@/lib/poc/types";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { BusinessEssentials } from "@/components/poc/BusinessEssentials";
 import { AttributionLine } from "@/components/poc/attribution/AttributionLine";
 import { ConceptNotice } from "@/components/poc/ConceptNotice";
 import { HoursList } from "@/components/poc/HoursList";
@@ -41,7 +42,9 @@ export default function AtelierLookbookTheme({ record }: ThemeProps) {
     "--secondary": p.secondary,
     "--accent": p.accent,
     "--border": p.border,
-    "--on-primary": "#fbfaf8",
+    "--on-primary": p.onPrimary,
+    "--on-secondary": p.onSecondary,
+    "--on-accent": p.onAccent,
     "--radius": "0px",
     "--font-display": "var(--font-t-display)",
     "--font-body": "var(--font-t-body)",
@@ -101,7 +104,7 @@ export default function AtelierLookbookTheme({ record }: ThemeProps) {
                 {record.cta.primary ? (
                   <ActionLink
                     cta={record.cta.primary}
-                    className="group inline-flex items-center gap-2 bg-[var(--text)] px-8 py-4 text-[11.5px] font-semibold uppercase tracking-[0.24em] text-[var(--on-primary)]"
+                    className="group inline-flex items-center gap-2 bg-[var(--text)] px-8 py-4 text-[11.5px] font-semibold uppercase tracking-[0.24em] text-[var(--bg)]"
                   >
                     {record.cta.primary.label}
                     <ArrowUpRight
@@ -370,6 +373,8 @@ export default function AtelierLookbookTheme({ record }: ThemeProps) {
           ) : null}
         </div>
       </section>
+
+      <BusinessEssentials record={record} />
 
       <footer className="border-t border-[var(--text)]">
         <div className="poc-container flex flex-col justify-between gap-8 py-12 md:flex-row md:items-end">

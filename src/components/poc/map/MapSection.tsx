@@ -1,5 +1,5 @@
 import type { ResolvedBusiness, ResolvedLocation } from "@/lib/poc/types";
-import { isTrustedMapEmbed, mapsQueryUrl } from "@/lib/poc/url";
+import { isTrustedMapEmbed, mapsEmbedUrl, mapsQueryUrl } from "@/lib/poc/url";
 import { ActionLink } from "@/components/poc/ActionLink";
 
 /**
@@ -7,7 +7,8 @@ import { ActionLink } from "@/components/poc/ActionLink";
  *   1. An explicit trusted embedUrl from the record.
  *   2. A Google Maps embed when NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is set
  *      (client-safe public variable only; no server secrets).
- *   3. A styled location card fallback that works with zero credentials.
+ *   3. A zero-credential Google Maps embed generated from sourced location.
+ *   4. A styled location card fallback when even the address is unavailable.
  *
  * Every mode ships a text alternative with the address and a directions
  * link. Themes compose this primitive inside their own framing.
@@ -21,6 +22,7 @@ export function MapSection({
   addressClassName,
   buttonClassName,
   embedClassName,
+  detailsClassName,
   iframeTitle,
 }: {
   location: ResolvedLocation;
@@ -31,6 +33,8 @@ export function MapSection({
   addressClassName?: string;
   buttonClassName?: string;
   embedClassName?: string;
+  /** Aligns the address and directions CTA with the theme's content grid. */
+  detailsClassName?: string;
   iframeTitle?: string;
 }) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -45,7 +49,12 @@ export function MapSection({
     ? location.embedUrl
     : null;
   const keyedEmbed = apiKey && q ? `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(q)}` : null;
-  const embed = trustedEmbed ?? keyedEmbed;
+  const keylessEmbed = mapsEmbedUrl({
+    latitude: location.latitude,
+    longitude: location.longitude,
+    formattedAddress: location.formattedAddress ?? location.shortAddress,
+  });
+  const embed = trustedEmbed ?? keyedEmbed ?? keylessEmbed;
 
   const address = location.formattedAddress ?? location.shortAddress;
   const directionsHref =
@@ -77,7 +86,7 @@ export function MapSection({
           ) : null}
         </div>
       )}
-      <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+      <div className={detailsClassName ?? "mt-4 flex flex-wrap items-center gap-x-6 gap-y-2"}>
         {embed && address ? (
           <p className={addressClassName ?? "text-sm"}>{address}</p>
         ) : null}

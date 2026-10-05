@@ -1,6 +1,7 @@
 import { Phone, Star } from "lucide-react";
 import type { ThemeProps } from "@/lib/poc/types";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { BusinessEssentials } from "@/components/poc/BusinessEssentials";
 import { AttributionLine } from "@/components/poc/attribution/AttributionLine";
 import { ConceptNotice } from "@/components/poc/ConceptNotice";
 import { HoursList } from "@/components/poc/HoursList";
@@ -99,7 +100,9 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
     "--secondary": p.secondary,
     "--accent": p.accent,
     "--border": p.border,
-    "--on-primary": "#fdf8ee",
+    "--on-primary": p.onPrimary,
+    "--on-secondary": p.onSecondary,
+    "--on-accent": p.onAccent,
     "--radius": "22px",
     "--font-display": "var(--font-t-display)",
     "--font-body": "var(--font-t-body)",
@@ -116,12 +119,12 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
           </a>
           <nav aria-label="Primary" className="hidden items-center gap-2.5 text-[13px] font-bold text-[var(--text)] md:flex">
             {record.menu ? (
-              <a href="#menu" className="rounded-full bg-[var(--primary)]/10 px-4 py-2 transition-colors hover:bg-[var(--primary)] hover:text-white">
+              <a href="#menu" className="rounded-full bg-[var(--primary)]/10 px-4 py-2 transition-colors hover:bg-[var(--primary)] hover:text-[var(--on-primary)]">
                 Menu
               </a>
             ) : null}
             {record.gallery ? (
-              <a href="#gallery" className="rounded-full bg-[var(--secondary)]/10 px-4 py-2 transition-colors hover:bg-[var(--secondary)] hover:text-white">
+              <a href="#gallery" className="rounded-full bg-[var(--secondary)]/10 px-4 py-2 transition-colors hover:bg-[var(--secondary)] hover:text-[var(--on-secondary)]">
                 Gallery
               </a>
             ) : null}
@@ -174,7 +177,7 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
                 {record.cta.primary ? (
                   <ActionLink
                     cta={record.cta.primary}
-                    className="rounded-full bg-[var(--primary)] px-8 py-4 text-[15px] font-extrabold text-white shadow-[0_8px_0_var(--text)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:shadow-[0_10px_0_var(--text)] active:translate-y-0.5 active:shadow-[0_4px_0_var(--text)]"
+                    className="rounded-full bg-[var(--primary)] px-8 py-4 text-[15px] font-extrabold text-[var(--on-primary)] shadow-[0_8px_0_var(--text)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:shadow-[0_10px_0_var(--text)] active:translate-y-0.5 active:shadow-[0_4px_0_var(--text)]"
                   />
                 ) : null}
                 {record.cta.secondary[0] ? (
@@ -197,7 +200,7 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
                   className="h-full w-full object-cover"
                 />
               </div>
-              <p className="fx-bob absolute -left-2 top-8 -rotate-6 rounded-full bg-[var(--secondary)] px-4 py-2 text-[11.5px] font-extrabold uppercase tracking-wide text-white shadow-md">
+              <p className="fx-bob absolute -left-2 top-8 -rotate-6 rounded-full bg-[var(--secondary)] px-4 py-2 text-[11.5px] font-extrabold uppercase tracking-wide text-[var(--on-secondary)] shadow-md">
                 {record.identity.categories.slice(0, 2).join(" · ") || record.identity.primaryCategory}
               </p>
             </Reveal>
@@ -261,7 +264,7 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
                           <p className="text-[15.5px] font-extrabold">
                             {item.name}
                             {item.featured ? (
-                              <span className="ml-2 inline-block rotate-3 rounded-full bg-[var(--primary)] px-2 py-0.5 align-middle text-[9.5px] font-extrabold uppercase tracking-wide text-white">
+                              <span className="ml-2 inline-block rotate-3 rounded-full bg-[var(--primary)] px-2 py-0.5 align-middle text-[9.5px] font-extrabold uppercase tracking-wide text-[var(--on-primary)]">
                                 Fav
                               </span>
                             ) : null}
@@ -440,12 +443,14 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
                 embedClassName="h-[300px] w-full rounded-t-[19px] border-0"
                 cardClassName="p-7"
                 addressClassName="text-[14px] font-bold"
-                buttonClassName="mt-2 inline-block rounded-full bg-[var(--secondary)] px-6 py-2.5 text-[12.5px] font-extrabold text-white shadow-[0_4px_0_var(--text)]"
+                buttonClassName="mt-2 inline-block rounded-full bg-[var(--secondary)] px-6 py-2.5 text-[12.5px] font-extrabold text-[var(--on-secondary)] shadow-[0_4px_0_var(--text)]"
               />
             </div>
           </Reveal>
         ) : null}
       </section>
+
+      <BusinessEssentials record={record} />
 
       <footer className="border-t-2 border-dashed border-[var(--border)] bg-[var(--text)] py-12 text-[var(--bg)]">
         <div className="poc-container flex flex-col items-center gap-6 text-center">

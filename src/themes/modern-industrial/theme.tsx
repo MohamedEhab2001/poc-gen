@@ -1,6 +1,7 @@
 import { Phone, Star } from "lucide-react";
 import type { ThemeProps } from "@/lib/poc/types";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { BusinessEssentials } from "@/components/poc/BusinessEssentials";
 import { AttributionLine } from "@/components/poc/attribution/AttributionLine";
 import { ConceptNotice } from "@/components/poc/ConceptNotice";
 import { HoursList } from "@/components/poc/HoursList";
@@ -27,7 +28,9 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
     "--secondary": p.secondary,
     "--accent": p.accent,
     "--border": p.border,
-    "--on-primary": "#ececea",
+    "--on-primary": p.onPrimary,
+    "--on-secondary": p.onSecondary,
+    "--on-accent": p.onAccent,
     "--radius": "0px",
     "--font-display": "var(--font-t-display)",
     "--font-body": "var(--font-t-body)",
@@ -83,7 +86,7 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
               {record.cta.primary ? (
                 <ActionLink
                   cta={record.cta.primary}
-                  className="bg-[var(--accent)] px-7 py-3.5 font-display text-[15px] font-bold uppercase tracking-[0.04em] text-[#141414] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+                  className="bg-[var(--accent)] px-7 py-3.5 font-display text-[15px] font-bold uppercase tracking-[0.04em] text-[var(--on-accent)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
                 />
               ) : null}
               {record.cta.secondary[0] ? (
@@ -317,12 +320,14 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
               embedClassName="h-[360px] w-full border border-[var(--text)]"
               cardClassName="border border-[var(--text)] p-6"
               addressClassName="font-mono text-[12px] uppercase tracking-[0.08em]"
-              buttonClassName="mt-3 inline-block border border-[var(--accent)] bg-[var(--accent)] px-6 py-2.5 font-mono text-[11px] uppercase tracking-[0.14em] text-[#141414]"
+              buttonClassName="mt-3 inline-block border border-[var(--accent)] bg-[var(--accent)] px-6 py-2.5 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--on-accent)]"
               iframeTitle={`Site plan map for ${record.identity.name}`}
             />
           ) : null}
         </div>
       </section>
+
+      <BusinessEssentials record={record} />
 
       <footer className="border-t-2 border-[var(--text)]">
         <div className="poc-container flex flex-col justify-between gap-6 py-10 md:flex-row md:items-center">

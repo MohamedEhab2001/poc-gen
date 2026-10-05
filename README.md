@@ -127,7 +127,8 @@ The shared map primitive ([`src/components/poc/map/MapSection.tsx`](src/componen
 
 1. An explicit trusted `embedUrl` from the record.
 2. A Google Maps embed when `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is set (client-safe public variable only; no server secrets reach the bundle).
-3. A styled location-card fallback with address and a directions link — the default in local development.
+3. A safe zero-credential Google Maps embed generated from sourced coordinates or address.
+4. A styled location-card fallback only when no usable place data exists.
 
 Every mode ships a text alternative; iframes are lazy-loaded and titled; maps never trap mobile scroll.
 
@@ -161,7 +162,7 @@ All optional for local development (see [`.env.example`](.env.example)):
 | Variable | Effect |
 |---|---|
 | `NEXT_PUBLIC_SITE_URL` | Canonical origin used in metadata URLs. |
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Enables keyed map embeds when records lack an `embedUrl`. |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Optional: upgrades generated maps to the keyed embed API; sourced locations still render a map without it. |
 | `GOOGLE_PLACES_API_KEY` | Server-only. Real Google place photos for leads whose Google evidence carries a place id (see [POC imagery](#poc-imagery)). |
 | `UNSPLASH_ACCESS_KEY` | Server-only. Unsplash concept imagery when no real photo of the business exists. |
 | `POC_INGESTION_TOKEN` | Reserved for the future ingestion adapter. |

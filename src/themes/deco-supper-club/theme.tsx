@@ -1,6 +1,7 @@
 import { Phone, Star } from "lucide-react";
 import type { ThemeProps } from "@/lib/poc/types";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { BusinessEssentials } from "@/components/poc/BusinessEssentials";
 import { AttributionLine } from "@/components/poc/attribution/AttributionLine";
 import { ConceptNotice } from "@/components/poc/ConceptNotice";
 import { HoursList } from "@/components/poc/HoursList";
@@ -81,7 +82,9 @@ export default function DecoSupperClubTheme({ record }: ThemeProps) {
     "--secondary": p.secondary,
     "--accent": p.accent,
     "--border": p.border,
-    "--on-primary": "#0e1d18",
+    "--on-primary": p.onPrimary,
+    "--on-secondary": p.onSecondary,
+    "--on-accent": p.onAccent,
     "--radius": "0px",
     "--font-display": "var(--font-t-display)",
     "--font-body": "var(--font-t-body)",
@@ -410,6 +413,8 @@ export default function DecoSupperClubTheme({ record }: ThemeProps) {
           ) : null}
         </section>
       ) : null}
+
+      <BusinessEssentials record={record} />
 
       <footer className="border-t border-[var(--primary)]/30 py-12">
         <div className="poc-container flex flex-col items-center gap-6 text-center">

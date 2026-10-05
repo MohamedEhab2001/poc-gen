@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSafeExternalUrl, mailtoHref, mapsQueryUrl, telHref } from "./url";
+import { isSafeExternalUrl, isTrustedMapEmbed, mailtoHref, mapsEmbedUrl, mapsQueryUrl, telHref } from "./url";
 
 describe("url safety", () => {
   it("accepts https URLs only", () => {
@@ -29,5 +29,15 @@ describe("url safety", () => {
       encodeURIComponent("123 Main St"),
     );
     expect(mapsQueryUrl({})).toBeNull();
+  });
+
+  it("builds a trusted keyless map embed from coordinates or address", () => {
+    const coordinates = mapsEmbedUrl({ latitude: 29.152642, longitude: -98.164852 });
+    const address = mapsEmbedUrl({ formattedAddress: "560 10th Street, Floresville, TX" });
+    expect(coordinates).toContain("output=embed");
+    expect(address).toContain(encodeURIComponent("560 10th Street, Floresville, TX"));
+    expect(coordinates && isTrustedMapEmbed(coordinates)).toBe(true);
+    expect(address && isTrustedMapEmbed(address)).toBe(true);
+    expect(mapsEmbedUrl({})).toBeNull();
   });
 });

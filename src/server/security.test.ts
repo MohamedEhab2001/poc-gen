@@ -550,6 +550,8 @@ describe("map embed and image hardening", () => {
   it("accepts only trusted Google Maps embed origins", () => {
     expect(isTrustedMapEmbed("https://www.google.com/maps/embed?pb=x")).toBe(true);
     expect(isTrustedMapEmbed("https://maps.google.com/maps/embed/v1/place")).toBe(true);
+    expect(isTrustedMapEmbed("https://maps.google.com/maps?q=29,-98&output=embed")).toBe(true);
+    expect(isTrustedMapEmbed("https://maps.google.com/maps?q=29,-98")).toBe(false);
     expect(isTrustedMapEmbed("https://evil.example.com/maps/embed")).toBe(false);
     expect(isTrustedMapEmbed("https://www.google.com/search")).toBe(false);
     expect(isTrustedMapEmbed("javascript:alert(1)")).toBe(false);

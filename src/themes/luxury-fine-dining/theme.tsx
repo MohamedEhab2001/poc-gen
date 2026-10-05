@@ -1,6 +1,7 @@
 import { Star } from "lucide-react";
 import type { ThemeProps } from "@/lib/poc/types";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { BusinessEssentials } from "@/components/poc/BusinessEssentials";
 import { AttributionLine } from "@/components/poc/attribution/AttributionLine";
 import { ConceptNotice } from "@/components/poc/ConceptNotice";
 import { HoursList } from "@/components/poc/HoursList";
@@ -26,7 +27,9 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
     "--secondary": p.secondary,
     "--accent": p.accent,
     "--border": p.border,
-    "--on-primary": "#111110",
+    "--on-primary": p.onPrimary,
+    "--on-secondary": p.onSecondary,
+    "--on-accent": p.onAccent,
     "--radius": "0px",
     "--font-display": "var(--font-t-display)",
     "--font-body": "var(--font-t-body)",
@@ -52,7 +55,7 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
           {primary ? (
             <ActionLink
               cta={primary}
-              className="border border-[var(--accent)]/70 px-5 py-2 text-[11px] uppercase tracking-[0.22em] text-[var(--accent)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--on-primary)]"
+              className="border border-[var(--accent)]/70 px-5 py-2 text-[11px] uppercase tracking-[0.22em] text-[var(--accent)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--on-accent)]"
             />
           ) : null}
         </div>
@@ -100,7 +103,7 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
           {primary ? (
             <ActionLink
               cta={primary}
-              className="mt-10 border border-[var(--accent)] px-10 py-4 text-[11.5px] uppercase tracking-[0.3em] text-[var(--accent)] transition-all duration-500 hover:bg-[var(--accent)] hover:text-[var(--on-primary)]"
+            className="mt-10 border border-[var(--accent)] px-10 py-4 text-[11.5px] uppercase tracking-[0.3em] text-[var(--accent)] transition-all duration-500 hover:bg-[var(--accent)] hover:text-[var(--on-accent)]"
             />
           ) : null}
           {record.reputation ? (
@@ -253,7 +256,7 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
             {primary ? (
               <ActionLink
                 cta={primary}
-                className="mt-10 inline-block border border-[var(--accent)] px-9 py-3.5 text-[11px] uppercase tracking-[0.28em] text-[var(--accent)] transition-all duration-500 hover:bg-[var(--accent)] hover:text-[var(--on-primary)]"
+                className="mt-10 inline-block border border-[var(--accent)] px-9 py-3.5 text-[11px] uppercase tracking-[0.28em] text-[var(--accent)] transition-all duration-500 hover:bg-[var(--accent)] hover:text-[var(--on-accent)]"
               />
             ) : null}
           </div>
@@ -272,6 +275,8 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
           ) : null}
         </div>
       </section>
+
+      <BusinessEssentials record={record} />
 
       <footer className="border-t border-[var(--border)] py-14">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-8 px-6 md:flex-row">

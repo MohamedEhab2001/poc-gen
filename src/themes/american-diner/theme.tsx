@@ -1,6 +1,7 @@
 import { Clock, Phone, Star } from "lucide-react";
 import type { ThemeProps } from "@/lib/poc/types";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { BusinessEssentials } from "@/components/poc/BusinessEssentials";
 import { AttributionLine } from "@/components/poc/attribution/AttributionLine";
 import { ConceptNotice } from "@/components/poc/ConceptNotice";
 import { HoursList } from "@/components/poc/HoursList";
@@ -27,7 +28,9 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
     "--secondary": p.secondary,
     "--accent": p.accent,
     "--border": p.border,
-    "--on-primary": "#fff6e8",
+    "--on-primary": p.onPrimary,
+    "--on-secondary": p.onSecondary,
+    "--on-accent": p.onAccent,
     "--radius": "10px",
     "--font-display": "var(--font-t-display)",
     "--font-body": "var(--font-t-body)",
@@ -36,7 +39,7 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
   return (
     <div id="main" style={style} className={`${display.variable} ${body.variable} theme-root`}>
       {/* Navy band header */}
-      <header className="bg-[var(--secondary)] text-[#fff6e8]">
+      <header className="bg-[var(--secondary)] text-[var(--on-secondary)]">
         <div className="poc-container flex h-[68px] items-center justify-between">
           <a href="#hero" className="font-display text-xl tracking-wide">
             {record.wordmark.text}
@@ -182,7 +185,7 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
       ) : null}
 
       {record.reputation && record.reputation.reviews.length > 0 ? (
-        <section aria-labelledby="reviews-heading" className="bg-[var(--secondary)] py-14 text-[#fff6e8] md:py-20">
+        <section aria-labelledby="reviews-heading" className="bg-[var(--secondary)] py-14 text-[var(--on-secondary)] md:py-20">
           <div className="poc-container">
             <h2 id="reviews-heading" className="mb-10 text-center font-display text-3xl">
               Kind words from the counter
@@ -262,7 +265,7 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
               embedClassName="h-[340px] w-full border-4 border-[var(--secondary)] shadow-[8px_8px_0_var(--primary)]"
               cardClassName="border-4 border-[var(--secondary)] bg-[var(--surface)] p-6"
               addressClassName="text-[14.5px] font-bold text-[var(--text)]"
-              buttonClassName="mt-2 inline-block bg-[var(--secondary)] px-6 py-3 text-[13px] font-extrabold uppercase tracking-[0.06em] text-[#fff6e8] shadow-[4px_4px_0_var(--primary)]"
+              buttonClassName="mt-2 inline-block bg-[var(--secondary)] px-6 py-3 text-[13px] font-extrabold uppercase tracking-[0.06em] text-[var(--on-secondary)] shadow-[4px_4px_0_var(--primary)]"
             />
           </div>
         ) : null}
@@ -276,13 +279,15 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
           backgroundImage: `repeating-linear-gradient(90deg, ${p.background} 0 14px, ${p.primary} 14px 28px)`,
         }}
       />
-      <footer className="bg-[var(--secondary)] py-11 text-[#fff6e8]">
+      <BusinessEssentials record={record} />
+
+      <footer className="bg-[var(--secondary)] py-11 text-[var(--on-secondary)]">
         <div className="poc-container flex flex-col justify-between gap-6 md:flex-row md:items-center">
           <p className="font-display text-2xl">{record.wordmark.text}</p>
           <ConceptNotice
             record={record}
-            labelClassName="text-[10.5px] font-extrabold uppercase tracking-[0.22em] text-[#fff6e8]/60"
-            bodyClassName="mt-2 max-w-md text-[12.5px] leading-relaxed text-[#fff6e8]/75"
+            labelClassName="text-[10.5px] font-extrabold uppercase tracking-[0.22em] text-[var(--on-secondary)]/60"
+            bodyClassName="mt-2 max-w-md text-[12.5px] leading-relaxed text-[var(--on-secondary)]/75"
           />
         </div>
       </footer>

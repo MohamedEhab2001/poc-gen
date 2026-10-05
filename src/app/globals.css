@@ -17,6 +17,8 @@
   --border: #e4e4e4;
   --radius: 8px;
   --on-primary: #ffffff;
+  --on-secondary: #ffffff;
+  --on-accent: #111111;
   --font-display: ui-serif, Georgia, serif;
   --font-body: ui-sans-serif, system-ui, sans-serif;
 }

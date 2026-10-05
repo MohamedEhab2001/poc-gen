@@ -1,6 +1,7 @@
 import { ArrowRight, AtSign, Clock, Phone, Star } from "lucide-react";
 import type { ThemeProps } from "@/lib/poc/types";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { BusinessEssentials } from "@/components/poc/BusinessEssentials";
 import { AttributionLine } from "@/components/poc/attribution/AttributionLine";
 import { ConceptNotice } from "@/components/poc/ConceptNotice";
 import { HoursList } from "@/components/poc/HoursList";
@@ -25,7 +26,9 @@ export default function HeritageBistroTheme({ record }: ThemeProps) {
     "--secondary": p.secondary,
     "--accent": p.accent,
     "--border": p.border,
-    "--on-primary": "#fff8ee",
+    "--on-primary": p.onPrimary,
+    "--on-secondary": p.onSecondary,
+    "--on-accent": p.onAccent,
     "--radius": "4px",
     "--font-display": "var(--font-t-display)",
     "--font-body": "var(--font-t-body)",
@@ -335,6 +338,8 @@ export default function HeritageBistroTheme({ record }: ThemeProps) {
           ) : null}
         </div>
       </section>
+
+      <BusinessEssentials record={record} />
 
       <footer className="bg-[var(--text)] px-6 py-12 text-[#e8ddc8]">
         <div className="poc-container flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">

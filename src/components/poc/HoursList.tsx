@@ -17,6 +17,9 @@ export function HoursList({
   missingLabel?: string;
 }) {
   if (hours.descriptions.length === 0) {
+    if (hours.statusLabel) {
+      return <p className={labelClassName ?? className ?? "text-sm"}>{hours.statusLabel}</p>;
+    }
     return <p className={labelClassName ?? "text-sm opacity-70"}>{missingLabel}</p>;
   }
   return (

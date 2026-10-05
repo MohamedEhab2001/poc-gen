@@ -71,6 +71,9 @@ export function buildPocAuthoringGuide(): AuthoringGuide {
       "Do not pick pictures: upsert_poc_record resolves media automatically (record media → Google place photos at render time via the lead's evidenced place id → Unsplash concept imagery → theme concept art). Set identity.placeId only from Google evidence; never author media.resolution, unsplash images, or googleusercontent URLs.",
       "Reviews and menus must include provenance; AI-derived menus must use sample mode with the demonstration notice.",
       "Pick the theme from supportedCategories and the business character (themes[].character).",
+      "Brand every POC when evidence allows: capture an authentic logo/wordmark and sourced brand.palette colors from business-controlled assets. Never guess colors. A verified logo averageColor or brand.palette.primary automatically creates an accessible harmonious palette; explicit sourced secondary/accent/background colors override the derived palette.",
+      "Add every supported sourced content block available (about, precise hours, offerings, services, amenities, social links, reputation, and location). Sparse records receive a factual essentials section, but richer evidence always produces a stronger POC.",
+      "When an address or coordinates are sourced, include them even without an embedUrl: the renderer creates a safe zero-credential map automatically.",
       "Run run_poc_qa and require a pass before publish_poc; QA failures cannot be overridden.",
       "Never call send_outreach while health.sendingEnabled is false.",
     ],
@@ -94,6 +97,13 @@ function minimalRecordExample(): Record<string, unknown> {
       primaryCategory: { value: "Café", source: "manual", verified: true },
       categories: { value: ["Café", "Bakery"], source: "manual" },
       businessStatus: { value: "operational", source: "manual", verified: true },
+    },
+    brand: {
+      wordmark: { value: "The Fictional Sample Café", source: "manual", verified: true },
+      palette: {
+        primary: { value: "#6b3f2a", source: "manual", verified: true },
+        accent: { value: "#d6a85f", source: "manual", verified: true },
+      },
     },
     hero: {
       // Empty hero actions are explicit nulls; copy comes from the record's

@@ -94,6 +94,37 @@ function contrastRatio(a: string, b: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+function expandHex(hex: string): string {
+  const clean = hex.replace("#", "");
+  return clean.length === 3
+    ? clean
+        .split("")
+        .map((character) => character + character)
+        .join("")
+    : clean;
+}
+
+/** Mixes toward `second`; 0 keeps first, 1 returns second. */
+function mixHex(first: string, second: string, secondWeight: number): string {
+  const a = expandHex(first);
+  const b = expandHex(second);
+  const weight = Math.max(0, Math.min(1, secondWeight));
+  const channel = (offset: number) =>
+    Math.round(
+      parseInt(a.slice(offset, offset + 2), 16) * (1 - weight) +
+        parseInt(b.slice(offset, offset + 2), 16) * weight,
+    )
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(0)}${channel(2)}${channel(4)}`;
+}
+
+function readableForeground(background: string): string {
+  return contrastRatio("#ffffff", background) >= contrastRatio("#111111", background)
+    ? "#ffffff"
+    : "#111111";
+}
+
 /**
  * Resolves the palette: theme default, then record brand palette, then
  * explicit themeOverrides. Every brand color passes the factual render
@@ -110,6 +141,9 @@ function resolvePalette(
   const palette: ThemePalette = { ...base };
 
   const brand = record.brand?.palette;
+  let brandDriven = false;
+  let hasSecondary = false;
+  let hasAccent = false;
   const apply = (value: string | null, key: keyof ThemePalette, label: string) => {
     if (value == null) return;
     if (!isHexColor(value)) {
@@ -118,26 +152,82 @@ function resolvePalette(
     }
     palette[key] = value.trim();
   };
-  apply(factual("brand.palette.primary", brand?.primary), "primary", "primary");
-  apply(factual("brand.palette.secondary", brand?.secondary), "secondary", "secondary");
-  apply(factual("brand.palette.accent", brand?.accent), "accent", "accent");
+
+  const explicitPrimary = factual("brand.palette.primary", brand?.primary);
+  const logo = record.brand?.logo;
+  const logoAverage = logo?.value?.averageColor;
+  const logoCanDriveBrand = Boolean(
+    logo && (logo.verified === true || BUSINESS_ORIGIN_SOURCES.has(logo.source)),
+  );
+  const logoPrimary =
+    !explicitPrimary && logoAverage && logoCanDriveBrand
+      ? factual("brand.logo.averageColor", {
+          value: logoAverage,
+          source: logo.source,
+          confidence: logo.confidence,
+          verified: logo.verified,
+          retrievedAt: logo.retrievedAt,
+          attribution: logo.attribution,
+        })
+      : null;
+  const primary = explicitPrimary ?? logoPrimary;
+  if (primary) {
+    apply(primary, "primary", explicitPrimary ? "primary" : "logo dominant color");
+    brandDriven = true;
+  }
+
+  const secondary = factual("brand.palette.secondary", brand?.secondary);
+  const accent = factual("brand.palette.accent", brand?.accent);
+  if (secondary) {
+    apply(secondary, "secondary", "secondary");
+    hasSecondary = true;
+  }
+  if (accent) {
+    apply(accent, "accent", "accent");
+    hasAccent = true;
+  }
   apply(factual("brand.palette.background", brand?.background), "background", "background");
   apply(factual("brand.palette.foreground", brand?.foreground), "text", "foreground");
 
   const overrides = record.themeOverrides ?? null;
-  apply(overrides?.primaryColor ?? null, "primary", "themeOverrides.primaryColor");
-  apply(overrides?.secondaryColor ?? null, "secondary", "themeOverrides.secondaryColor");
-  apply(overrides?.accentColor ?? null, "accent", "themeOverrides.accentColor");
+  if (overrides?.primaryColor) {
+    apply(overrides.primaryColor, "primary", "themeOverrides.primaryColor");
+    brandDriven = true;
+  }
+  if (overrides?.secondaryColor) {
+    apply(overrides.secondaryColor, "secondary", "themeOverrides.secondaryColor");
+    hasSecondary = true;
+  }
+  if (overrides?.accentColor) {
+    apply(overrides.accentColor, "accent", "themeOverrides.accentColor");
+    hasAccent = true;
+  }
   apply(overrides?.backgroundColor ?? null, "background", "themeOverrides.backgroundColor");
 
-  if (contrastRatio(palette.text, palette.background) < 3) {
-    warnings.push(
-      "Resolved palette failed the 3:1 text contrast guard; text and background reverted to theme defaults.",
-    );
-    palette.text = base.text;
-    palette.background = base.background;
+  // A single verified brand or logo color is enough to produce a coherent,
+  // monochromatic supporting palette. Explicit sourced colors always win.
+  if (brandDriven) {
+    const opposite = luminance(palette.primary) > 0.42 ? "#111111" : "#ffffff";
+    if (!hasSecondary) palette.secondary = mixHex(palette.primary, opposite, 0.32);
+    if (!hasAccent) palette.accent = mixHex(palette.primary, palette.background, 0.58);
+    palette.surface = mixHex(palette.background, palette.primary, 0.055);
+    palette.border = mixHex(palette.background, palette.text, 0.18);
+    palette.muted = mixHex(palette.text, palette.background, 0.42);
   }
-  return palette;
+
+  if (contrastRatio(palette.text, palette.background) < 4.5) {
+    warnings.push(
+      "Resolved palette failed the 4.5:1 text contrast guard; a readable foreground was selected automatically.",
+    );
+    palette.text = readableForeground(palette.background);
+  }
+
+  return {
+    ...palette,
+    onPrimary: readableForeground(palette.primary),
+    onSecondary: readableForeground(palette.secondary),
+    onAccent: readableForeground(palette.accent),
+  };
 }
 
 const SERVICE_LABELS: Array<[string, string]> = [

@@ -129,6 +129,21 @@ describe("normalize: fallback rules", () => {
     expect(vm.palette.primary).toBe("#71272b");
     expect(vm.warnings.some((warning) => warning.includes("not a valid hex color"))).toBe(true);
   });
+
+  it("derives a harmonious accessible palette from one sourced brand color", () => {
+    const branded: BusinessPocRecord = {
+      ...merchantAndVine,
+      brand: {
+        ...merchantAndVine.brand,
+        palette: { primary: { value: "#f4d03f", source: "official_social", verified: true } },
+      },
+    };
+    const vm = normalizeRecord(branded);
+    expect(vm.palette.primary).toBe("#f4d03f");
+    expect(vm.palette.secondary).not.toBe("#5a6146");
+    expect(vm.palette.accent).not.toBe("#a2782f");
+    expect(vm.palette.onPrimary).toBe("#111111");
+  });
 });
 
 describe("normalize: hero fallback copy", () => {

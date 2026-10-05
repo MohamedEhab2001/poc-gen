@@ -1,6 +1,7 @@
 import { Clock, Leaf, Phone, Star, Sun } from "lucide-react";
 import type { ThemeProps } from "@/lib/poc/types";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { BusinessEssentials } from "@/components/poc/BusinessEssentials";
 import { AttributionLine } from "@/components/poc/attribution/AttributionLine";
 import { ConceptNotice } from "@/components/poc/ConceptNotice";
 import { HoursList } from "@/components/poc/HoursList";
@@ -46,7 +47,9 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
     "--secondary": p.secondary,
     "--accent": p.accent,
     "--border": p.border,
-    "--on-primary": "#faf7f0",
+    "--on-primary": p.onPrimary,
+    "--on-secondary": p.onSecondary,
+    "--on-accent": p.onAccent,
     "--radius": "16px",
     "--font-display": "var(--font-t-display)",
     "--font-body": "var(--font-t-body)",
@@ -108,7 +111,7 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
               {record.cta.primary ? (
                 <ActionLink
                   cta={record.cta.primary}
-                  className="rounded-full bg-[var(--secondary)] px-7 py-3.5 text-[14.5px] font-bold text-white shadow-[0_12px_26px_-12px_rgba(164,83,106,0.65)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+                  className="rounded-full bg-[var(--secondary)] px-7 py-3.5 text-[14.5px] font-bold text-[var(--on-secondary)] shadow-[0_12px_26px_-12px_rgba(164,83,106,0.65)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
                 />
               ) : null}
               {record.cta.secondary[0] ? (
@@ -150,7 +153,7 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
               </div>
             ) : null}
             {outdoor ? (
-              <p className="absolute -right-1 bottom-8 rotate-3 rounded-full bg-[var(--accent)] px-4 py-2 text-[11.5px] font-bold uppercase tracking-[0.08em] text-white shadow-md">
+              <p className="absolute -right-1 bottom-8 rotate-3 rounded-full bg-[var(--accent)] px-4 py-2 text-[11.5px] font-bold uppercase tracking-[0.08em] text-[var(--on-accent)] shadow-md">
                 <Sun size={12} strokeWidth={2} className="mr-1.5 inline" aria-hidden="true" />
                 Garden seating
               </p>
@@ -369,6 +372,8 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
           ) : null}
         </div>
       </section>
+
+      <BusinessEssentials record={record} />
 
       <footer className="bg-[var(--primary)] py-12 text-[var(--on-primary)]">
         <div className="poc-container flex flex-col items-center justify-between gap-6 text-center md:flex-row md:items-center md:text-left">

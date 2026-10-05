@@ -130,6 +130,10 @@ export interface ThemePalette {
   secondary: string;
   accent: string;
   border: string;
+  /** Automatically computed accessible foregrounds for brand-adjusted colors. */
+  onPrimary?: string;
+  onSecondary?: string;
+  onAccent?: string;
 }
 
 /**

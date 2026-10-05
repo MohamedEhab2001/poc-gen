@@ -1,6 +1,7 @@
 import { Clock, MapPin, Phone, Star } from "lucide-react";
 import type { ThemeProps } from "@/lib/poc/types";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { BusinessEssentials } from "@/components/poc/BusinessEssentials";
 import { AttributionLine } from "@/components/poc/attribution/AttributionLine";
 import { ConceptNotice } from "@/components/poc/ConceptNotice";
 import { HoursList } from "@/components/poc/HoursList";
@@ -27,7 +28,9 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
     "--secondary": p.secondary,
     "--accent": p.accent,
     "--border": p.border,
-    "--on-primary": "#141414",
+    "--on-primary": p.onPrimary,
+    "--on-secondary": p.onSecondary,
+    "--on-accent": p.onAccent,
     "--radius": "0px",
     "--font-display": "var(--font-t-display)",
     "--font-body": "var(--font-t-body)",
@@ -74,7 +77,7 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
               {record.hero.headline}
             </h1>
             {record.hero.subheadline ? (
-              <p className="mt-6 max-w-[40ch] text-[16px] font-semibold leading-snug text-[#241a10]">
+              <p className="mt-6 max-w-[40ch] text-[16px] font-semibold leading-snug text-[var(--on-primary)]/85">
                 {record.hero.subheadline}
               </p>
             ) : null}
@@ -94,7 +97,7 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
               {record.cta.secondary[0] ? (
                 <ActionLink
                   cta={record.cta.secondary[0]}
-                  className="border-2 border-[var(--text)] bg-[var(--bg)] px-6 py-3.5 text-[14px] font-extrabold uppercase tracking-[0.04em] transition-colors hover:bg-[var(--secondary)] hover:text-white"
+                  className="border-2 border-[var(--text)] bg-[var(--bg)] px-6 py-3.5 text-[14px] font-extrabold uppercase tracking-[0.04em] transition-colors hover:bg-[var(--secondary)] hover:text-[var(--on-secondary)]"
                 />
               ) : null}
             </div>
@@ -109,13 +112,13 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
                   height={860}
                   sizes="(min-width: 1024px) 40vw, 100vw"
                   className="h-auto w-full border-2 border-[var(--text)] object-cover"
-                  attributionClassName="mt-2 text-[10.5px] font-bold uppercase tracking-wide text-[#241a10]"
+                  attributionClassName="mt-2 text-[10.5px] font-bold uppercase tracking-wide text-[var(--on-accent)]"
                 />
               </div>
               {record.hours?.openNow !== null && record.hours ? (
                 <p
                   className={`absolute -left-3 top-6 -rotate-6 rounded-full px-4 py-2 font-display text-sm uppercase tracking-wide ${
-                    record.hours.openNow ? "bg-[var(--secondary)] text-white" : "bg-[var(--text)] text-[var(--accent)]"
+                    record.hours.openNow ? "bg-[var(--secondary)] text-[var(--on-secondary)]" : "bg-[var(--text)] text-[var(--accent)]"
                   }`}
                 >
                   {record.hours.openNow ? "OUT NOW" : "CLOSED TODAY"}
@@ -127,11 +130,11 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
       </section>
 
       {/* Location and hours: prominent for street food */}
-      <section id="find" aria-labelledby="find-heading" className="border-b-4 border-[var(--text)] bg-[var(--secondary)] text-white">
+      <section id="find" aria-labelledby="find-heading" className="border-b-4 border-[var(--text)] bg-[var(--secondary)] text-[var(--on-secondary)]">
         <div className="poc-container grid gap-8 py-12 md:grid-cols-[auto_1fr_auto] md:items-center md:gap-12">
           <div>
             <h2 id="find-heading" className="flex items-center gap-2.5 font-display text-2xl uppercase tracking-tight">
-              <MapPin size={22} strokeWidth={2} aria-hidden="true" /> Where today
+              <MapPin size={22} strokeWidth={2} aria-hidden="true" /> Find us
             </h2>
             {record.location?.shortAddress || record.location?.formattedAddress ? (
               <p className="mt-3 max-w-xs text-[14.5px] font-semibold leading-snug">
@@ -145,9 +148,9 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
             ) : null}
           </div>
           {record.hours ? (
-            <div className="border-l-4 border-white/40 pl-6">
+            <div className="border-l-4 border-current/35 pl-6">
               <p className="mb-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.12em]">
-                <Clock size={14} strokeWidth={2} aria-hidden="true" /> Truck schedule
+                <Clock size={14} strokeWidth={2} aria-hidden="true" /> Opening days
               </p>
               <HoursList hours={record.hours} className="space-y-1 text-[13.5px] font-semibold" />
             </div>
@@ -252,7 +255,7 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
                     className={`px-3.5 py-2 text-[12px] font-extrabold uppercase tracking-wide ${
                       index % 2 === 0
                         ? "-rotate-2 bg-[var(--accent)] text-[var(--text)]"
-                        : "rotate-1 bg-[var(--secondary)] text-white"
+                        : "rotate-1 bg-[var(--secondary)] text-[var(--on-secondary)]"
                     }`}
                   >
                     {item.label}
@@ -267,7 +270,7 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
       {record.gallery ? (
         <section aria-labelledby="gallery-heading" className="poc-container py-14 md:py-20">
           <h2 id="gallery-heading" className="mb-8 font-display text-4xl uppercase tracking-tight text-[var(--text)]">
-            {record.gallery.title ?? "Off the window"}
+            {record.gallery.title ?? "Concept gallery"}
           </h2>
           <ul className="grid grid-cols-2 gap-5 lg:grid-cols-4">
             {record.gallery.images.slice(0, 4).map((image, index) => (
@@ -313,7 +316,7 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
                   <blockquote className="mt-3 text-[14px] font-bold leading-snug">
                     &ldquo;{review.text}&rdquo;
                   </blockquote>
-                  <p className="mt-4 inline-block -rotate-1 bg-[var(--secondary)] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-white">
+                  <p className="mt-4 inline-block -rotate-1 bg-[var(--secondary)] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-[var(--on-secondary)]">
                     {review.authorName}
                   </p>
                   {review.attribution ? (
@@ -327,10 +330,10 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
       ) : null}
 
       {/* Contact strip */}
-      <section aria-labelledby="contact-heading" className="border-t-4 border-[var(--text)] bg-[var(--accent)] py-10">
+      <section aria-labelledby="contact-heading" className="border-t-4 border-[var(--text)] bg-[var(--accent)] py-10 text-[var(--on-accent)]">
         <div className="poc-container flex flex-wrap items-center justify-between gap-6">
           <h2 id="contact-heading" className="font-display text-2xl uppercase tracking-tight">
-            Holler at us
+            Get in touch
           </h2>
           <div className="flex flex-wrap items-center gap-6 text-[14px] font-bold">
             {record.contact.phone ? (
@@ -359,10 +362,13 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
             embedClassName="h-[360px] w-full border-0"
             cardClassName="bg-[var(--surface)] p-8"
             addressClassName="text-[14.5px] font-bold"
-            buttonClassName="mt-2 inline-block border-2 border-[var(--text)] bg-[var(--accent)] px-5 py-2.5 text-[12.5px] font-extrabold uppercase tracking-wide shadow-[4px_4px_0_var(--text)]"
+            buttonClassName="inline-block border-2 border-[var(--text)] bg-[var(--accent)] px-5 py-2.5 text-[12.5px] font-extrabold uppercase tracking-wide text-[var(--on-accent)] shadow-[4px_4px_0_var(--text)]"
+            detailsClassName="poc-container flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-6"
           />
         </section>
       ) : null}
+
+      <BusinessEssentials record={record} />
 
       <footer className="bg-[var(--text)] py-10 text-[var(--bg)]">
         <div className="poc-container flex flex-col justify-between gap-6 md:flex-row md:items-center">

@@ -1,6 +1,7 @@
 import { ArrowUpRight, Clock, Phone, Star } from "lucide-react";
 import type { ThemeProps } from "@/lib/poc/types";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { BusinessEssentials } from "@/components/poc/BusinessEssentials";
 import { ConceptNotice } from "@/components/poc/ConceptNotice";
 import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
@@ -25,7 +26,9 @@ export default function NeonNightTheme({ record }: ThemeProps) {
     "--secondary": p.secondary,
     "--accent": p.accent,
     "--border": p.border,
-    "--on-primary": "#0b0b12",
+    "--on-primary": p.onPrimary,
+    "--on-secondary": p.onSecondary,
+    "--on-accent": p.onAccent,
     "--radius": "2px",
     "--font-display": "var(--font-t-display)",
     "--font-body": "var(--font-t-body)",
@@ -374,11 +377,13 @@ export default function NeonNightTheme({ record }: ThemeProps) {
                 embedClassName="h-[340px] w-full border border-[var(--border)]"
                 cardClassName="border border-[var(--border)] bg-[var(--surface)] p-8"
                 addressClassName="text-sm text-[var(--text)]"
-                buttonClassName="inline-flex items-center gap-2 border border-[var(--primary)] px-5 py-2.5 font-display text-lg tracking-[0.08em] text-[var(--primary)] transition-colors hover:bg-[var(--primary)] hover:text-[#0b0b12]"
+                buttonClassName="inline-flex items-center gap-2 border border-[var(--primary)] px-5 py-2.5 font-display text-lg tracking-[0.08em] text-[var(--primary)] transition-colors hover:bg-[var(--primary)] hover:text-[var(--on-primary)]"
               />
             ) : null}
           </div>
         </section>
+
+        <BusinessEssentials record={record} />
 
         <footer className="border-t border-[var(--border)] px-5 py-10 sm:px-10">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">

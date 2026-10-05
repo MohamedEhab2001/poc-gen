@@ -1,6 +1,7 @@
 import { Clock, Leaf, Phone, Star, Sun, Users } from "lucide-react";
 import type { ThemeProps } from "@/lib/poc/types";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { BusinessEssentials } from "@/components/poc/BusinessEssentials";
 import { AttributionLine } from "@/components/poc/attribution/AttributionLine";
 import { ConceptNotice } from "@/components/poc/ConceptNotice";
 import { HoursList } from "@/components/poc/HoursList";
@@ -25,7 +26,9 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
     "--secondary": p.secondary,
     "--accent": p.accent,
     "--border": p.border,
-    "--on-primary": "#ffffff",
+    "--on-primary": p.onPrimary,
+    "--on-secondary": p.onSecondary,
+    "--on-accent": p.onAccent,
     "--radius": "18px",
     "--font-display": "var(--font-t-display)",
     "--font-body": "var(--font-t-body)",
@@ -35,7 +38,7 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
 
   return (
     <div id="main" style={style} className={`${display.variable} ${body.variable} theme-root`}>
-      <header className="bg-[var(--primary)] text-white">
+      <header className="bg-[var(--primary)] text-[var(--on-primary)]">
         <div className="poc-container flex h-[68px] items-center justify-between">
           <a href="#hero" className="font-display text-xl">
             {record.wordmark.text}
@@ -93,13 +96,13 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
             {record.cta.primary ? (
               <ActionLink
                 cta={record.cta.primary}
-                className="rounded-full bg-[var(--secondary)] px-7 py-3.5 text-[15px] font-bold text-white shadow-[0_10px_24px_-10px_rgba(217,108,71,0.7)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+                className="rounded-full bg-[var(--secondary)] px-7 py-3.5 text-[15px] font-bold text-[var(--on-secondary)] shadow-[0_10px_24px_-10px_rgba(217,108,71,0.7)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
               />
             ) : null}
             {record.cta.secondary[0] ? (
               <ActionLink
                 cta={record.cta.secondary[0]}
-                className="rounded-full border-2 border-[var(--primary)] px-6 py-3 text-[14.5px] font-bold text-[var(--primary)] transition-colors hover:bg-[var(--primary)] hover:text-white"
+                className="rounded-full border-2 border-[var(--primary)] px-6 py-3 text-[14.5px] font-bold text-[var(--primary)] transition-colors hover:bg-[var(--primary)] hover:text-[var(--on-primary)]"
               />
             ) : null}
           </div>
@@ -144,7 +147,7 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
         <section
           id="menu"
           aria-labelledby="menu-heading"
-          className="rounded-t-[3rem] bg-[var(--primary)] py-16 text-white md:rounded-t-[5rem] md:py-24"
+          className="rounded-t-[3rem] bg-[var(--primary)] py-16 text-[var(--on-primary)] md:rounded-t-[5rem] md:py-24"
         >
           <div className="poc-container">
             <div className="mb-12 text-center">
@@ -152,7 +155,7 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
                 {record.menu.mode === "sample" ? "A taste of the menu" : "The menu"}
               </h2>
               {record.menu.notice ? (
-                <p className="mx-auto mt-4 max-w-md text-[13.5px] leading-relaxed text-white/75" data-provenance={record.menu.mode === "sample" ? "sample menu" : undefined}>
+                <p className="mx-auto mt-4 max-w-md text-[13.5px] leading-relaxed text-[var(--on-primary)]/75" data-provenance={record.menu.mode === "sample" ? "sample menu" : undefined}>
                   {record.menu.notice}
                 </p>
               ) : null}
@@ -264,7 +267,7 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
           <div className="rotate-[-1.2deg] rounded-[var(--radius)] border-[10px] border-white bg-white p-4 shadow-[0_24px_50px_-24px_rgba(23,57,79,0.45)]">
             <p className="mb-3 flex items-center justify-between font-display text-lg text-[var(--primary)]">
               {record.identity.shortName}
-              <span className="rounded-full bg-[var(--secondary)] px-3 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.1em] text-white">
+              <span className="rounded-full bg-[var(--secondary)] px-3 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.1em] text-[var(--on-secondary)]">
                 Postcard
               </span>
             </p>
@@ -276,7 +279,7 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
                 embedClassName="h-[320px] w-full rounded-[10px] border-0"
                 cardClassName="rounded-[10px] bg-[var(--bg)] p-6"
                 addressClassName="text-[14.5px] font-semibold text-[var(--text)]"
-                buttonClassName="mt-1 inline-block rounded-full bg-[var(--primary)] px-5 py-2.5 text-[13px] font-bold text-white"
+                buttonClassName="mt-1 inline-block rounded-full bg-[var(--primary)] px-5 py-2.5 text-[13px] font-bold text-[var(--on-primary)]"
               />
             ) : null}
           </div>
@@ -315,13 +318,15 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
         </div>
       </section>
 
-      <footer className="bg-[var(--primary)] py-12 text-white">
+      <BusinessEssentials record={record} />
+
+      <footer className="bg-[var(--primary)] py-12 text-[var(--on-primary)]">
         <div className="poc-container flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
           <p className="font-display text-2xl">{record.wordmark.text}</p>
           <ConceptNotice
             record={record}
-            labelClassName="text-[10.5px] uppercase tracking-[0.2em] text-white/60"
-            bodyClassName="mt-2 max-w-md text-[12.5px] leading-relaxed text-white/70"
+            labelClassName="text-[10.5px] uppercase tracking-[0.2em] text-[var(--on-primary)]/60"
+            bodyClassName="mt-2 max-w-md text-[12.5px] leading-relaxed text-[var(--on-primary)]/70"
           />
         </div>
       </footer>
