@@ -54,6 +54,9 @@ describe.skipIf(!dbUrl)("contactless POC pipeline (integration)", () => {
     process.env.AUTOMATION_ENABLED = "true";
     process.env.OUTREACH_SEND_ENABLED = "false";
     process.env.OUTREACH_EMAIL_PROVIDER = "mock";
+    process.env.OUTREACH_SENDER_NAME = "Integration Test";
+    process.env.OUTREACH_SENDER_INTRO = "I'm Integration Test, a software engineer who builds practical websites.";
+    process.env.OUTREACH_SENDER_LINKEDIN_URL = "https://www.linkedin.com/in/integration-test";
     process.env.SHARE_LINK_BASE_URL = "http://localhost:3000";
 
     const staging = await mkdtemp(join(tmpdir(), "poc-gen-migrations-"));
@@ -178,7 +181,7 @@ describe.skipIf(!dbUrl)("contactless POC pipeline (integration)", () => {
       runId,
       leadId: created.leadId,
       subject: `A website concept for Contactless Kitchen ${key}`,
-      body: "Your private concept page: {{poc_link}}",
+      body: "A small unofficial homepage mockup: {{poc_link}}",
       evidenceRefs: created.snapshotIds,
     });
     expect(outreachFailure.code).toBe("contact_not_verified");

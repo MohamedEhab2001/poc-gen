@@ -13,6 +13,8 @@ const ALLOWED_ATTRIBUTES: Record<string, string[]> = {
   // rel is forced to noopener noreferrer by transformTags; listing it keeps
   // the transformed value through the attribute filter.
   a: ["href", "title", "rel"],
+  p: ["class"],
+  div: ["class"],
 };
 
 export function sanitizeOutreachHtml(html: string): string {

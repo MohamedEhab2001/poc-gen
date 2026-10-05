@@ -38,6 +38,11 @@ export const UNSPLASH_UTM_SOURCE = "poc_gen";
  * claims about the business.
  */
 const TEMPLATES: Array<{ match: RegExp; query: string; subject: string }> = [
+  {
+    match: /bubble\s*tea|\bboba\b/i,
+    query: "colorful bubble tea boba drinks cafe",
+    subject: "colorful bubble tea drinks",
+  },
   { match: /\b(coffee|caf[eé]|espresso|roaster)/i, query: "cozy independent coffee shop interior", subject: "a cozy coffee shop interior" },
   { match: /\btea\b|tea ?room|tea ?house/i, query: "calm tea room interior", subject: "a calm tea room" },
   { match: /bakery|bakeries|pastr|patisserie|boulangerie/i, query: "local bakery pastries", subject: "bakery pastries" },

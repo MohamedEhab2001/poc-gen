@@ -18,8 +18,31 @@ const DECEPTIVE_SUBJECT_PATTERNS: RegExp[] = [
   /\bsubscription\b/i,
 ];
 
+/** Cold-email phrasing that commonly reads as spammy or invasive. */
+const SPAMMY_SUBJECT_PATTERNS: RegExp[] = [
+  /\bprivate (website )?concept\b/i,
+  /\bexclusive (website )?(offer|concept)\b/i,
+  /\bfree (website|site)\b/i,
+];
+
+const INTRUSIVE_BODY_PATTERNS: RegExp[] = [
+  /\bprivate (website )?concept\b/i,
+  /\bi found (you|your|the business).*\b(through|via|on)\b/i,
+  /\bi researched (you|your business)\b/i,
+  /\bwhile researching (you|your business)\b/i,
+  /\bi(?:'ve| have) been following (you|your business)\b/i,
+];
+
 export function isDeceptiveSubject(subject: string): boolean {
   return DECEPTIVE_SUBJECT_PATTERNS.some((pattern) => pattern.test(subject));
+}
+
+export function isSpammySubject(subject: string): boolean {
+  return SPAMMY_SUBJECT_PATTERNS.some((pattern) => pattern.test(subject));
+}
+
+export function hasIntrusiveDiscoveryLanguage(body: string): boolean {
+  return INTRUSIVE_BODY_PATTERNS.some((pattern) => pattern.test(body));
 }
 
 /** Phrasing that would misrepresent the POC as the business's official site. */
@@ -38,7 +61,10 @@ export function misrepresentsPoc(body: string): boolean {
 export const POC_LINK_PLACEHOLDER = "{{poc_link}}";
 
 export interface OutreachPolicyConfig {
+  businessName: string;
   senderName: string;
+  senderIntro: string;
+  senderLinkedInUrl: string;
   fromEmail: string;
   replyTo: string | null;
   postalAddress: string | null;
@@ -77,6 +103,20 @@ export function validateOutreachDraft(input: {
       "REJECTED",
     );
   }
+  if (isSpammySubject(subject)) {
+    throw new AutomationError(
+      "spammy_subject",
+      "The subject uses salesy or suspicious cold-email phrasing.",
+      "REJECTED",
+    );
+  }
+  if (hasIntrusiveDiscoveryLanguage(body)) {
+    throw new AutomationError(
+      "intrusive_outreach_language",
+      "The body uses invasive discovery language or calls the mockup private.",
+      "REJECTED",
+    );
+  }
   if (misrepresentsPoc(body)) {
     throw new AutomationError(
       "misrepresented_poc",
@@ -96,7 +136,7 @@ export function validateOutreachDraft(input: {
   }
 
   const bodyText = buildBodyText(body, pocLink, unsubscribeUrl, config);
-  const bodyHtml = buildBodyHtml(bodyText);
+  const bodyHtml = buildOutreachBodyHtml(body, pocLink, unsubscribeUrl, config);
   return {
     subject: subject.trim(),
     bodyText,
@@ -119,8 +159,21 @@ function buildBodyText(
   unsubscribeUrl: string,
   config: OutreachPolicyConfig,
 ): string {
-  const resolved = body.replaceAll(POC_LINK_PLACEHOLDER, pocLink);
-  const lines = [resolved.trim(), "", "--"];
+  const resolved = stripOpeningGreeting(body.replaceAll(POC_LINK_PLACEHOLDER, pocLink));
+  const lines = [
+    `Hi ${config.businessName} team,`,
+    "",
+    config.senderIntro,
+    "",
+    resolved,
+    "",
+    "If the mockup is useful, just reply to this email.",
+    "",
+    `— ${config.senderName}`,
+    `LinkedIn: ${config.senderLinkedInUrl}`,
+    "",
+    "--",
+  ];
   if (config.advertisementDisclosure) {
     lines.push("This is an advertisement.");
   }
@@ -131,23 +184,81 @@ function buildBodyText(
   return lines.join("\n");
 }
 
+function stripOpeningGreeting(body: string): string {
+  const lines = body.trim().split("\n");
+  const firstContentLine = lines.findIndex((line) => line.trim().length > 0);
+  if (
+    firstContentLine >= 0 &&
+    /^(hi|hello|hey)\b.{0,100}[,!]?$/i.test(lines[firstContentLine]!.trim())
+  ) {
+    lines.splice(firstContentLine, 1);
+  }
+  return lines.join("\n").trim();
+}
+
+function buildOutreachBodyHtml(
+  body: string,
+  pocLink: string,
+  unsubscribeUrl: string,
+  config: OutreachPolicyConfig,
+): string {
+  const resolved = stripOpeningGreeting(body.replaceAll(POC_LINK_PLACEHOLDER, pocLink));
+  const content = renderParagraphs(resolved, { pocLink, unsubscribeUrl, linkedInUrl: config.senderLinkedInUrl });
+  const disclosure = config.advertisementDisclosure ? "<p>This is an advertisement.</p>" : "";
+  const address = config.postalAddress ? `<p>${escapeHtml(config.postalAddress)}</p>` : "";
+  return [
+    `<p class="outreach-greeting">Hi ${escapeHtml(config.businessName)} team,</p>`,
+    `<p class="outreach-intro">${escapeHtml(config.senderIntro)}</p>`,
+    `<div class="outreach-message">${content}</div>`,
+    '<p class="outreach-close">If the mockup is useful, just reply to this email.</p>',
+    '<div class="outreach-signature">',
+    `<p>— ${escapeHtml(config.senderName)}</p>`,
+    `<p><a href="${escapeHtml(config.senderLinkedInUrl)}">LinkedIn profile</a></p>`,
+    "</div>",
+    '<div class="outreach-compliance">',
+    disclosure,
+    address,
+    `<p>You are receiving this one-time website mockup because your business contact is listed publicly. <a href="${escapeHtml(unsubscribeUrl)}">Unsubscribe</a></p>`,
+    "</div>",
+  ].join("\n");
+}
+
 /** Minimal, accessible HTML: escaped text, links as anchors, line paragraphs. */
 export function buildBodyHtml(bodyText: string): string {
-  const escaped = escapeHtml(bodyText);
-  const withLinks = escaped.replace(
+  return renderParagraphs(bodyText);
+}
+
+function renderParagraphs(
+  bodyText: string,
+  links?: { pocLink: string; unsubscribeUrl: string; linkedInUrl: string },
+): string {
+  const tokens = {
+    poc: "__POC_LINK_TOKEN__",
+    unsubscribe: "__UNSUBSCRIBE_LINK_TOKEN__",
+    linkedin: "__LINKEDIN_LINK_TOKEN__",
+  };
+  let tokenized = bodyText;
+  if (links) {
+    tokenized = tokenized
+      .replaceAll(links.pocLink, tokens.poc)
+      .replaceAll(links.unsubscribeUrl, tokens.unsubscribe)
+      .replaceAll(links.linkedInUrl, tokens.linkedin);
+  }
+  const escaped = escapeHtml(tokenized);
+  let withLinks = escaped.replace(
     /(https:\/\/[^\s<]+)/g,
     (url) => `<a href="${url}">${url}</a>`,
   );
-  const paragraphs = withLinks
+  if (links) {
+    withLinks = withLinks
+      .replaceAll(tokens.poc, `<a href="${escapeHtml(links.pocLink)}"><strong>View the homepage mockup</strong></a>`)
+      .replaceAll(tokens.unsubscribe, `<a href="${escapeHtml(links.unsubscribeUrl)}">Unsubscribe</a>`)
+      .replaceAll(tokens.linkedin, `<a href="${escapeHtml(links.linkedInUrl)}">LinkedIn profile</a>`);
+  }
+  return withLinks
     .split(/\n{2,}/)
     .map((block) => `<p>${block.replace(/\n/g, "<br />")}</p>`)
     .join("\n");
-  return [
-    "<!DOCTYPE html>",
-    '<html lang="en"><body style="font-family:Georgia,serif;font-size:16px;line-height:1.5;color:#1a1a1a;">',
-    paragraphs,
-    "</body></html>",
-  ].join("\n");
 }
 
 export function escapeHtml(value: string): string {

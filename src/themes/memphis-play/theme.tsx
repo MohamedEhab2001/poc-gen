@@ -121,8 +121,8 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
               </a>
             ) : null}
             {record.gallery ? (
-              <a href="#fun" className="rounded-full bg-[var(--secondary)]/10 px-4 py-2 transition-colors hover:bg-[var(--secondary)] hover:text-white">
-                Fun
+              <a href="#gallery" className="rounded-full bg-[var(--secondary)]/10 px-4 py-2 transition-colors hover:bg-[var(--secondary)] hover:text-white">
+                Gallery
               </a>
             ) : null}
             <a href="#visit" className="rounded-full bg-[var(--accent)]/25 px-4 py-2 transition-colors hover:bg-[var(--accent)]">
@@ -198,7 +198,7 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
                 />
               </div>
               <p className="fx-bob absolute -left-2 top-8 -rotate-6 rounded-full bg-[var(--secondary)] px-4 py-2 text-[11.5px] font-extrabold uppercase tracking-wide text-white shadow-md">
-                Extra boba, always
+                {record.identity.categories.slice(0, 2).join(" · ") || record.identity.primaryCategory}
               </p>
             </Reveal>
           ) : null}
@@ -297,19 +297,19 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
       ) : null}
 
       {record.gallery ? (
-        <section id="fun" aria-labelledby="fun-heading" className="poc-container pb-16 md:pb-24">
-          <div className="mb-10 text-center">
+        <section id="gallery" aria-labelledby="gallery-heading" className="poc-container pb-14 md:pb-20">
+          <div className="mb-8 text-center">
             <Reveal>
-              <h2 id="fun-heading" className="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-                {record.gallery.title ?? "The fun wall"}
+              <h2 id="gallery-heading" className="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+                {record.gallery.title ?? `Explore ${record.identity.shortName}`}
               </h2>
             </Reveal>
             <div className="mt-5 flex justify-center">
               <Squiggle flip />
             </div>
           </div>
-          <StaggerGroup className="grid grid-cols-2 gap-5 lg:grid-cols-4" gap={0.1}>
-            {record.gallery.images.slice(0, 4).map((image, index) => (
+          <StaggerGroup className="mx-auto grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" gap={0.1}>
+            {record.gallery.images.slice(0, 3).map((image, index) => (
               <StaggerItem key={image.url} className={index % 2 === 1 ? "lg:translate-y-5" : ""}>
                 <div
                   className="overflow-hidden border-[4px] border-[var(--text)] shadow-[6px_6px_0_var(--text)]"
@@ -396,7 +396,7 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
         <Reveal>
           <div className="rounded-[var(--radius)] border-[3px] border-[var(--text)] bg-white p-7 shadow-[8px_8px_0_var(--primary)]">
             <h2 id="visit-heading" className="font-display text-2xl font-extrabold tracking-tight">
-              Come get loud
+              Visit {record.identity.shortName}
             </h2>
             {record.hours ? (
               <div className="mt-6">

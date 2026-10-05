@@ -78,7 +78,7 @@ export function MapSection({
         </div>
       )}
       <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-        {address ? (
+        {embed && address ? (
           <p className={addressClassName ?? "text-sm"}>{address}</p>
         ) : null}
         {directionsHref ? (

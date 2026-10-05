@@ -83,6 +83,16 @@ export async function prepareOutreach(
   input: z.infer<typeof prepareOutreachInputSchema>,
   ctx: CallContext,
 ) {
+  if (!ctx.config.senderName || !ctx.config.senderIntro || !ctx.config.senderLinkedInUrl) {
+    throw new AutomationError(
+      "sender_identity_incomplete",
+      "Sender name, introduction, and LinkedIn profile are required before preparing outreach.",
+      "REJECTED",
+    );
+  }
+  const senderName = ctx.config.senderName;
+  const senderIntro = ctx.config.senderIntro;
+  const senderLinkedInUrl = ctx.config.senderLinkedInUrl;
   return withTransaction(async (tx) => {
     const pair = await getLeadWithBusiness(tx, input.leadId);
     if (!pair) throw new AutomationError("lead_not_found", "No such lead.", "REJECTED");
@@ -225,7 +235,10 @@ export async function prepareOutreach(
       pocLink,
       unsubscribeUrl,
       config: {
-        senderName: ctx.config.senderName ?? "POC Gen",
+        businessName: business.displayName,
+        senderName,
+        senderIntro,
+        senderLinkedInUrl,
         fromEmail: ctx.config.fromEmail ?? "outreach@localhost",
         replyTo: ctx.config.replyTo,
         postalAddress: ctx.config.postalAddress,
@@ -456,6 +469,8 @@ export async function sendOutreach(
   const templateParams: Record<string, string> = {
     business_name: businessName,
     sender_name: ctx.config.senderName ?? "POC Gen",
+    sender_intro: ctx.config.senderIntro ?? "",
+    sender_linkedin_url: ctx.config.senderLinkedInUrl ?? "",
     preview_text: previewTextFrom(prepared.bodyText),
     ...(prepared.pocUrl ? { poc_url: prepared.pocUrl } : {}),
     postal_address: ctx.config.postalAddress ?? "",

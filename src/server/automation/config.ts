@@ -20,6 +20,8 @@ export interface AutomationConfig {
   perDomainDailyLimit: number;
   maxFollowups: number;
   senderName: string | null;
+  senderIntro: string | null;
+  senderLinkedInUrl: string | null;
   fromEmail: string | null;
   replyTo: string | null;
   postalAddress: string | null;
@@ -61,6 +63,21 @@ function parseInt_(value: string | undefined, fallback: number, min: number, max
   return fallback;
 }
 
+function isLinkedInProfileUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    return (
+      url.protocol === "https:" &&
+      (hostname === "linkedin.com" || hostname === "www.linkedin.com") &&
+      url.pathname.toLowerCase().startsWith("/in/") &&
+      url.pathname.length > 4
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function resolveAutomationConfig(
   env: Record<string, string | undefined>,
   nodeEnv: string | undefined,
@@ -81,6 +98,8 @@ export function resolveAutomationConfig(
   }
 
   const senderName = env.OUTREACH_SENDER_NAME ?? null;
+  const senderIntro = env.OUTREACH_SENDER_INTRO?.trim() || null;
+  const senderLinkedInUrl = env.OUTREACH_SENDER_LINKEDIN_URL?.trim() || null;
   const fromEmail = env.OUTREACH_FROM_EMAIL ?? null;
   const replyTo = env.OUTREACH_REPLY_TO ?? null;
   const postalAddress = env.OUTREACH_POSTAL_ADDRESS ?? null;
@@ -104,6 +123,10 @@ export function resolveAutomationConfig(
 
   if (sendingEnabled) {
     if (!senderName) problems.push("OUTREACH_SENDER_NAME is required when sending is enabled.");
+    if (!senderIntro) problems.push("OUTREACH_SENDER_INTRO is required when sending is enabled.");
+    if (!senderLinkedInUrl || !isLinkedInProfileUrl(senderLinkedInUrl)) {
+      problems.push("OUTREACH_SENDER_LINKEDIN_URL must be a valid HTTPS LinkedIn profile URL when sending is enabled.");
+    }
     if (!fromEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(fromEmail)) {
       problems.push("OUTREACH_FROM_EMAIL must be a valid address when sending is enabled.");
     }
@@ -161,6 +184,8 @@ export function resolveAutomationConfig(
     perDomainDailyLimit: parseInt_(env.OUTREACH_PER_DOMAIN_DAILY_LIMIT, 3, 3, 100),
     maxFollowups: Math.min(2, parseInt_(env.OUTREACH_MAX_FOLLOWUPS, 2, 0, 2)),
     senderName,
+    senderIntro,
+    senderLinkedInUrl,
     fromEmail,
     replyTo,
     postalAddress,

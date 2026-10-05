@@ -202,6 +202,10 @@ describe("resolvePocMedia provider priority", () => {
     expect(query("Dentist")).toBe("professional dental clinic interior");
     expect(query("Gym")).toBe("boutique fitness studio");
     expect(query("Bakery")).toBe("local bakery pastries");
+    expect(query("Bubble tea")).toBe("colorful bubble tea boba drinks cafe");
+    expect(
+      buildConceptQuery({ primaryCategory: "Bubble tea", categories: ["Bubble tea", "Ramen", "Restaurant"] }).query,
+    ).toBe("colorful bubble tea boba drinks cafe");
     expect(query("Barber shop")).toBe("barbershop interior");
     expect(query("Accountant")).toBe("professional office workspace");
     expect(query("Taqueria")).toBe("mexican street tacos");

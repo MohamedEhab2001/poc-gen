@@ -166,6 +166,8 @@ describe.skipIf(!dbUrl)("automation bridge (integration)", () => {
     process.env.OUTREACH_SEND_ENABLED = "true";
     process.env.OUTREACH_EMAIL_PROVIDER = "mock";
     process.env.OUTREACH_SENDER_NAME = "Integration Test";
+    process.env.OUTREACH_SENDER_INTRO = "I'm Integration Test, a software engineer who builds practical websites.";
+    process.env.OUTREACH_SENDER_LINKEDIN_URL = "https://www.linkedin.com/in/integration-test";
     process.env.OUTREACH_FROM_EMAIL = "it@poc-gen.invalid";
     process.env.OUTREACH_REPLY_TO = "it@poc-gen.invalid";
     process.env.OUTREACH_POSTAL_ADDRESS = "1 Integration Way, Portland, OR";
@@ -581,7 +583,7 @@ describe.skipIf(!dbUrl)("automation bridge (integration)", () => {
       idempotencyKey: `out-${key}-prep`,
       leadId,
       subject: `A website concept for Test Kitchen ${key}`,
-      body: `Hi team — a private concept page: {{poc_link}}\n\nUnofficial and made for you.`,
+      body: `A small unofficial homepage mockup: {{poc_link}}\n\nMade as an independent demonstration.`,
       evidenceRefs: snapshotIds,
     });
     const messageId = String(prepared.messageId);

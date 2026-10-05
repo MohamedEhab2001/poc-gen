@@ -46,6 +46,8 @@ export function configureSmokeEnvironment(argv: string[]): string {
   // the real provider-selection path in dry run — still zero network calls.
   process.env.OUTREACH_EMAIL_PROVIDER ??= "mock";
   process.env.OUTREACH_SENDER_NAME = "POC Gen Smoke";
+  process.env.OUTREACH_SENDER_INTRO = "I'm the POC Gen smoke-test sender.";
+  process.env.OUTREACH_SENDER_LINKEDIN_URL = "https://www.linkedin.com/in/poc-gen-smoke";
   process.env.OUTREACH_FROM_EMAIL = "smoke@poc-gen.invalid";
   process.env.OUTREACH_REPLY_TO = "smoke@poc-gen.invalid";
   process.env.OUTREACH_POSTAL_ADDRESS = "1 Smoke Test Way, Portland, OR 97209";

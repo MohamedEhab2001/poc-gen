@@ -72,12 +72,15 @@ async function main(): Promise<void> {
     subject: "Test: your website concept email setup",
     body:
       "Hi there — this is a one-off TEST of the outreach email template. " +
-      "The real emails look exactly like this one and link to a private concept page: {{poc_link}}",
+      "The real emails look exactly like this one and link to an unofficial homepage mockup: {{poc_link}}",
     // Deliberately non-functional test links (this message reaches no lead).
     pocLink: `${base}/p/TEST-NOT-A-REAL-LINK`,
     unsubscribeUrl: `${base}/api/unsubscribe?k=TEST-NOT-A-REAL-LINK`,
     config: {
+      businessName: "Test Business",
       senderName,
+      senderIntro: process.env.OUTREACH_SENDER_INTRO ?? "I build practical websites for small businesses.",
+      senderLinkedInUrl: process.env.OUTREACH_SENDER_LINKEDIN_URL ?? "https://www.linkedin.com/in/test-profile",
       fromEmail: process.env.OUTREACH_FROM_EMAIL ?? "test@poc-gen.invalid",
       replyTo: process.env.OUTREACH_REPLY_TO ?? null,
       postalAddress: process.env.OUTREACH_POSTAL_ADDRESS ?? null,
@@ -106,6 +109,8 @@ async function main(): Promise<void> {
     templateParams: {
       business_name: "Test Business",
       sender_name: senderName,
+      sender_intro: process.env.OUTREACH_SENDER_INTRO ?? "I build practical websites for small businesses.",
+      sender_linkedin_url: process.env.OUTREACH_SENDER_LINKEDIN_URL ?? "https://www.linkedin.com/in/test-profile",
       preview_text: "A one-off test of your outreach email template",
       poc_url: `${base}/p/TEST-NOT-A-REAL-LINK`,
       postal_address: process.env.OUTREACH_POSTAL_ADDRESS ?? "",
