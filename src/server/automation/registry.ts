@@ -77,7 +77,7 @@ async function healthHandler(): Promise<unknown> {
   const config = getAutomationConfig();
   return {
     service: "poc-gen-automation",
-    version: "2a",
+    version: "2b",
     automationEnabled: config.automationEnabled,
     emergencyStop: config.emergencyStop,
     sendingEnabled: config.sendingEnabled,
