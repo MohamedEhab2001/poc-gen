@@ -3,12 +3,16 @@ import "server-only";
 import type { ZodType } from "zod";
 import { z } from "zod";
 import {
+  createCampaignInputSchema,
   finishRunInputSchema,
+  getCampaignProgressInputSchema,
   ingestLeadsInputSchema,
   interestedLeadsInputSchema,
   listDueFollowupsInputSchema,
+  planCampaignStateInputSchema,
   prepareOutreachInputSchema,
   publishPocInputSchema,
+  recordCampaignBatchInputSchema,
   recordReplyInputSchema,
   retryFailedLeadInputSchema,
   runQaInputSchema,
@@ -32,6 +36,12 @@ import { ingestLeads } from "./operations/ingest";
 import { publishPoc, retryFailedLead, runPocQa, upsertPocRecord } from "./operations/poc";
 import { listDueFollowups, prepareOutreach, sendOutreach } from "./operations/outreach";
 import { getInterestedLeads, recordReplyOutcome, suppressContact } from "./operations/replies";
+import {
+  createStateCampaign,
+  getStateCampaignProgress,
+  planStateCampaign,
+  recordStateCampaignBatch,
+} from "./operations/campaigns";
 
 /**
  * The single operation registry. The MCP adapter and the internal HTTP
@@ -92,6 +102,38 @@ const registry: Record<string, OperationDefinition> = {
     mutating: true,
     inputSchema: startRunInputSchema,
     handler: (input, ctx) => startAutomationRun(input as never, ctx),
+  },
+  create_state_campaign: {
+    description:
+      "Create one durable, ordered state-by-state outreach campaign. PostgreSQL stores the current state, per-state counters, and the configured maximum sends per scheduled run.",
+    scope: "poc:write",
+    mutating: true,
+    inputSchema: createCampaignInputSchema,
+    handler: (input, ctx) => createStateCampaign(input as never, ctx),
+  },
+  plan_campaign_state: {
+    description:
+      "Plan the bounded city, metro, or county search areas for the campaign's current state. Safe to call repeatedly; existing area keys are preserved and not duplicated.",
+    scope: "poc:write",
+    mutating: true,
+    inputSchema: planCampaignStateInputSchema,
+    handler: (input, ctx) => planStateCampaign(input as never, ctx),
+  },
+  get_campaign_progress: {
+    description:
+      "Read the durable nationwide campaign cursor by stable campaign name or id, including current state counters and the next pending search areas. Call this before every scheduled research batch.",
+    scope: "reports:read",
+    mutating: false,
+    inputSchema: getCampaignProgressInputSchema,
+    handler: (input) => getStateCampaignProgress(input as never),
+  },
+  record_campaign_batch: {
+    description:
+      "Atomically complete searched areas and record bounded discovery/outreach counters. A state advances only after every planned area is complete and two consecutive empty statewide sweeps have been recorded.",
+    scope: "poc:write",
+    mutating: true,
+    inputSchema: recordCampaignBatchInputSchema,
+    handler: (input, ctx) => recordStateCampaignBatch(input as never, ctx),
   },
   get_poc_authoring_guide: {
     description:

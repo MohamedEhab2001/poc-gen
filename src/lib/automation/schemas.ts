@@ -19,6 +19,21 @@ export const principalSchema = z.string().min(1).max(200);
 
 export const leadIdSchema = z.string().uuid().max(36);
 export const runIdSchema = z.string().uuid().max(36);
+export const campaignIdSchema = z.string().uuid().max(36);
+
+const usStateSchema = z
+  .object({
+    code: z.string().regex(/^[A-Z]{2}$/),
+    name: z.string().min(2).max(64),
+  })
+  .strict();
+
+const campaignAreaSchema = z
+  .object({
+    key: z.string().min(1).max(96).regex(/^[a-z0-9][a-z0-9._:-]*$/),
+    label: z.string().min(1).max(120),
+  })
+  .strict();
 
 export const REPLY_CLASSIFICATIONS = [
   "INTERESTED",
@@ -63,6 +78,98 @@ export const startRunResultSchema = z.object({
   counters: z.record(z.string(), z.number()),
   resumed: z.boolean(),
 });
+
+// ---------------------------------------------------------------------------
+// Persistent state-by-state outreach campaigns
+// ---------------------------------------------------------------------------
+
+export const createCampaignInputSchema = z
+  .object({
+    idempotencyKey: idKeySchema,
+    name: z.string().min(3).max(96),
+    country: z.string().min(2).max(64).optional(),
+    stateQueue: z.array(usStateSchema).min(1).max(60),
+    maxSendsPerRun: z.number().int().min(1).max(20).optional(),
+    runId: runIdSchema.nullable().optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const codes = value.stateQueue.map((state) => state.code);
+    if (new Set(codes).size !== codes.length) {
+      ctx.addIssue({ code: "custom", path: ["stateQueue"], message: "State codes must be unique." });
+    }
+  });
+
+export const planCampaignStateInputSchema = z
+  .object({
+    idempotencyKey: idKeySchema,
+    campaignId: campaignIdSchema,
+    stateCode: z.string().regex(/^[A-Z]{2}$/),
+    areas: z.array(campaignAreaSchema).min(1).max(500),
+    runId: runIdSchema.nullable().optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const keys = value.areas.map((area) => area.key);
+    if (new Set(keys).size !== keys.length) {
+      ctx.addIssue({ code: "custom", path: ["areas"], message: "Area keys must be unique." });
+    }
+  });
+
+export const getCampaignProgressInputSchema = z
+  .object({
+    campaignId: campaignIdSchema.optional(),
+    campaignName: z.string().min(3).max(96).optional(),
+    nextAreaLimit: z.number().int().min(1).max(50).optional(),
+  })
+  .strict()
+  .refine((value) => Boolean(value.campaignId || value.campaignName), {
+    message: "Provide campaignId or campaignName.",
+    path: ["campaignId"],
+  });
+
+export const campaignBatchCountersSchema = z
+  .object({
+    discovered: z.number().int().min(0).max(10_000),
+    qualified: z.number().int().min(0).max(10_000),
+    queued: z.number().int().min(0).max(10_000),
+    contacted: z.number().int().min(0).max(10_000),
+    rejected: z.number().int().min(0).max(10_000),
+  })
+  .strict()
+  .refine((value) => value.qualified <= value.discovered, {
+    message: "Qualified count cannot exceed discovered count.",
+    path: ["qualified"],
+  })
+  .refine((value) => value.queued <= value.qualified, {
+    message: "Queued count cannot exceed qualified count.",
+    path: ["queued"],
+  })
+  .refine((value) => value.contacted <= value.qualified, {
+    message: "Contacted count cannot exceed qualified count.",
+    path: ["contacted"],
+  });
+
+export const recordCampaignBatchInputSchema = z
+  .object({
+    idempotencyKey: idKeySchema,
+    campaignId: campaignIdSchema,
+    stateCode: z.string().regex(/^[A-Z]{2}$/),
+    completedAreaKeys: z.array(z.string().min(1).max(96)).max(20).default([]),
+    counters: campaignBatchCountersSchema,
+    /** A broad final sweep; two consecutive empty sweeps close the state. */
+    statewideSweep: z.boolean().optional().default(false),
+    runId: runIdSchema.nullable().optional(),
+  })
+  .strict()
+  .refine((value) => value.completedAreaKeys.length > 0 || value.statewideSweep, {
+    message: "Complete at least one planned area or record a statewide sweep.",
+    path: ["completedAreaKeys"],
+  })
+  .refine((value) => new Set(value.completedAreaKeys).size === value.completedAreaKeys.length, {
+    message: "Completed area keys must be unique.",
+    path: ["completedAreaKeys"],
+  });
 
 // ---------------------------------------------------------------------------
 // ingest_leads
