@@ -8,13 +8,21 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { HeroSequence } from "@/components/poc/motion/HeroSequence";
+import { LineGrow } from "@/components/poc/motion/LineGrow";
+import { ParallaxMedia } from "@/components/poc/motion/ParallaxMedia";
+import { Reveal } from "@/components/poc/motion/Reveal";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { display, body } from "./fonts";
 
 /**
  * Coffee Editorial: an independent café rendered as a magazine. Masthead
  * navigation, publication-cover hero, story-first about, editorial columns,
  * oversized folio numerals on menu sections, reviews as marginalia pull
- * quotes, film grain instead of cards.
+ * quotes, film grain instead of cards. Calm publication motion: the cover
+ * assembles once (folio line, headline, deck), folio numerals and rule
+ * lines settle into place, images reveal with editorial clipping and a
+ * slight scroll-linked drift.
  */
 export default function CoffeeEditorialTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -62,17 +70,21 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
       {/* Cover hero */}
       <section aria-labelledby="hero-heading">
         <div className="poc-container grid gap-8 py-12 lg:grid-cols-[1.35fr_1fr] lg:items-end lg:py-16">
-          <div className="fx-rise">
-            {record.hero.eyebrow ? (
-              <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--secondary)]">
-                {record.hero.eyebrow}
-              </p>
-            ) : null}
-            <h1 id="hero-heading" className="font-display text-[2.9rem] font-medium leading-[1.02] md:text-6xl lg:text-[4.4rem]">
-              {record.hero.headline}
-            </h1>
+          <div>
+            <HeroSequence
+              steps={[
+                record.hero.eyebrow ? (
+                  <p key="eyebrow" className="mb-4 font-mono text-[11px] uppercase tracking-[0.24em] text-[var(--secondary)]">
+                    {record.hero.eyebrow}
+                  </p>
+                ) : null,
+                <h1 key="headline" id="hero-heading" className="font-display text-[2.9rem] font-medium leading-[1.02] md:text-6xl lg:text-[4.4rem]">
+                  {record.hero.headline}
+                </h1>,
+              ]}
+            />
           </div>
-          <div className="fx-rise border-l-2 border-[var(--secondary)] pl-6 lg:mb-2">
+          <Reveal delay={0.16} className="border-l-2 border-[var(--secondary)] pl-6 lg:mb-2">
             {record.hero.subheadline ? (
               <p className="text-[14.5px] leading-[1.8] text-[var(--muted)]">{record.hero.subheadline}</p>
             ) : null}
@@ -96,27 +108,31 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
                 {record.reputation.rating.toFixed(1)} / {record.reputation.reviewCount.toLocaleString("en-US")} reviews
               </p>
             ) : null}
-          </div>
+          </Reveal>
         </div>
         {record.hero.image ? (
           <div className="poc-container pb-12">
-            <div className="relative h-[clamp(360px,48vw,620px)] overflow-hidden border-y-2 border-[var(--text)]">
-              <SmartImage
-                image={record.hero.image}
-                priority
-                fill
-                sizes="(min-width: 1120px) 1120px, 100vw"
-                className="h-full w-full object-cover"
-                attributionClassName="mt-2 text-right font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--muted)]"
-              />
-            </div>
+            <Reveal media delay={0.1}>
+              <ParallaxMedia className="relative h-[clamp(360px,48vw,620px)] overflow-hidden border-y-2 border-[var(--text)]">
+                <div className="absolute inset-x-0 -top-[5%] h-[110%]">
+                  <SmartImage
+                    image={record.hero.image}
+                    priority
+                    fill
+                    sizes="(min-width: 1120px) 1120px, 100vw"
+                    className="h-full w-full object-cover"
+                    attributionClassName="poc-media-credit"
+                  />
+                </div>
+              </ParallaxMedia>
+            </Reveal>
           </div>
         ) : null}
       </section>
 
       {record.about || record.services.length + record.amenities.length > 0 ? (
         <section id="story" aria-labelledby="story-heading" className="border-t-2 border-[var(--text)]">
-          <div className="poc-container grid gap-10 py-14 md:grid-cols-[1fr_1.6fr] md:py-20 fx-reveal">
+          <Reveal className="poc-container grid gap-10 py-14 md:grid-cols-[1fr_1.6fr] md:py-20">
             <div>
               <p className="font-display text-[64px] font-medium leading-none text-[var(--accent)]/45" aria-hidden="true">
                 {issueNo}
@@ -140,14 +156,14 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
                 </p>
               ) : null}
             </div>
-          </div>
+          </Reveal>
         </section>
       ) : null}
 
       {record.menu ? (
         <section id="menu" aria-labelledby="menu-heading" className="border-t-2 border-[var(--text)] bg-[var(--surface)]">
           <div className="poc-container py-14 md:py-20">
-            <div className="mb-12 flex flex-wrap items-baseline justify-between gap-4 border-b border-[var(--border)] pb-6">
+            <Reveal className="mb-12 flex flex-wrap items-baseline justify-between gap-4 border-b border-[var(--border)] pb-6">
               <h2 id="menu-heading" className="font-display text-4xl font-medium md:text-5xl">
                 Menu
               </h2>
@@ -156,10 +172,11 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
                   {record.menu.notice}
                 </p>
               ) : null}
-            </div>
-            <div className="grid gap-x-12 gap-y-14 md:grid-cols-2">
+            </Reveal>
+            <LineGrow className="mb-12 h-px w-full bg-[var(--border)]" delay={0.05} />
+            <StaggerGroup className="grid gap-x-12 gap-y-14 md:grid-cols-2" gap={0.14}>
               {record.menu.sections.map((section, index) => (
-                <article key={section.id} className="relative fx-reveal">
+                <StaggerItem key={section.id} as="article" className="relative">
                   <div className="flex items-start gap-5">
                     <span className="font-display text-[52px] font-medium leading-[0.85] text-[var(--secondary)]" aria-hidden="true">
                       {String(index + 1).padStart(2, "0")}
@@ -192,9 +209,9 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
                       </div>
                     ))}
                   </dl>
-                </article>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
@@ -205,9 +222,9 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
             <h2 id="gallery-heading" className="mb-10 font-display text-4xl font-medium">
               {record.gallery.title ?? "Plates"}
             </h2>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <StaggerGroup className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4" gap={0.09}>
               {record.gallery.images.slice(0, 4).map((image, index) => (
-                <figure key={image.url} className={index % 2 === 1 ? "lg:mt-10" : ""}>
+                <StaggerItem as="figure" key={image.url} className={index % 2 === 1 ? "lg:mt-10" : ""}>
                   <SmartImage
                     image={image}
                     width={640}
@@ -216,9 +233,9 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
                     className="h-auto w-full object-cover"
                     attributionClassName="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted)]"
                   />
-                </figure>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
@@ -229,9 +246,9 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
             <h2 id="reviews-heading" className="font-display text-3xl font-medium">
               Marginalia
             </h2>
-            <div className="space-y-10">
+            <StaggerGroup className="space-y-10" gap={0.16}>
               {record.reputation.reviews.slice(0, 3).map((review) => (
-                <figure key={review.id} className="border-l-2 border-[var(--text)] pl-6">
+                <StaggerItem as="figure" key={review.id} className="border-l-2 border-[var(--text)] pl-6">
                   <blockquote className="font-display text-[21px] font-medium italic leading-[1.55]">
                     &ldquo;{review.text}&rdquo;
                   </blockquote>
@@ -241,9 +258,9 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
                   {review.attribution ? (
                     <AttributionLine attribution={review.attribution} className="mt-1 font-mono text-[10px] uppercase tracking-wide text-[var(--muted)]" />
                   ) : null}
-                </figure>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
@@ -251,7 +268,7 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
       {/* Visit: editorial columns */}
       <section id="visit" aria-labelledby="visit-heading" className="border-t-2 border-[var(--text)]">
         <div className="poc-container grid gap-12 py-14 md:grid-cols-2 md:py-20">
-          <div className="fx-reveal">
+          <Reveal>
             <h2 id="visit-heading" className="font-display text-4xl font-medium">
               Visit
             </h2>
@@ -292,9 +309,9 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
                 ) : null}
               </div>
             </div>
-          </div>
+          </Reveal>
           {record.location ? (
-            <div className="fx-reveal">
+            <Reveal delay={0.12}>
               <MapSection
                 location={record.location}
                 businessName={record.identity.name}
@@ -304,7 +321,7 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
                 addressClassName="text-[14px] text-[var(--text)]"
                 buttonClassName="mt-2 inline-block border-b-2 border-[var(--secondary)] pb-0.5 font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--text)] hover:text-[var(--secondary)]"
               />
-            </div>
+            </Reveal>
           ) : null}
         </div>
       </section>

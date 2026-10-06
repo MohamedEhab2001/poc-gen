@@ -8,6 +8,10 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { HeroSequence } from "@/components/poc/motion/HeroSequence";
+import { LineGrow } from "@/components/poc/motion/LineGrow";
+import { Reveal } from "@/components/poc/motion/Reveal";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { MenuBoard } from "./MenuBoard";
 import { display, body } from "./fonts";
 
@@ -15,7 +19,9 @@ import { display, body } from "./fonts";
  * American Diner: cheerful retro. Navy and cherry horizontal bands, a
  * signboard hero with prominent hours, checker accents, tactile chunky CTAs
  * with hard offset shadows, a tabbed menu board, and speech-card reviews.
- * Polished nostalgia, not kitsch.
+ * Polished retro motion: the signboard assembles once, bands slide in from
+ * their edges, the checker strip draws across, buttons press in — never
+ * cartoonish.
  */
 export default function AmericanDinerTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -57,9 +63,9 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
           ) : null}
         </div>
         {/* Checker strip */}
-        <div
-          aria-hidden="true"
+        <LineGrow
           className="h-3 w-full"
+          delay={0.15}
           style={{
             backgroundImage: `repeating-linear-gradient(90deg, ${p.background} 0 14px, ${p.primary} 14px 28px)`,
           }}
@@ -69,59 +75,65 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
       {/* Signboard hero */}
       <section aria-labelledby="hero-heading" className="poc-container py-12 md:py-16">
         <div className="relative mx-auto max-w-4xl border-4 border-[var(--primary)] bg-[var(--surface)] px-6 py-10 text-center shadow-[12px_12px_0_var(--primary)] md:px-14 md:py-14">
-          {record.hero.eyebrow ? (
-            <p className="mb-3 text-[12px] font-extrabold uppercase tracking-[0.3em] text-[var(--primary)]">
-              {record.hero.eyebrow}
-            </p>
-          ) : null}
-          <h1 id="hero-heading" className="font-display text-[2.5rem] leading-[1.05] text-[var(--text)] md:text-6xl">
-            {record.hero.headline}
-          </h1>
-          {record.hero.subheadline ? (
-            <p className="mx-auto mt-4 max-w-[48ch] text-[15px] font-semibold text-[var(--muted)]">
-              {record.hero.subheadline}
-            </p>
-          ) : null}
-          {record.reputation ? (
-            <p className="mt-4 flex items-center justify-center gap-1.5 text-[14px] font-extrabold text-[var(--text)]">
-              <Star size={15} strokeWidth={1.5} className="fill-[var(--accent)] text-[var(--accent)]" aria-hidden="true" />
-              {record.reputation.rating.toFixed(1)} · {record.reputation.reviewCount.toLocaleString("en-US")} reviews
-            </p>
-          ) : null}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-5">
-            {record.cta.primary ? (
-              <ActionLink
-                cta={record.cta.primary}
-                className="bg-[var(--primary)] px-8 py-4 text-[15px] font-extrabold uppercase tracking-[0.06em] text-[var(--on-primary)] shadow-[6px_6px_0_var(--secondary)] transition-transform hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[3px_3px_0_var(--secondary)]"
-              />
-            ) : null}
-            {record.cta.secondary[0] ? (
-              <ActionLink
-                cta={record.cta.secondary[0]}
-                className="border-4 border-[var(--secondary)] px-7 py-3 text-[14px] font-extrabold uppercase tracking-[0.06em] text-[var(--secondary)] transition-transform hover:-translate-y-0.5"
-              />
-            ) : null}
-          </div>
+          <HeroSequence
+            steps={[
+              record.hero.eyebrow ? (
+                <p key="eyebrow" className="mb-3 text-[12px] font-extrabold uppercase tracking-[0.3em] text-[var(--primary)]">
+                  {record.hero.eyebrow}
+                </p>
+              ) : null,
+              <h1 key="headline" id="hero-heading" className="font-display text-[2.5rem] leading-[1.05] text-[var(--text)] md:text-6xl">
+                {record.hero.headline}
+              </h1>,
+              record.hero.subheadline ? (
+                <p key="sub" className="mx-auto mt-4 max-w-[48ch] text-[15px] font-semibold text-[var(--muted)]">
+                  {record.hero.subheadline}
+                </p>
+              ) : null,
+              record.reputation ? (
+                <p key="reputation" className="mt-4 flex items-center justify-center gap-1.5 text-[14px] font-extrabold text-[var(--text)]">
+                  <Star size={15} strokeWidth={1.5} className="fill-[var(--accent)] text-[var(--accent)]" aria-hidden="true" />
+                  {record.reputation.rating.toFixed(1)} · {record.reputation.reviewCount.toLocaleString("en-US")} reviews
+                </p>
+              ) : null,
+              <div key="ctas" className="mt-8 flex flex-wrap items-center justify-center gap-5">
+                {record.cta.primary ? (
+                  <ActionLink
+                    cta={record.cta.primary}
+                    className="bg-[var(--primary)] px-8 py-4 text-[15px] font-extrabold uppercase tracking-[0.06em] text-[var(--on-primary)] shadow-[6px_6px_0_var(--secondary)] transition-transform hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[3px_3px_0_var(--secondary)]"
+                  />
+                ) : null}
+                {record.cta.secondary[0] ? (
+                  <ActionLink
+                    cta={record.cta.secondary[0]}
+                    className="border-4 border-[var(--secondary)] px-7 py-3 text-[14px] font-extrabold uppercase tracking-[0.06em] text-[var(--secondary)] transition-transform hover:-translate-y-0.5"
+                  />
+                ) : null}
+              </div>,
+            ]}
+          />
         </div>
       </section>
 
       {record.hero.image ? (
         <section aria-label="Photo of the diner" className="poc-container pb-12">
-          <SmartImage
-            image={record.hero.image}
-            priority
-            width={1600}
-            height={820}
-            sizes="(min-width: 976px) 976px, 100vw"
-            className="h-auto w-full border-4 border-[var(--secondary)] object-cover shadow-[10px_10px_0_var(--primary)]"
-            attributionClassName="mt-2 text-right text-[11.5px] font-bold text-[var(--muted)]"
-          />
+          <Reveal direction="left" media delay={0.08}>
+            <SmartImage
+              image={record.hero.image}
+              priority
+              width={1600}
+              height={820}
+              sizes="(min-width: 976px) 976px, 100vw"
+              className="h-auto w-full border-4 border-[var(--secondary)] object-cover shadow-[10px_10px_0_var(--primary)]"
+              attributionClassName="mt-2 text-right text-[11.5px] font-bold text-[var(--muted)]"
+            />
+          </Reveal>
         </section>
       ) : null}
 
       {record.about || record.services.length + record.amenities.length > 0 ? (
         <section id="story" aria-labelledby="story-heading" className="bg-[var(--surface)] py-14 md:py-18">
-          <div className="poc-container max-w-3xl text-center fx-reveal">
+          <Reveal className="poc-container max-w-3xl text-center">
             <h2 id="story-heading" className="font-display text-3xl text-[var(--text)] md:text-4xl">
               {record.about?.title ?? `Our place`}
             </h2>
@@ -129,18 +141,19 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
               <p className="mt-5 text-[15px] leading-[1.85] font-medium text-[var(--muted)]">{record.about.body}</p>
             ) : null}
             {record.services.length + record.amenities.length > 0 ? (
-              <ul className={`flex flex-wrap justify-center gap-3 ${record.about ? "mt-7" : "mt-6"}`}>
+              <StaggerGroup as="ul" className={`flex flex-wrap justify-center gap-3 ${record.about ? "mt-7" : "mt-6"}`} gap={0.06}>
                 {[...record.services, ...record.amenities].slice(0, 6).map((item) => (
-                  <li
+                  <StaggerItem
+                    as="li"
                     key={item.key + item.label}
                     className="rounded-full border-2 border-dashed border-[var(--primary)] px-4 py-1.5 text-[12px] font-extrabold uppercase tracking-[0.06em] text-[var(--primary)]"
                   >
                     {item.label}
-                  </li>
+                  </StaggerItem>
                 ))}
-              </ul>
+              </StaggerGroup>
             ) : null}
-          </div>
+          </Reveal>
         </section>
       ) : null}
 
@@ -154,11 +167,11 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
               {record.menu.notice}
             </p>
           ) : (
-            <div aria-hidden="true" className="mx-auto mb-10 h-1 w-24 bg-[var(--primary)]" />
+            <LineGrow className="mx-auto mb-10 h-1 w-24 bg-[var(--primary)]" origin="center" delay={0.1} />
           )}
-          <div className="mx-auto max-w-4xl">
+          <Reveal delay={0.05} className="mx-auto max-w-4xl">
             <MenuBoard menu={record.menu} />
-          </div>
+          </Reveal>
         </section>
       ) : null}
 
@@ -167,9 +180,9 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
           <h2 id="gallery-heading" className="mb-8 text-center font-display text-3xl text-[var(--text)]">
             {record.gallery.title ?? "Around the counter"}
           </h2>
-          <ul className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+          <StaggerGroup as="ul" className="grid grid-cols-2 gap-5 lg:grid-cols-4" gap={0.08}>
             {record.gallery.images.slice(0, 4).map((image) => (
-              <li key={image.url}>
+              <StaggerItem as="li" key={image.url}>
                 <SmartImage
                   image={image}
                   width={600}
@@ -178,9 +191,9 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
                   className="h-auto w-full border-4 border-white object-cover shadow-[5px_5px_0_var(--secondary)]"
                   attributionClassName="mt-1.5 text-[10.5px] font-bold text-[var(--muted)]"
                 />
-              </li>
+              </StaggerItem>
             ))}
-          </ul>
+          </StaggerGroup>
         </section>
       ) : null}
 
@@ -190,9 +203,9 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
             <h2 id="reviews-heading" className="mb-10 text-center font-display text-3xl">
               Kind words from the counter
             </h2>
-            <ul className="grid gap-8 md:grid-cols-3">
+            <StaggerGroup as="ul" className="grid gap-8 md:grid-cols-3" gap={0.1}>
               {record.reputation.reviews.slice(0, 3).map((review) => (
-                <li key={review.id} className="relative bg-[var(--surface)] p-6 pt-8 text-[var(--text)] shadow-[6px_6px_0_rgba(0,0,0,0.35)]">
+                <StaggerItem as="li" key={review.id} className="relative bg-[var(--surface)] p-6 pt-8 text-[var(--text)] shadow-[6px_6px_0_rgba(0,0,0,0.35)]">
                   <span
                     aria-hidden="true"
                     className="absolute left-1/2 top-full h-0 w-0 -translate-x-1/2"
@@ -216,15 +229,15 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
                   {review.attribution ? (
                     <AttributionLine attribution={review.attribution} className="mt-1 text-[10.5px] text-[var(--muted)]" />
                   ) : null}
-                </li>
+                </StaggerItem>
               ))}
-            </ul>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
 
       <section id="visit" aria-labelledby="visit-heading" className="poc-container grid gap-12 py-14 md:grid-cols-2 md:py-20">
-        <div className="fx-reveal">
+        <Reveal>
           <h2 id="visit-heading" className="font-display text-3xl text-[var(--text)] md:text-4xl">
             Pull up a stool
           </h2>
@@ -255,10 +268,10 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
               ))}
             </ul>
           ) : null}
-        </div>
+        </Reveal>
         {record.location ? (
-          <div className="fx-reveal">
-            <MapSection
+          <Reveal delay={0.1}>
+          <MapSection
               location={record.location}
               businessName={record.identity.name}
               directionsCta={record.cta.secondary.find((cta) => cta.kind === "directions") ?? null}
@@ -267,14 +280,14 @@ export default function AmericanDinerTheme({ record }: ThemeProps) {
               addressClassName="text-[14.5px] font-bold text-[var(--text)]"
               buttonClassName="mt-2 inline-block bg-[var(--secondary)] px-6 py-3 text-[13px] font-extrabold uppercase tracking-[0.06em] text-[var(--on-secondary)] shadow-[4px_4px_0_var(--primary)]"
             />
-          </div>
+          </Reveal>
         ) : null}
       </section>
 
       {/* Checker strip footer */}
-      <div
-        aria-hidden="true"
+      <LineGrow
         className="h-3 w-full"
+        delay={0.1}
         style={{
           backgroundImage: `repeating-linear-gradient(90deg, ${p.background} 0 14px, ${p.primary} 14px 28px)`,
         }}

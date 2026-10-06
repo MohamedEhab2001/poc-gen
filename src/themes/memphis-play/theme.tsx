@@ -8,8 +8,10 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { AnimatedWordmark } from "@/components/poc/motion/AnimatedWordmark";
+import { AnimeOrnament } from "@/components/poc/motion/AnimeOrnament";
 import { Reveal } from "@/components/poc/motion/Reveal";
-import { StaggerGroup, StaggerItem } from "@/components/poc/motion/Stagger";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { display, body } from "./fonts";
 
 /** Splits the record headline and marker-highlights its final word. */
@@ -31,63 +33,73 @@ function memphisHeadline(headline: string): React.ReactNode {
   );
 }
 
-/** Wobbly squiggle divider in theme colors. */
+/** Wobbly squiggle divider; Anime.js stroke-draws it once, then it rests. */
 function Squiggle({ flip = false }: { flip?: boolean }) {
   return (
-    <svg
-      viewBox="0 0 240 20"
-      width="200"
-      height="16"
-      aria-hidden="true"
-      className={flip ? "-scale-y-100" : undefined}
-    >
-      <path
-        d="M0 10 C 15 0, 30 20, 45 10 C 60 0, 75 20, 90 10 C 105 0, 120 20, 135 10 C 150 0, 165 20, 180 10 C 195 0, 210 20, 225 10 C 232 5, 238 8, 240 10"
-        fill="none"
-        stroke="var(--primary)"
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
-    </svg>
+    <AnimeOrnament variant="draw" durationMs={1100} staggerMs={0}>
+      <svg
+        viewBox="0 0 240 20"
+        width="200"
+        height="16"
+        aria-hidden="true"
+        className={flip ? "-scale-y-100" : undefined}
+      >
+        <path
+          d="M0 10 C 15 0, 30 20, 45 10 C 60 0, 75 20, 90 10 C 105 0, 120 20, 135 10 C 150 0, 165 20, 180 10 C 195 0, 210 20, 225 10 C 232 5, 238 8, 240 10"
+          fill="none"
+          stroke="var(--primary)"
+          strokeWidth="4"
+          strokeLinecap="round"
+          data-anime="draw"
+        />
+      </svg>
+    </AnimeOrnament>
   );
 }
 
-/** Floating Memphis shape set: circle, triangle, zigzag. Animations pause under reduced motion. */
+/**
+ * Memphis shape set: circle, triangle, zigzag. Spring-staggered entrances
+ * with a small rotation settle — all movement stops after the entrance
+ * (nothing floats forever), and everything renders statically when motion
+ * is disabled or reduced.
+ */
 function FloatingShapes() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-      <span
-        className="fx-float absolute right-[8%] top-[12%] h-20 w-20 rounded-full border-[7px] border-[var(--secondary)]"
-        style={{ "--tilt": "0deg" } as React.CSSProperties}
-      />
-      <span
-        className="fx-float absolute bottom-[16%] left-[6%] h-0 w-0 border-l-[30px] border-r-[30px] border-b-[52px] border-l-transparent border-r-transparent border-b-[var(--accent)]"
-        style={{ "--tilt": "-8deg", animationDelay: "0.8s" } as React.CSSProperties}
-      />
-      <span
-        className="fx-float absolute right-[22%] top-[58%] hidden md:block"
-        style={{ "--tilt": "6deg", animationDelay: "1.6s" } as React.CSSProperties}
-      >
-        <svg viewBox="0 0 90 26" width="90" height="26">
-          <path
-            d="M2 22 L16 6 L30 22 L44 6 L58 22 L72 6 L86 22"
-            fill="none"
-            stroke="var(--primary)"
-            strokeWidth="6"
-            strokeLinecap="round"
-          />
-        </svg>
-      </span>
-      <span className="fx-bob absolute left-[16%] top-[10%] h-4 w-4 rounded-full bg-[var(--primary)]" />
-      <span className="fx-bob absolute bottom-[8%] right-[12%] h-3 w-3 rounded-full bg-[var(--accent)]" style={{ animationDelay: "1.1s" }} />
+      <StaggerGroup className="h-full w-full" gap={0.12}>
+        <StaggerItem className="absolute right-[8%] top-[12%]" settle customDistance={34}>
+          <span className="block h-20 w-20 rounded-full border-[7px] border-[var(--secondary)]" />
+        </StaggerItem>
+        <StaggerItem className="absolute bottom-[16%] left-[6%]" settle customDistance={30}>
+          <span className="block h-0 w-0 -rotate-6 border-l-[30px] border-r-[30px] border-b-[52px] border-l-transparent border-r-transparent border-b-[var(--accent)]" />
+        </StaggerItem>
+        <StaggerItem className="absolute right-[22%] top-[58%] hidden md:block" settle customDistance={26}>
+          <svg viewBox="0 0 90 26" width="90" height="26" className="rotate-3">
+            <path
+              d="M2 22 L16 6 L30 22 L44 6 L58 22 L72 6 L86 22"
+              fill="none"
+              stroke="var(--primary)"
+              strokeWidth="6"
+              strokeLinecap="round"
+            />
+          </svg>
+        </StaggerItem>
+        <StaggerItem className="absolute left-[16%] top-[10%]" settle customDistance={22}>
+          <span className="block h-4 w-4 rounded-full bg-[var(--primary)]" />
+        </StaggerItem>
+        <StaggerItem className="absolute bottom-[8%] right-[12%]" settle customDistance={22}>
+          <span className="block h-3 w-3 rounded-full bg-[var(--accent)]" />
+        </StaggerItem>
+      </StaggerGroup>
     </div>
   );
 }
 
 /**
  * Memphis Play: playful geometry for dessert shops and bubble tea. Cream,
- * cobalt, coral, and butter yellow; floating shapes, squiggle rules, price
- * bubbles, blob image masks, and springy staggered entrances.
+ * cobalt, coral, and butter yellow; shape entrances on springs that settle
+ * and stop, squiggle rules that draw themselves, price bubbles, blob image
+ * masks, and springy staggered cards.
  */
 export default function MemphisPlayTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -200,7 +212,7 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
                   className="h-full w-full object-cover"
                 />
               </div>
-              <p className="fx-bob absolute -left-2 top-8 -rotate-6 rounded-full bg-[var(--secondary)] px-4 py-2 text-[11.5px] font-extrabold uppercase tracking-wide text-[var(--on-secondary)] shadow-md">
+              <p className="absolute -left-2 top-8 -rotate-6 rounded-full bg-[var(--secondary)] px-4 py-2 text-[11.5px] font-extrabold uppercase tracking-wide text-[var(--on-secondary)] shadow-md">
                 {record.identity.categories.slice(0, 2).join(" · ") || record.identity.primaryCategory}
               </p>
             </Reveal>
@@ -240,11 +252,11 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
               </p>
             ) : null}
           </div>
-          <div className="grid gap-6 md:grid-cols-2">
+          <StaggerGroup className="grid gap-6 md:grid-cols-2" gap={0.1}>
             {record.menu.sections.map((section, index) => (
+              <StaggerItem key={section.id} settle>
               <div
-                key={section.id}
-                className="rounded-[var(--radius)] border-[3px] border-[var(--text)] p-6 md:p-8"
+                className="h-full rounded-[var(--radius)] border-[3px] border-[var(--text)] p-6 md:p-8"
                 style={{ background: cardTints[index % cardTints.length] }}
               >
                 <div className="flex items-center justify-between gap-4">
@@ -294,8 +306,9 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
                   ))}
                 </StaggerGroup>
               </div>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
         </section>
       ) : null}
 
@@ -313,7 +326,7 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
           </div>
           <StaggerGroup className="mx-auto grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" gap={0.1}>
             {record.gallery.images.slice(0, 3).map((image, index) => (
-              <StaggerItem key={image.url} className={index % 2 === 1 ? "lg:translate-y-5" : ""}>
+              <StaggerItem key={image.url} className={index % 2 === 1 ? "lg:translate-y-5" : ""} settle>
                 <div
                   className="overflow-hidden border-[4px] border-[var(--text)] shadow-[6px_6px_0_var(--text)]"
                   style={{
@@ -339,7 +352,7 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
         <section aria-labelledby="reviews-heading" className="poc-container pb-16 md:pb-24">
           <StaggerGroup className="grid gap-6 md:grid-cols-3" gap={0.12}>
             {record.reputation.reviews.slice(0, 3).map((review, index) => (
-              <StaggerItem key={review.id}>
+              <StaggerItem key={review.id} settle>
                 <figure
                   className={`relative rounded-[var(--radius)] border-[3px] border-[var(--text)] bg-white p-6 shadow-[6px_6px_0_var(--text)] ${
                     index === 1 ? "md:-rotate-1" : index === 2 ? "md:rotate-1" : ""
@@ -460,7 +473,7 @@ export default function MemphisPlayTheme({ record }: ThemeProps) {
             <span className="h-4 w-4 rounded-full bg-[var(--primary)]" />
           </div>
           <p className="font-display text-3xl font-extrabold tracking-tight text-[var(--accent)]">
-            {record.wordmark.text}
+            <AnimatedWordmark text={record.wordmark.text} wordClassName="inline-block overflow-hidden align-baseline pb-[0.1em] -mb-[0.1em]" />
           </p>
           <ConceptNotice
             record={record}

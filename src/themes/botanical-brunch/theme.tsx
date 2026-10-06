@@ -8,25 +8,35 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { AnimeOrnament } from "@/components/poc/motion/AnimeOrnament";
+import { HeroSequence } from "@/components/poc/motion/HeroSequence";
+import { Reveal } from "@/components/poc/motion/Reveal";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { display, body } from "./fonts";
 
-/** Botanical sprig divider. The brief calls for line illustration accents. */
+/**
+ * Botanical sprig divider. Anime.js stroke-draws the linework once, then it
+ * rests — the botanical detail grows in like the garden it depicts. Fully
+ * rendered in SSR markup; static under reduced motion.
+ */
 function Sprig({ flip = false }: { flip?: boolean }) {
   return (
-    <svg
-      viewBox="0 0 120 40"
-      width="120"
-      height="40"
-      aria-hidden="true"
-      className={flip ? "-scale-x-100" : undefined}
-    >
-      <path d="M10 20 C 40 18, 80 22, 110 20" stroke="var(--secondary)" strokeWidth="1.5" fill="none" />
-      <path d="M40 20 c -6 -8, -14 -10, -20 -9 c 4 8, 12 11, 20 9 Z" fill="none" stroke="var(--secondary)" strokeWidth="1.2" />
-      <path d="M40 20 c 6 -8, 14 -10, 20 -9 c -4 8, -12 11, -20 9 Z" fill="none" stroke="var(--secondary)" strokeWidth="1.2" />
-      <path d="M70 20 c -6 8, -14 10, -20 9 c 4 -8, 12 -11, 20 -9 Z" fill="none" stroke="var(--secondary)" strokeWidth="1.2" />
-      <path d="M70 20 c 6 8, 14 10, 20 9 c -4 -8, -12 -11, -20 -9 Z" fill="none" stroke="var(--secondary)" strokeWidth="1.2" />
-      <circle cx="110" cy="20" r="2.4" fill="var(--accent)" />
-    </svg>
+    <AnimeOrnament variant="draw" durationMs={1500} staggerMs={140}>
+      <svg
+        viewBox="0 0 120 40"
+        width="120"
+        height="40"
+        aria-hidden="true"
+        className={flip ? "-scale-x-100" : undefined}
+      >
+        <path data-anime="draw" d="M10 20 C 40 18, 80 22, 110 20" stroke="var(--secondary)" strokeWidth="1.5" fill="none" />
+        <path data-anime="draw" d="M40 20 c -6 -8, -14 -10, -20 -9 c 4 8, 12 11, 20 9 Z" fill="none" stroke="var(--secondary)" strokeWidth="1.2" />
+        <path data-anime="draw" d="M40 20 c 6 -8, 14 -10, 20 -9 c -4 8, -12 11, -20 9 Z" fill="none" stroke="var(--secondary)" strokeWidth="1.2" />
+        <path data-anime="draw" d="M70 20 c -6 8, -14 10, -20 9 c 4 -8, 12 -11, 20 -9 Z" fill="none" stroke="var(--secondary)" strokeWidth="1.2" />
+        <path data-anime="draw" d="M70 20 c 6 8, 14 10, 20 9 c -4 -8, -12 -11, -20 -9 Z" fill="none" stroke="var(--secondary)" strokeWidth="1.2" />
+        <circle cx="110" cy="20" r="2.4" fill="var(--accent)" />
+      </svg>
+    </AnimeOrnament>
   );
 }
 
@@ -34,7 +44,9 @@ function Sprig({ flip = false }: { flip?: boolean }) {
  * Botanical Brunch: a garden café. Sage, cream, blush, and berry with wood
  * tones; a layered lifestyle hero with arch masks, botanical linework,
  * featured-dish menu with dietary tags, amenities emphasis, and pinboard
- * review cards. Soft motion.
+ * review cards. Friendly motion: arch-mask image reveals, sprigs that draw
+ * themselves once, gently staggered tags and cards — natural movement, no
+ * endless floating.
  */
 export default function BotanicalBrunchTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -86,48 +98,52 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
       {/* Layered lifestyle hero */}
       <section id="hero" aria-labelledby="hero-heading" className="poc-container relative py-14 lg:py-20">
         <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
-          <div className="fx-rise">
-            {record.hero.eyebrow ? (
-              <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-[var(--primary)]/10 px-4 py-1.5 text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--primary)]">
-                <Leaf size={13} strokeWidth={1.5} aria-hidden="true" />
-                {record.hero.eyebrow}
-              </p>
-            ) : null}
-            <h1 id="hero-heading" className="font-display text-[2.6rem] leading-[1.12] text-[var(--text)] md:text-[3.4rem]">
-              {record.hero.headline}
-            </h1>
-            {record.hero.subheadline ? (
-              <p className="mt-5 max-w-[46ch] text-[15.5px] leading-relaxed text-[var(--muted)]">
-                {record.hero.subheadline}
-              </p>
-            ) : null}
-            {record.reputation ? (
-              <p className="mt-5 flex items-center gap-2 text-[14px] font-semibold text-[var(--text)]">
-                <Star size={15} strokeWidth={1.5} className="fill-[var(--accent)] text-[var(--accent)]" aria-hidden="true" />
-                {record.reputation.rating.toFixed(1)} · {record.reputation.reviewCount.toLocaleString("en-US")} reviews
-              </p>
-            ) : null}
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              {record.cta.primary ? (
-                <ActionLink
-                  cta={record.cta.primary}
-                  className="rounded-full bg-[var(--secondary)] px-7 py-3.5 text-[14.5px] font-bold text-[var(--on-secondary)] shadow-[0_12px_26px_-12px_rgba(164,83,106,0.65)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
-                />
-              ) : null}
-              {record.cta.secondary[0] ? (
-                <ActionLink
-                  cta={record.cta.secondary[0]}
-                  className="rounded-full border-2 border-[var(--primary)]/40 px-6 py-3 text-[14px] font-bold text-[var(--primary)] transition-colors hover:border-[var(--primary)]"
-                />
-              ) : null}
-            </div>
+          <div>
+            <HeroSequence
+              steps={[
+                record.hero.eyebrow ? (
+                  <p key="eyebrow" className="mb-4 inline-flex items-center gap-2 rounded-full bg-[var(--primary)]/10 px-4 py-1.5 text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--primary)]">
+                    <Leaf size={13} strokeWidth={1.5} aria-hidden="true" />
+                    {record.hero.eyebrow}
+                  </p>
+                ) : null,
+                <h1 key="headline" id="hero-heading" className="font-display text-[2.6rem] leading-[1.12] text-[var(--text)] md:text-[3.4rem]">
+                  {record.hero.headline}
+                </h1>,
+                record.hero.subheadline ? (
+                  <p key="sub" className="mt-5 max-w-[46ch] text-[15.5px] leading-relaxed text-[var(--muted)]">
+                    {record.hero.subheadline}
+                  </p>
+                ) : null,
+                record.reputation ? (
+                  <p key="reputation" className="mt-5 flex items-center gap-2 text-[14px] font-semibold text-[var(--text)]">
+                    <Star size={15} strokeWidth={1.5} className="fill-[var(--accent)] text-[var(--accent)]" aria-hidden="true" />
+                    {record.reputation.rating.toFixed(1)} · {record.reputation.reviewCount.toLocaleString("en-US")} reviews
+                  </p>
+                ) : null,
+                <div key="ctas" className="mt-8 flex flex-wrap items-center gap-4">
+                  {record.cta.primary ? (
+                    <ActionLink
+                      cta={record.cta.primary}
+                      className="rounded-full bg-[var(--secondary)] px-7 py-3.5 text-[14.5px] font-bold text-[var(--on-secondary)] shadow-[0_12px_26px_-12px_rgba(164,83,106,0.65)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+                    />
+                  ) : null}
+                  {record.cta.secondary[0] ? (
+                    <ActionLink
+                      cta={record.cta.secondary[0]}
+                      className="rounded-full border-2 border-[var(--primary)]/40 px-6 py-3 text-[14px] font-bold text-[var(--primary)] transition-colors hover:border-[var(--primary)]"
+                    />
+                  ) : null}
+                </div>,
+              ]}
+            />
             <div className="mt-9 flex items-center gap-3 text-[var(--secondary)]">
               <Sprig />
             </div>
           </div>
           <div className="relative h-[420px] sm:h-[480px] lg:h-[540px]">
             {layered ? (
-              <div className="absolute right-0 top-0 h-[78%] w-[74%] overflow-hidden rounded-t-full rounded-b-[var(--radius)] shadow-[0_24px_60px_-30px_rgba(51,50,44,0.4)]">
+              <Reveal media delay={0.1} className="absolute right-0 top-0 h-[78%] w-[74%] overflow-hidden rounded-t-full rounded-b-[var(--radius)] shadow-[0_24px_60px_-30px_rgba(51,50,44,0.4)]">
                 <SmartImage
                   image={layered}
                   priority
@@ -135,14 +151,14 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
                   sizes="(min-width: 1024px) 44vw, 90vw"
                   className="h-full w-full object-cover"
                 />
-              </div>
+              </Reveal>
             ) : record.hero.image ? (
-              <div className="absolute right-0 top-0 h-[78%] w-[74%] overflow-hidden rounded-t-full rounded-b-[var(--radius)]">
+              <Reveal media delay={0.1} className="absolute right-0 top-0 h-[78%] w-[74%] overflow-hidden rounded-t-full rounded-b-[var(--radius)]">
                 <SmartImage image={record.hero.image} priority fill sizes="(min-width: 1024px) 44vw, 90vw" className="h-full w-full object-cover" />
-              </div>
+              </Reveal>
             ) : null}
             {secondaryImage ? (
-              <div className="absolute bottom-0 left-0 h-[46%] w-[46%] overflow-hidden rounded-[var(--radius)] border-4 border-[var(--surface)] shadow-[0_18px_40px_-20px_rgba(51,50,44,0.45)]">
+              <Reveal media delay={0.24} className="absolute bottom-0 left-0 h-[46%] w-[46%] overflow-hidden rounded-[var(--radius)] border-4 border-[var(--surface)] shadow-[0_18px_40px_-20px_rgba(51,50,44,0.45)]">
                 <SmartImage
                   image={secondaryImage}
                   width={560}
@@ -150,7 +166,7 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
                   sizes="(min-width: 1024px) 24vw, 45vw"
                   className="h-full w-full object-cover"
                 />
-              </div>
+              </Reveal>
             ) : null}
             {outdoor ? (
               <p className="absolute -right-1 bottom-8 rotate-3 rounded-full bg-[var(--accent)] px-4 py-2 text-[11.5px] font-bold uppercase tracking-[0.08em] text-[var(--on-accent)] shadow-md">
@@ -181,9 +197,10 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
                 </p>
               ) : null}
             </div>
-            <div className="grid gap-6 md:grid-cols-2">
+            <StaggerGroup className="grid gap-6 md:grid-cols-2" gap={0.12}>
               {record.menu.sections.map((section) => (
-                <div key={section.id} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg)] p-7 fx-reveal">
+                <StaggerItem key={section.id}>
+                <div className="h-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg)] p-7">
                   <h3 className="font-display text-2xl text-[var(--text)]">{section.name}</h3>
                   {section.description ? (
                     <p className="mt-1 text-[13px] text-[var(--muted)]">{section.description}</p>
@@ -222,8 +239,9 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
                     ))}
                   </ul>
                 </div>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
@@ -232,7 +250,7 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
         <section id="garden" aria-labelledby="garden-heading" className="poc-container py-16 md:py-24">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             {gallery[2] ? (
-              <div className="overflow-hidden rounded-t-full rounded-b-[var(--radius)] fx-reveal">
+              <Reveal media className="overflow-hidden rounded-t-full rounded-b-[var(--radius)]">
                 <SmartImage
                   image={gallery[2]}
                   width={900}
@@ -241,9 +259,9 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
                   className="h-auto w-full object-cover"
                   attributionClassName="mt-2 text-[11.5px] text-[var(--muted)]"
                 />
-              </div>
+              </Reveal>
             ) : null}
-            <div className="fx-reveal">
+            <Reveal delay={0.12}>
               <h2 id="garden-heading" className="font-display text-3xl text-[var(--text)] md:text-4xl">
                 {record.about?.title ?? "The garden"}
               </h2>
@@ -251,15 +269,15 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
                 <p className="mt-6 text-[15px] leading-[1.85] text-[var(--muted)]">{record.about.body}</p>
               ) : null}
               {record.services.length + record.amenities.length > 0 ? (
-                <ul className={`flex flex-wrap gap-2.5 ${record.about ? "mt-7" : "mt-6"}`}>
+                <StaggerGroup as="ul" className={`flex flex-wrap gap-2.5 ${record.about ? "mt-7" : "mt-6"}`} gap={0.06}>
                   {[...record.services, ...record.amenities].slice(0, 6).map((item) => (
-                    <li key={item.key + item.label} className="rounded-full border border-[var(--primary)]/30 px-3.5 py-1.5 text-[12px] font-semibold text-[var(--primary)]">
+                    <StaggerItem as="li" key={item.key + item.label} className="rounded-full border border-[var(--primary)]/30 px-3.5 py-1.5 text-[12px] font-semibold text-[var(--primary)]">
                       {item.label}
-                    </li>
+                    </StaggerItem>
                   ))}
-                </ul>
+                </StaggerGroup>
               ) : null}
-            </div>
+            </Reveal>
           </div>
         </section>
       ) : null}
@@ -270,9 +288,10 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
             <h2 id="reviews-heading" className="mb-10 text-center font-display text-3xl text-[var(--text)]">
               From the pinboard
             </h2>
-            <ul className="grid gap-6 md:grid-cols-3">
+            <StaggerGroup as="ul" className="grid gap-6 md:grid-cols-3" gap={0.11}>
               {record.reputation.reviews.slice(0, 3).map((review, index) => (
-                <li
+                <StaggerItem
+                  as="li"
                   key={review.id}
                   className={`relative rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg)] p-6 shadow-[0_14px_30px_-20px_rgba(51,50,44,0.4)] ${
                     index === 0 ? "-rotate-1" : index === 2 ? "rotate-1" : ""
@@ -294,9 +313,9 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
                   {review.attribution ? (
                     <AttributionLine attribution={review.attribution} className="mt-1 text-[10.5px] text-[var(--muted)]" />
                   ) : null}
-                </li>
+                </StaggerItem>
               ))}
-            </ul>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
@@ -306,9 +325,9 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
           <h2 id="gallery-heading" className="mb-8 text-center font-display text-3xl text-[var(--text)]">
             {record.gallery?.title ?? "Slow mornings"}
           </h2>
-          <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StaggerGroup as="ul" className="grid grid-cols-2 gap-4 lg:grid-cols-4" gap={0.08}>
             {gallery.slice(0, 4).map((image) => (
-              <li key={image.url} className="overflow-hidden rounded-[var(--radius)]">
+              <StaggerItem as="li" key={image.url} className="overflow-hidden rounded-[var(--radius)]">
                 <SmartImage
                   image={image}
                   width={600}
@@ -317,15 +336,16 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
                   className="h-auto w-full rounded-[var(--radius)] object-cover transition-transform duration-500 hover:scale-105"
                   attributionClassName="px-1 pt-1.5 text-[10.5px] text-[var(--muted)]"
                 />
-              </li>
+              </StaggerItem>
             ))}
-          </ul>
+          </StaggerGroup>
         </section>
       ) : null}
 
       <section id="visit" aria-labelledby="visit-heading" className="bg-[var(--surface)] py-16 md:py-20">
         <div className="poc-container grid gap-12 lg:grid-cols-2">
-          <div className="fx-reveal">
+          <Reveal>
+          <div>
             <h2 id="visit-heading" className="font-display text-3xl text-[var(--text)]">
               Come by
             </h2>
@@ -357,8 +377,9 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
               </ul>
             ) : null}
           </div>
+          </Reveal>
           {record.location ? (
-            <div className="fx-reveal">
+            <Reveal delay={0.12}>
               <MapSection
                 location={record.location}
                 businessName={record.identity.name}
@@ -368,7 +389,7 @@ export default function BotanicalBrunchTheme({ record }: ThemeProps) {
                 addressClassName="text-[14.5px] font-semibold text-[var(--text)]"
                 buttonClassName="mt-2 inline-block rounded-full bg-[var(--primary)] px-5 py-2.5 text-[13px] font-bold text-[var(--on-primary)]"
               />
-            </div>
+            </Reveal>
           ) : null}
         </div>
       </section>

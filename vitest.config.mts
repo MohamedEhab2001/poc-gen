@@ -7,7 +7,7 @@ export default defineConfig({
   oxc: { jsx: { runtime: "automatic" } },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     // Integration suites rebuild/verify schema state; running files
     // sequentially keeps them from racing each other.
     fileParallelism: false,

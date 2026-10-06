@@ -208,7 +208,8 @@ body {
   .fx-reveal,
   .fan-spin,
   .fx-float,
-  .fx-bob {
+  .fx-bob,
+  .animate-ping {
     animation: none !important;
   }
 }

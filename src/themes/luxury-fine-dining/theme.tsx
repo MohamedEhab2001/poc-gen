@@ -8,13 +8,20 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { HeroSequence } from "@/components/poc/motion/HeroSequence";
+import { LineGrow } from "@/components/poc/motion/LineGrow";
+import { ParallaxMedia } from "@/components/poc/motion/ParallaxMedia";
+import { Reveal } from "@/components/poc/motion/Reveal";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { display, body } from "./fonts";
 
 /**
  * Luxury Fine Dining: cinematic and restrained. Full-bleed hero with a dark
  * scrim and minimal centered copy, discreet small-caps navigation, a
  * reservation-first CTA, spacious course layout, single elegant quotes, and
- * slow fades. Flat muted gold, never gradient.
+ * slow fades. Flat muted gold, never gradient. Slow cinematic motion: long
+ * fades, gold rules that draw in, minimal image scale, delayed but still
+ * responsive typography — and no springs anywhere.
  */
 export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -64,88 +71,96 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
       {/* Cinematic hero */}
       <section id="hero" aria-labelledby="hero-heading" className="relative min-h-[100dvh]">
         {record.hero.image ? (
-          <div className="absolute inset-0">
-            <SmartImage
-              image={record.hero.image}
-              priority
-              fill
-              sizes="100vw"
-              className="h-full w-full object-cover"
-            />
+          <ParallaxMedia className="absolute inset-0" distance={64}>
+            <div className="absolute inset-x-0 -top-[6%] h-[112%]">
+              <SmartImage
+                image={record.hero.image}
+                priority
+                fill
+                sizes="100vw"
+                className="h-full w-full object-cover"
+              />
+            </div>
             <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-[#111110]/70 via-[#111110]/35 to-[#111110]/85" />
-          </div>
+          </ParallaxMedia>
         ) : (
           <div aria-hidden="true" className="absolute inset-0 bg-[var(--bg)]" />
         )}
         <div className="relative flex min-h-[100dvh] flex-col items-center justify-center px-6 pb-24 pt-32 text-center">
-          {record.hero.eyebrow ? (
-            <p className="mb-6 text-[11px] uppercase tracking-[0.42em] text-[var(--accent)] fx-fade">
-              {record.hero.eyebrow}
-            </p>
-          ) : null}
-          <h1
-            id="hero-heading"
-            className="max-w-3xl font-display text-4xl leading-[1.2] text-[#f3efe6] md:text-6xl fx-rise"
-            style={{ textWrap: "balance" } as React.CSSProperties}
-          >
-            {record.hero.headline}
-          </h1>
-          {record.hero.subheadline ? (
-            <p className="mt-7 max-w-md text-[14px] font-light leading-[2] tracking-[0.04em] text-[#d8d2c4]">
-              {record.hero.subheadline}
-            </p>
-          ) : null}
-          {record.offering.priceRange ? (
-            <p className="mt-6 text-[11.5px] uppercase tracking-[0.3em] text-[var(--muted)]">
-              {record.offering.priceRange}
-            </p>
-          ) : null}
-          {primary ? (
-            <ActionLink
-              cta={primary}
-            className="mt-10 border border-[var(--accent)] px-10 py-4 text-[11.5px] uppercase tracking-[0.3em] text-[var(--accent)] transition-all duration-500 hover:bg-[var(--accent)] hover:text-[var(--on-accent)]"
-            />
-          ) : null}
-          {record.reputation ? (
-            <p className="mt-9 flex items-center gap-2.5 text-[12px] tracking-[0.12em] text-[#b9b2a2]">
-              <Star size={13} strokeWidth={1.5} className="text-[var(--accent)]" aria-hidden="true" />
-              {record.reputation.rating.toFixed(1)} · {record.reputation.reviewCount.toLocaleString("en-US")} reviews
-            </p>
-          ) : null}
+          <HeroSequence
+            steps={[
+              record.hero.eyebrow ? (
+                <p key="eyebrow" className="mb-6 text-[11px] uppercase tracking-[0.42em] text-[var(--accent)]">
+                  {record.hero.eyebrow}
+                </p>
+              ) : null,
+              <h1
+                key="headline"
+                id="hero-heading"
+                className="max-w-3xl font-display text-4xl leading-[1.2] text-[#f3efe6] md:text-6xl"
+                style={{ textWrap: "balance" } as React.CSSProperties}
+              >
+                {record.hero.headline}
+              </h1>,
+              record.hero.subheadline ? (
+                <p key="sub" className="mt-7 max-w-md text-[14px] font-light leading-[2] tracking-[0.04em] text-[#d8d2c4]">
+                  {record.hero.subheadline}
+                </p>
+              ) : null,
+              record.offering.priceRange ? (
+                <p key="price" className="mt-6 text-[11.5px] uppercase tracking-[0.3em] text-[var(--muted)]">
+                  {record.offering.priceRange}
+                </p>
+              ) : null,
+              primary ? (
+                <ActionLink
+                  key="cta"
+                  cta={primary}
+                  className="mt-10 inline-block border border-[var(--accent)] px-10 py-4 text-[11.5px] uppercase tracking-[0.3em] text-[var(--accent)] transition-all duration-500 hover:bg-[var(--accent)] hover:text-[var(--on-accent)]"
+                />
+              ) : null,
+              record.reputation ? (
+                <p key="reputation" className="mt-9 flex items-center gap-2.5 text-[12px] tracking-[0.12em] text-[#b9b2a2]">
+                  <Star size={13} strokeWidth={1.5} className="text-[var(--accent)]" aria-hidden="true" />
+                  {record.reputation.rating.toFixed(1)} · {record.reputation.reviewCount.toLocaleString("en-US")} reviews
+                </p>
+              ) : null,
+            ]}
+          />
         </div>
       </section>
 
       {record.about ? (
         <section aria-labelledby="about-heading" className="bg-[var(--bg)] py-24 text-center md:py-32">
-          <div className="mx-auto max-w-xl px-6 fx-reveal">
-            <div aria-hidden="true" className="mx-auto mb-8 h-px w-16 bg-[var(--accent)]" />
+          <Reveal className="mx-auto max-w-xl px-6">
+            <LineGrow className="mx-auto mb-8 h-px w-16 bg-[var(--accent)]" origin="center" />
             <h2 id="about-heading" className="font-display text-2xl leading-[1.5] text-[#f3efe6] md:text-[2rem]">
               {record.about.title}
             </h2>
             <p className="mt-7 text-[14px] font-light leading-[2.1] tracking-[0.02em] text-[#a89f8d]">
               {record.about.body}
             </p>
-          </div>
+          </Reveal>
         </section>
       ) : null}
 
       {record.menu ? (
         <section id="menu" aria-labelledby="menu-heading" className="border-t border-[var(--border)] py-24 md:py-32">
           <div className="mx-auto max-w-3xl px-6">
-            <div className="mb-16 text-center fx-reveal">
+            <Reveal className="mb-16 text-center">
               <h2 id="menu-heading" className="font-display text-3xl text-[#f3efe6] md:text-4xl">
                 {record.menu.mode === "sample" ? "A Recent Menu" : "The Menu"}
               </h2>
-              <div aria-hidden="true" className="mx-auto mt-6 h-px w-16 bg-[var(--accent)]" />
+              <LineGrow className="mx-auto mt-6 h-px w-16 bg-[var(--accent)]" origin="center" delay={0.2} />
               {record.menu.notice ? (
                 <p className="mx-auto mt-6 max-w-md text-[12px] font-light leading-relaxed tracking-[0.04em] text-[#8d8574]" data-provenance={record.menu.mode === "sample" ? "sample menu" : undefined}>
                   {record.menu.notice}
                 </p>
               ) : null}
-            </div>
-            <div className="space-y-20">
+            </Reveal>
+            <StaggerGroup className="space-y-20" gap={0.25} amount={0.05}>
               {record.menu.sections.map((section) => (
-                <div key={section.id} className="fx-reveal">
+                <StaggerItem key={section.id}>
                   <h3 className="text-center text-[12px] uppercase tracking-[0.4em] text-[var(--accent)]">
                     {section.name}
                   </h3>
@@ -169,9 +184,9 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
@@ -179,9 +194,9 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
       {record.gallery ? (
         <section id="rooms" aria-label="Gallery" className="border-t border-[var(--border)] py-24 md:py-28">
           <div className="mx-auto max-w-5xl px-6">
-            <div className="grid gap-4 md:grid-cols-5 md:grid-rows-2">
+            <StaggerGroup className="grid gap-4 md:grid-cols-5 md:grid-rows-2" gap={0.16}>
               {record.gallery.images.slice(0, 5).map((image, index) => (
-                <div
+                <StaggerItem
                   key={image.url}
                   className={`relative overflow-hidden ${index === 0 ? "md:col-span-3 md:row-span-2" : "md:col-span-2"}`}
                 >
@@ -194,9 +209,9 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
                     className="h-full w-full object-cover transition-transform duration-[1200ms] ease-out hover:scale-[1.03]"
                     attributionClassName="mt-2 text-[10.5px] tracking-[0.08em] text-[#8a8270]"
                   />
-                </div>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
@@ -208,7 +223,7 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
               Guest words
             </h2>
             {record.reputation.reviews.slice(0, 2).map((review) => (
-              <figure key={review.id} className="mb-14 last:mb-0 fx-reveal">
+              <Reveal as="figure" key={review.id} className="mb-14 block last:mb-0">
                 <blockquote className="font-display text-[22px] leading-[1.75] tracking-[0.02em] text-[#e8e2d3]">
                   &ldquo;{review.text}&rdquo;
                 </blockquote>
@@ -218,7 +233,7 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
                 {review.attribution ? (
                   <AttributionLine attribution={review.attribution} className="mt-2 text-[10.5px] text-[#6f685a]" />
                 ) : null}
-              </figure>
+              </Reveal>
             ))}
           </div>
         </section>
@@ -226,7 +241,7 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
 
       <section id="visit" aria-labelledby="visit-heading" className="border-t border-[var(--border)] py-24 md:py-28">
         <div className="mx-auto grid max-w-5xl gap-16 px-6 lg:grid-cols-2">
-          <div className="fx-reveal">
+          <Reveal>
             <h2 id="visit-heading" className="font-display text-2xl text-[#f3efe6]">
               Reservations
             </h2>
@@ -259,9 +274,9 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
                 className="mt-10 inline-block border border-[var(--accent)] px-9 py-3.5 text-[11px] uppercase tracking-[0.28em] text-[var(--accent)] transition-all duration-500 hover:bg-[var(--accent)] hover:text-[var(--on-accent)]"
               />
             ) : null}
-          </div>
+          </Reveal>
           {record.location ? (
-            <div className="fx-reveal">
+            <Reveal delay={0.18}>
               <MapSection
                 location={record.location}
                 businessName={record.identity.name}
@@ -271,7 +286,7 @@ export default function LuxuryFineDiningTheme({ record }: ThemeProps) {
                 addressClassName="text-[13px] font-light tracking-[0.03em] text-[#a89f8d]"
                 buttonClassName="mt-2 inline-block border-b border-[var(--accent)] pb-1 text-[11px] uppercase tracking-[0.24em] text-[var(--accent)]"
               />
-            </div>
+            </Reveal>
           ) : null}
         </div>
       </section>

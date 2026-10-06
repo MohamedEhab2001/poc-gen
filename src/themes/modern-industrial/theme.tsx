@@ -8,6 +8,10 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { HeroSequence } from "@/components/poc/motion/HeroSequence";
+import { LineGrow } from "@/components/poc/motion/LineGrow";
+import { Reveal } from "@/components/poc/motion/Reveal";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { display, body } from "./fonts";
 
 /**
@@ -15,7 +19,9 @@ import { display, body } from "./fonts";
  * monospace micro-labels used only as data labels, bold grotesk headlines,
  * a hero with technical annotations, spec-sheet menu with index numbers,
  * icon-plus-data service rows, and a coordinate-panel map frame. Sharp
- * corners, safety orange accents, crisp interactions.
+ * corners, safety orange accents, crisp interactions: rules draw along the
+ * grid, numbered spec labels snap into place with short exact transitions —
+ * mechanical precision, never soft springs.
  */
 export default function ModernIndustrialTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -69,61 +75,69 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
       <section id="hero" aria-labelledby="hero-heading" className="border-b border-[var(--text)]">
         <div className="poc-container grid lg:grid-cols-12">
           <div className="flex flex-col justify-center border-b border-[var(--border)] py-14 lg:col-span-7 lg:border-b-0 lg:border-r lg:py-20 lg:pr-14">
-            {record.hero.eyebrow ? (
-              <p className="mb-5 font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-                {record.hero.eyebrow}
-              </p>
-            ) : null}
-            <h1 id="hero-heading" className="max-w-[16ch] font-display text-4xl font-bold leading-[1.04] tracking-tight md:text-[3.6rem] fx-rise">
-              {record.hero.headline}
-            </h1>
-            {record.hero.subheadline ? (
-              <p className="mt-6 max-w-[52ch] text-[13.5px] leading-relaxed text-[var(--muted)]">
-                {record.hero.subheadline}
-              </p>
-            ) : null}
-            <div className="mt-9 flex flex-wrap items-center gap-4">
-              {record.cta.primary ? (
-                <ActionLink
-                  cta={record.cta.primary}
-                  className="bg-[var(--accent)] px-7 py-3.5 font-display text-[15px] font-bold uppercase tracking-[0.04em] text-[var(--on-accent)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
-                />
-              ) : null}
-              {record.cta.secondary[0] ? (
-                <ActionLink
-                  cta={record.cta.secondary[0]}
-                  className="border border-[var(--text)] px-6 py-3 font-mono text-[12px] uppercase tracking-[0.12em] text-[var(--text)] transition-colors hover:bg-[var(--text)] hover:text-[var(--bg)]"
-                />
-              ) : null}
-            </div>
-            {record.reputation ? (
-              <p className="mt-8 flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.1em] text-[var(--muted)]">
-                <Star size={13} strokeWidth={1.5} className="text-[var(--accent)]" aria-hidden="true" />
-                {record.reputation.rating.toFixed(1)} / {record.reputation.reviewCount.toLocaleString("en-US")} reviews
-              </p>
-            ) : null}
+            <HeroSequence
+              steps={[
+                record.hero.eyebrow ? (
+                  <p key="eyebrow" className="mb-5 font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                    {record.hero.eyebrow}
+                  </p>
+                ) : null,
+                <h1 key="headline" id="hero-heading" className="max-w-[16ch] font-display text-4xl font-bold leading-[1.04] tracking-tight md:text-[3.6rem]">
+                  {record.hero.headline}
+                </h1>,
+                record.hero.subheadline ? (
+                  <p key="sub" className="mt-6 max-w-[52ch] text-[13.5px] leading-relaxed text-[var(--muted)]">
+                    {record.hero.subheadline}
+                  </p>
+                ) : null,
+                <div key="ctas" className="mt-9 flex flex-wrap items-center gap-4">
+                  {record.cta.primary ? (
+                    <ActionLink
+                      cta={record.cta.primary}
+                      className="bg-[var(--accent)] px-7 py-3.5 font-display text-[15px] font-bold uppercase tracking-[0.04em] text-[var(--on-accent)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+                    />
+                  ) : null}
+                  {record.cta.secondary[0] ? (
+                    <ActionLink
+                      cta={record.cta.secondary[0]}
+                      className="border border-[var(--text)] px-6 py-3 font-mono text-[12px] uppercase tracking-[0.12em] text-[var(--text)] transition-colors hover:bg-[var(--text)] hover:text-[var(--bg)]"
+                    />
+                  ) : null}
+                </div>,
+                record.reputation ? (
+                  <p key="reputation" className="mt-8 flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.1em] text-[var(--muted)]">
+                    <Star size={13} strokeWidth={1.5} className="text-[var(--accent)]" aria-hidden="true" />
+                    {record.reputation.rating.toFixed(1)} / {record.reputation.reviewCount.toLocaleString("en-US")} reviews
+                  </p>
+                ) : null,
+              ]}
+            />
           </div>
           <div className="relative min-h-[320px] lg:col-span-5">
-            {record.hero.image ? (
-              <SmartImage
-                image={record.hero.image}
-                priority
-                fill
-                sizes="(min-width: 1024px) 42vw, 100vw"
-                className="h-full w-full object-cover"
-              />
-            ) : null}
+            <Reveal media direction="left" delay={0.08} className="absolute inset-0">
+              {record.hero.image ? (
+                <SmartImage
+                  image={record.hero.image}
+                  priority
+                  fill
+                  sizes="(min-width: 1024px) 42vw, 100vw"
+                  className="h-full w-full object-cover"
+                />
+              ) : null}
+            </Reveal>
             {/* technical annotation frame */}
-            <div aria-hidden="true" className="pointer-events-none absolute inset-4 border border-white/50 mix-blend-difference">
+            <Reveal direction="none" delay={0.3} className="pointer-events-none absolute inset-4 border border-white/50 mix-blend-difference">
               <span className="absolute -left-px -top-px h-3 w-3 border-l-2 border-t-2 border-white" />
               <span className="absolute -right-px -top-px h-3 w-3 border-r-2 border-t-2 border-white" />
               <span className="absolute -bottom-px -left-px h-3 w-3 border-b-2 border-l-2 border-white" />
               <span className="absolute -bottom-px -right-px h-3 w-3 border-b-2 border-r-2 border-white" />
-            </div>
+            </Reveal>
             {coords ? (
-              <p className="absolute bottom-5 left-5 bg-[var(--text)] px-2.5 py-1 font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--accent)]">
-                LAT/LON {coords}
-              </p>
+              <Reveal direction="none" delay={0.42} className="absolute bottom-5 left-5">
+                <p className="bg-[var(--text)] px-2.5 py-1 font-mono text-[10.5px] uppercase tracking-[0.1em] text-[var(--accent)]">
+                  LAT/LON {coords}
+                </p>
+              </Reveal>
             ) : null}
           </div>
         </div>
@@ -132,21 +146,21 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
       {/* Services: icon-plus-data rows */}
       {record.services.length + record.amenities.length > 0 ? (
         <section aria-label="Services and amenities" className={`border-b border-[var(--text)] ${densityPad}`}>
-          <div className="poc-container grid gap-px sm:grid-cols-2 lg:grid-cols-4">
+          <StaggerGroup className="poc-container grid gap-px sm:grid-cols-2 lg:grid-cols-4" gap={0.04}>
             {[...record.services, ...record.amenities].slice(0, 8).map((item, index) => (
-              <div key={item.key + item.label} className="flex items-baseline gap-3 border-t border-[var(--border)] py-4 sm:border-t-0">
+              <StaggerItem key={item.key + item.label} customDistance={10} className="flex items-baseline gap-3 border-t border-[var(--border)] py-4 sm:border-t-0">
                 <span className="font-mono text-[10.5px] text-[var(--accent)]">{String(index + 1).padStart(2, "0")}</span>
                 <span className="text-[13.5px] font-medium text-[var(--text)]">{item.label}</span>
-              </div>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
         </section>
       ) : null}
 
       {record.menu ? (
         <section id="menu" aria-labelledby="menu-heading" className={`border-b border-[var(--text)] ${densityPad}`}>
           <div className="poc-container">
-            <div className="mb-10 flex flex-wrap items-baseline justify-between gap-4 border-b-2 border-[var(--text)] pb-5">
+            <Reveal className="mb-10 flex flex-wrap items-baseline justify-between gap-4 border-b-2 border-[var(--text)] pb-5">
               <h2 id="menu-heading" className="font-display text-3xl font-bold uppercase tracking-tight md:text-4xl">
                 Menu / Spec
               </h2>
@@ -155,10 +169,11 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
                   {record.menu.notice}
                 </p>
               ) : null}
-            </div>
-            <div className="grid gap-x-12 gap-y-12 lg:grid-cols-2">
+            </Reveal>
+            <LineGrow className="mb-10 h-0.5 w-full bg-[var(--text)]" delay={0.05} />
+            <StaggerGroup className="grid gap-x-12 gap-y-12 lg:grid-cols-2" gap={0.12}>
               {record.menu.sections.map((section) => (
-                <div key={section.id}>
+                <StaggerItem key={section.id}>
                   <div className="mb-5 flex items-center gap-4">
                     <span className="h-2.5 w-2.5 bg-[var(--accent)]" aria-hidden="true" />
                     <h3 className="font-display text-xl font-bold uppercase tracking-tight">{section.name}</h3>
@@ -191,16 +206,16 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
 
       {record.about ? (
         <section id="spec" aria-labelledby="spec-heading" className={`border-b border-[var(--text)] bg-[var(--text)] text-[var(--bg)] ${densityPad}`}>
-          <div className="poc-container grid gap-10 lg:grid-cols-[240px_1fr]">
+          <Reveal className="poc-container grid gap-10 lg:grid-cols-[240px_1fr]">
             <div>
               <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--accent)]">Specification</p>
               <h2 id="spec-heading" className="mt-3 font-display text-2xl font-bold uppercase leading-tight tracking-tight">
@@ -208,7 +223,7 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
               </h2>
             </div>
             <p className="max-w-[68ch] text-[14px] leading-[1.9] text-[#c9cbce]">{record.about.body}</p>
-          </div>
+          </Reveal>
         </section>
       ) : null}
 
@@ -218,9 +233,9 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
             <h2 id="gallery-heading" className="mb-8 font-display text-3xl font-bold uppercase tracking-tight">
               {record.gallery.title ?? "The lab"}
             </h2>
-            <ul className="grid grid-cols-2 gap-px border border-[var(--border)] bg-[var(--border)] lg:grid-cols-4">
+            <StaggerGroup as="ul" className="grid grid-cols-2 gap-px border border-[var(--border)] bg-[var(--border)] lg:grid-cols-4" gap={0.05}>
               {record.gallery.images.slice(0, 4).map((image) => (
-                <li key={image.url} className="bg-[var(--bg)]">
+                <StaggerItem as="li" key={image.url} className="bg-[var(--bg)]">
                   <SmartImage
                     image={image}
                     width={600}
@@ -229,18 +244,18 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
                     className="h-auto w-full object-cover transition-opacity duration-300 hover:opacity-90"
                     attributionClassName="p-2 text-[10px] uppercase tracking-wide text-[var(--muted)]"
                   />
-                </li>
+                </StaggerItem>
               ))}
-            </ul>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
 
       {record.reputation && record.reputation.reviews.length > 0 ? (
         <section aria-labelledby="reviews-heading" className={`border-b border-[var(--text)] ${densityPad}`}>
-          <div className="poc-container grid gap-px md:grid-cols-3">
+          <StaggerGroup className="poc-container grid gap-px md:grid-cols-3" gap={0.08}>
             {record.reputation.reviews.slice(0, 3).map((review) => (
-              <figure key={review.id} className="border-l-2 border-[var(--accent)] pl-5">
+              <StaggerItem as="figure" key={review.id} className="border-l-2 border-[var(--accent)] pl-5">
                 <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
                   {review.rating.toFixed(1)} / 5.0
                 </p>
@@ -253,15 +268,16 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
                 {review.attribution ? (
                   <AttributionLine attribution={review.attribution} className="mt-1 font-mono text-[10px] uppercase text-[var(--muted)]" />
                 ) : null}
-              </figure>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
         </section>
       ) : null}
 
       {/* Location: plan / coordinate panel */}
       <section id="location" aria-labelledby="location-heading" className={densityPad}>
         <div className="poc-container grid gap-12 lg:grid-cols-[1fr_1.4fr]">
+          <Reveal>
           <div>
             <h2 id="location-heading" className="font-display text-3xl font-bold uppercase tracking-tight">
               Location
@@ -312,7 +328,9 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
               ) : null}
             </dl>
           </div>
+          </Reveal>
           {record.location ? (
+            <Reveal delay={0.1}>
             <MapSection
               location={record.location}
               businessName={record.identity.name}
@@ -322,7 +340,8 @@ export default function ModernIndustrialTheme({ record }: ThemeProps) {
               addressClassName="font-mono text-[12px] uppercase tracking-[0.08em]"
               buttonClassName="mt-3 inline-block border border-[var(--accent)] bg-[var(--accent)] px-6 py-2.5 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--on-accent)]"
               iframeTitle={`Site plan map for ${record.identity.name}`}
-            />
+              />
+            </Reveal>
           ) : null}
         </div>
       </section>

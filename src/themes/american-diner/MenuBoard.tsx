@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import type { ResolvedMenu } from "@/lib/poc/types";
 
 /**
  * Diner menu board with category tabs. Keyboard accessible: tabs are real
- * buttons with aria-selected and arrow-key support.
+ * buttons with aria-selected and arrow-key support. Switching tabs plays a
+ * short band-slide into place (skipped under reduced motion).
  */
 export function MenuBoard({ menu }: { menu: ResolvedMenu }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const reduce = useReducedMotion();
   const section = menu.sections[activeIndex] ?? menu.sections[0];
   if (!section) return null;
 
@@ -53,6 +56,12 @@ export function MenuBoard({ menu }: { menu: ResolvedMenu }) {
         aria-labelledby={`menu-tab-${section.id}`}
         className="p-7 md:p-9"
       >
+        <motion.div
+          key={section.id}
+          initial={reduce ? false : { opacity: 0, x: 18 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+        >
         {section.description ? (
           <p className="mb-5 text-center font-display text-lg text-[var(--secondary)]">{section.description}</p>
         ) : null}
@@ -78,6 +87,7 @@ export function MenuBoard({ menu }: { menu: ResolvedMenu }) {
             </li>
           ))}
         </ul>
+        </motion.div>
       </div>
     </div>
   );

@@ -8,12 +8,19 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { HeroSequence } from "@/components/poc/motion/HeroSequence";
+import { HoverCard } from "@/components/poc/motion/HoverCard";
+import { Reveal } from "@/components/poc/motion/Reveal";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { display, body } from "./fonts";
 
 /**
  * Mediterranean Sun: bright communal coastal taverna. Arched hero image,
  * curved section edges, ceramic-token service badges, airy menu cards with
  * ingredient tags, a controlled masonry gallery, and a postcard-framed map.
+ * Friendly motion: warm upward reveals, the arched hero image emerging from
+ * a soft mask, ceramic tokens and cards staggering gently — relaxed, never
+ * bouncy.
  */
 export default function MediterraneanSunTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -62,52 +69,56 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
 
       {/* Hero: joyful copy + arched image + ceramic tokens */}
       <section id="hero" aria-labelledby="hero-heading" className="poc-container grid items-center gap-12 py-14 lg:grid-cols-[1.05fr_1fr] lg:py-20">
-        <div className="fx-rise">
-          {record.hero.eyebrow ? (
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-[var(--accent)]/25 px-4 py-1.5 text-[12.5px] font-bold uppercase tracking-[0.08em] text-[#8a6a10]">
-              <Sun size={14} strokeWidth={1.5} aria-hidden="true" />
-              {record.hero.eyebrow}
-            </p>
-          ) : null}
-          <h1 id="hero-heading" className="font-display text-[2.7rem] leading-[1.05] text-[var(--text)] md:text-6xl">
-            {record.hero.headline}
-          </h1>
-          {record.hero.subheadline ? (
-            <p className="mt-5 max-w-[46ch] text-[16px] leading-relaxed text-[var(--muted)]">
-              {record.hero.subheadline}
-            </p>
-          ) : null}
-          {record.reputation ? (
-            <p className="mt-5 flex items-center gap-2 text-[14.5px] font-semibold text-[var(--text)]">
-              <span className="flex" aria-hidden="true">
-                {[1, 2, 3, 4, 5].map((step) => (
-                  <Star
-                    key={step}
-                    size={15}
-                    strokeWidth={1.5}
-                    className={step <= Math.round(record.reputation!.rating) ? "fill-[var(--accent)] text-[var(--accent)]" : "text-[var(--border)]"}
+        <div>
+          <HeroSequence
+            steps={[
+              record.hero.eyebrow ? (
+                <p key="eyebrow" className="mb-4 inline-flex items-center gap-2 rounded-full bg-[var(--accent)]/25 px-4 py-1.5 text-[12.5px] font-bold uppercase tracking-[0.08em] text-[#8a6a10]">
+                  <Sun size={14} strokeWidth={1.5} aria-hidden="true" />
+                  {record.hero.eyebrow}
+                </p>
+              ) : null,
+              <h1 key="headline" id="hero-heading" className="font-display text-[2.7rem] leading-[1.05] text-[var(--text)] md:text-6xl">
+                {record.hero.headline}
+              </h1>,
+              record.hero.subheadline ? (
+                <p key="sub" className="mt-5 max-w-[46ch] text-[16px] leading-relaxed text-[var(--muted)]">
+                  {record.hero.subheadline}
+                </p>
+              ) : null,
+              record.reputation ? (
+                <p key="reputation" className="mt-5 flex items-center gap-2 text-[14.5px] font-semibold text-[var(--text)]">
+                  <span className="flex" aria-hidden="true">
+                    {[1, 2, 3, 4, 5].map((step) => (
+                      <Star
+                        key={step}
+                        size={15}
+                        strokeWidth={1.5}
+                        className={step <= Math.round(record.reputation!.rating) ? "fill-[var(--accent)] text-[var(--accent)]" : "text-[var(--border)]"}
+                      />
+                    ))}
+                  </span>
+                  {record.reputation.rating.toFixed(1)} · {record.reputation.reviewCount.toLocaleString("en-US")} reviews
+                </p>
+              ) : null,
+              <div key="ctas" className="mt-8 flex flex-wrap items-center gap-4">
+                {record.cta.primary ? (
+                  <ActionLink
+                    cta={record.cta.primary}
+                    className="rounded-full bg-[var(--secondary)] px-7 py-3.5 text-[15px] font-bold text-[var(--on-secondary)] shadow-[0_10px_24px_-10px_rgba(217,108,71,0.7)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
                   />
-                ))}
-              </span>
-              {record.reputation.rating.toFixed(1)} · {record.reputation.reviewCount.toLocaleString("en-US")} reviews
-            </p>
-          ) : null}
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            {record.cta.primary ? (
-              <ActionLink
-                cta={record.cta.primary}
-                className="rounded-full bg-[var(--secondary)] px-7 py-3.5 text-[15px] font-bold text-[var(--on-secondary)] shadow-[0_10px_24px_-10px_rgba(217,108,71,0.7)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
-              />
-            ) : null}
-            {record.cta.secondary[0] ? (
-              <ActionLink
-                cta={record.cta.secondary[0]}
-                className="rounded-full border-2 border-[var(--primary)] px-6 py-3 text-[14.5px] font-bold text-[var(--primary)] transition-colors hover:bg-[var(--primary)] hover:text-[var(--on-primary)]"
-              />
-            ) : null}
-          </div>
+                ) : null}
+                {record.cta.secondary[0] ? (
+                  <ActionLink
+                    cta={record.cta.secondary[0]}
+                    className="rounded-full border-2 border-[var(--primary)] px-6 py-3 text-[14.5px] font-bold text-[var(--primary)] transition-colors hover:bg-[var(--primary)] hover:text-[var(--on-primary)]"
+                  />
+                ) : null}
+              </div>,
+            ]}
+          />
         </div>
-        <div className="relative fx-rise">
+        <Reveal media delay={0.14} className="relative">
           {record.hero.image ? (
             <SmartImage
               image={record.hero.image}
@@ -119,14 +130,15 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
               attributionClassName="mt-2 text-center text-[11.5px] text-[var(--muted)]"
             />
           ) : null}
-        </div>
+        </Reveal>
       </section>
 
       {tokens.length > 0 ? (
         <section aria-label="Services and amenities" className="poc-container -mt-2 pb-14">
-          <ul className={`flex flex-wrap gap-4 ${record.compactServiceStrip ? "justify-center" : "justify-between"}`}>
+          <StaggerGroup as="ul" className={`flex flex-wrap gap-4 ${record.compactServiceStrip ? "justify-center" : "justify-between"}`} gap={0.09}>
             {tokens.map((token) => (
-              <li
+              <StaggerItem
+                as="li"
                 key={token.key + token.label}
                 className="flex min-w-[130px] flex-col items-center gap-2.5 rounded-full border-2 border-dashed border-[var(--secondary)]/50 bg-white px-6 py-4 text-center text-[13px] font-bold text-[var(--text)]"
               >
@@ -137,9 +149,9 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
                    <Leaf size={18} strokeWidth={1.5} aria-hidden="true" />}
                 </span>
                 {token.label}
-              </li>
+              </StaggerItem>
             ))}
-          </ul>
+          </StaggerGroup>
         </section>
       ) : null}
 
@@ -160,9 +172,10 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
                 </p>
               ) : null}
             </div>
-            <div className="grid gap-6 md:grid-cols-3">
+            <StaggerGroup className="grid gap-6 md:grid-cols-3" gap={0.1}>
               {record.menu.sections.map((section) => (
-                <div key={section.id} className="rounded-[var(--radius)] bg-white p-7 text-[var(--text)] fx-reveal">
+                <StaggerItem key={section.id}>
+                <HoverCard className="h-full rounded-[var(--radius)] bg-white p-7 text-[var(--text)]">
                   <h3 className="font-display text-2xl text-[var(--primary)]">{section.name}</h3>
                   {section.description ? (
                     <p className="mt-1 text-[12.5px] font-semibold uppercase tracking-[0.06em] text-[var(--secondary)]">
@@ -191,21 +204,22 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </HoverCard>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
 
       {record.about ? (
         <section id="story" aria-labelledby="story-heading" className="poc-container py-16 md:py-24">
-          <div className="mx-auto max-w-2xl text-center fx-reveal">
+          <Reveal className="mx-auto max-w-2xl text-center">
             <h2 id="story-heading" className="font-display text-3xl text-[var(--text)] md:text-4xl">
               {record.about.title}
             </h2>
             <p className="mt-6 text-[15px] leading-[1.85] text-[var(--muted)]">{record.about.body}</p>
-          </div>
+          </Reveal>
         </section>
       ) : null}
 
@@ -214,9 +228,9 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
           <h2 id="gallery-heading" className="mb-8 text-center font-display text-3xl text-[var(--text)]">
             {record.gallery.title ?? "Gallery"}
           </h2>
-          <div className="columns-2 gap-4 lg:columns-3 [&>*]:mb-4">
+          <StaggerGroup className="columns-2 gap-4 lg:columns-3 [&>*]:mb-4" gap={0.07}>
             {record.gallery.images.slice(0, 6).map((image) => (
-              <div key={image.url} className="break-inside-avoid rounded-[var(--radius)]">
+              <StaggerItem key={image.url} className="break-inside-avoid rounded-[var(--radius)]">
                 <SmartImage
                   image={image}
                   width={700}
@@ -225,9 +239,9 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
                   className="h-auto w-full rounded-[var(--radius)] object-cover"
                   attributionClassName="mt-1.5 text-[11px] text-[var(--muted)]"
                 />
-              </div>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
         </section>
       ) : null}
 
@@ -237,9 +251,10 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
             <h2 id="reviews-heading" className="mb-10 text-center font-display text-3xl text-[var(--text)]">
               From our tables
             </h2>
-            <div className="grid gap-6 md:grid-cols-3">
+            <StaggerGroup className="grid gap-6 md:grid-cols-3" gap={0.1}>
               {record.reputation.reviews.slice(0, 3).map((review) => (
-                <figure key={review.id} className="rounded-[var(--radius)] border-2 border-[var(--border)] bg-[var(--bg)] p-6 text-center">
+                <StaggerItem key={review.id}>
+                <figure className="h-full rounded-[var(--radius)] border-2 border-[var(--border)] bg-[var(--bg)] p-6 text-center">
                   <div className="mb-3 flex justify-center" aria-label={`${review.rating} out of 5 stars`}>
                     {[1, 2, 3, 4, 5].map((step) => (
                       <Star key={step} size={14} strokeWidth={1.5} className={step <= review.rating ? "fill-[var(--accent)] text-[var(--accent)]" : "text-[var(--border)]"} />
@@ -255,8 +270,9 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
                     <AttributionLine attribution={review.attribution} className="mt-1 text-[11px] text-[var(--muted)]" />
                   ) : null}
                 </figure>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
@@ -264,7 +280,7 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
       {/* Postcard map + hours */}
       <section id="visit" aria-labelledby="visit-heading" className="poc-container py-16 md:py-24">
         <div className="grid items-start gap-10 lg:grid-cols-[1.1fr_1fr]">
-          <div className="rotate-[-1.2deg] rounded-[var(--radius)] border-[10px] border-white bg-white p-4 shadow-[0_24px_50px_-24px_rgba(23,57,79,0.45)]">
+          <Reveal media className="rotate-[-1.2deg] rounded-[var(--radius)] border-[10px] border-white bg-white p-4 shadow-[0_24px_50px_-24px_rgba(23,57,79,0.45)]">
             <p className="mb-3 flex items-center justify-between font-display text-lg text-[var(--primary)]">
               {record.identity.shortName}
               <span className="rounded-full bg-[var(--secondary)] px-3 py-1 text-[10px] font-sans font-bold uppercase tracking-[0.1em] text-[var(--on-secondary)]">
@@ -282,7 +298,8 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
                 buttonClassName="mt-1 inline-block rounded-full bg-[var(--primary)] px-5 py-2.5 text-[13px] font-bold text-[var(--on-primary)]"
               />
             ) : null}
-          </div>
+          </Reveal>
+          <Reveal delay={0.12}>
           <div>
             <h2 id="visit-heading" className="font-display text-3xl text-[var(--text)]">
               Come sit with us
@@ -315,6 +332,7 @@ export default function MediterraneanSunTheme({ record }: ThemeProps) {
               </ul>
             ) : null}
           </div>
+          </Reveal>
         </div>
       </section>
 

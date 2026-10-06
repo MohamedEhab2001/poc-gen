@@ -1,20 +1,29 @@
+"use client";
+
+import { motion } from "motion/react";
 import type { ResolvedBusiness } from "@/lib/poc/types";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { useReducedMotionMode } from "@/components/poc/motion/useReducedMotionMode";
 
 /**
  * Mobile sticky action bar for the highest-value available actions. Styled
  * entirely from theme CSS variables so it adopts each theme's language.
  * Respects safe-area insets; hidden from tablet up where themes render
- * inline CTAs.
+ * inline CTAs. The bar enters once on load (profile-driven) and then stays
+ * completely stable — no scroll-linked movement.
  */
 export function MobileActionBar({ record }: { record: ResolvedBusiness }) {
   const actions = record.cta.mobile;
+  const ctx = useReducedMotionMode();
+  const profile = ctx?.profile;
+  const animate = ctx?.enabled === true && profile != null;
+
   if (actions.length === 0) return null;
 
   return (
     <>
       <div aria-hidden="true" className="h-20 md:hidden" />
-      <nav
+      <motion.nav
         aria-label="Quick actions"
         className="fixed inset-x-0 bottom-0 z-40 flex md:hidden"
         style={{
@@ -22,6 +31,17 @@ export function MobileActionBar({ record }: { record: ResolvedBusiness }) {
           borderTop: "1px solid var(--border)",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
+        initial={animate ? { y: 24, opacity: 0 } : false}
+        animate={{ y: 0, opacity: 1 }}
+        transition={
+          animate
+            ? {
+                duration: Math.max(profile!.revealDuration, 0.3),
+                delay: 0.2,
+                ease: profile!.ease as unknown as [number, number, number, number],
+              }
+            : undefined
+        }
       >
         {actions.map((cta, index) => (
           <ActionLink
@@ -42,7 +62,7 @@ export function MobileActionBar({ record }: { record: ResolvedBusiness }) {
             </span>
           </ActionLink>
         ))}
-      </nav>
+      </motion.nav>
     </>
   );
 }
