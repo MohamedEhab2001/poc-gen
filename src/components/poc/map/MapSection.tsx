@@ -88,22 +88,24 @@ export function MapSection({
       )}
       <div className={detailsClassName ?? "mt-4 flex flex-wrap items-center gap-x-6 gap-y-2"}>
         {embed && address ? (
-          <p className={addressClassName ?? "text-sm"}>{address}</p>
+          <p className={`${addressClassName ?? "text-sm"} min-w-0 flex-1 basis-52 leading-relaxed`}>{address}</p>
         ) : null}
         {directionsHref ? (
-          <ActionLink
-            cta={
-              directionsCta ?? {
-                label: "Get directions",
-                href: directionsHref,
-                kind: "directions",
-                external: true,
+          <span className="flex shrink-0 items-center">
+            <ActionLink
+              cta={
+                directionsCta ?? {
+                  label: "Get directions",
+                  href: directionsHref,
+                  kind: "directions",
+                  external: true,
+                }
               }
-            }
-            className={buttonClassName}
-          >
-            {directionsCta?.label ?? "Get directions"}
-          </ActionLink>
+              className={`inline-flex min-h-[44px] items-center gap-2 whitespace-nowrap ${buttonClassName ?? ""}`}
+            >
+              {directionsCta?.label ?? "Get directions"}
+            </ActionLink>
+          </span>
         ) : null}
       </div>
     </div>

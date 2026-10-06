@@ -59,6 +59,13 @@ body {
   padding-inline: 1.25rem;
 }
 
+/* Wider editorial stage for full-bleed-adjacent compositions (cinematic heroes). */
+.poc-container-wide {
+  width: 100%;
+  max-width: 88rem;
+  margin-inline: auto;
+}
+
 @media (min-width: 768px) {
   .poc-container {
     padding-inline: 2.5rem;

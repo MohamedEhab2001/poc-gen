@@ -16,6 +16,7 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
       "server-only": fileURLToPath(new URL("./src/types/server-only-stub.ts", import.meta.url)),
+      "next/font/local": fileURLToPath(new URL("./src/types/test-stubs/next-font-local.ts", import.meta.url)),
     },
   },
 });
