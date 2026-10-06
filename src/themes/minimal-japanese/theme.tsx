@@ -8,13 +8,19 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { HeroSequence } from "@/components/poc/motion/HeroSequence";
+import { LineGrow } from "@/components/poc/motion/LineGrow";
+import { Reveal } from "@/components/poc/motion/Reveal";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { display, body } from "./fonts";
 
 /**
  * Minimal Japanese: quiet, precise premium minimalism. Hairline borders,
  * disciplined grid, one carefully cropped hero image, a two-column
  * typographic menu, and hours/location rendered as an information ledger.
- * Almost no shadow, no radius, very subtle motion.
+ * Almost no shadow, no radius. Motion is nearly still: short opacity fades,
+ * hairlines that draw themselves, and a few pixels of vertical travel —
+ * never bounce, rotation, or scale.
  */
 export default function MinimalJapaneseTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -58,7 +64,7 @@ export default function MinimalJapaneseTheme({ record }: ThemeProps) {
       {/* Hero: one image, restrained copy, vertical accent */}
       <section id="hero" aria-labelledby="hero-heading" className="relative">
         {record.hero.image ? (
-          <div className="relative h-[54vh] min-h-[380px] w-full lg:h-[68vh]">
+          <Reveal media y={10} delay={0.06} className="relative h-[54vh] min-h-[380px] w-full lg:h-[68vh]">
             <SmartImage
               image={record.hero.image}
               priority
@@ -66,7 +72,7 @@ export default function MinimalJapaneseTheme({ record }: ThemeProps) {
               sizes="100vw"
               className="h-full w-full object-cover"
             />
-          </div>
+          </Reveal>
         ) : null}
         <div className="poc-container relative -mt-20 lg:-mt-28">
           <div className="relative max-w-2xl bg-[var(--bg)] px-2 py-10 lg:pl-16 lg:pr-10">
@@ -77,64 +83,68 @@ export default function MinimalJapaneseTheme({ record }: ThemeProps) {
             >
               {record.identity.primaryCategory}
             </p>
-            {record.hero.eyebrow ? (
-              <p className="mb-4 text-[11.5px] uppercase tracking-[0.32em] text-[var(--muted)]">
-                {record.hero.eyebrow}
-              </p>
-            ) : null}
-            <h1 id="hero-heading" className="font-display text-4xl font-semibold leading-[1.15] text-[var(--text)] md:text-5xl">
-              {record.hero.headline}
-            </h1>
-            {record.hero.subheadline ? (
-              <p className="mt-5 max-w-[48ch] text-[14.5px] leading-[1.9] text-[var(--muted)]">
-                {record.hero.subheadline}
-              </p>
-            ) : null}
-            <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-4">
-              {record.cta.primary ? (
-                <ActionLink
-                  cta={record.cta.primary}
-                  className="border-b border-[var(--accent)] pb-1 text-[13px] font-medium tracking-[0.1em] text-[var(--text)] transition-colors hover:text-[var(--accent)]"
-                />
-              ) : null}
-              {record.cta.secondary[0] ? (
-                <ActionLink
-                  cta={record.cta.secondary[0]}
-                  className="text-[13px] tracking-[0.1em] text-[var(--muted)] underline-offset-4 hover:text-[var(--text)] hover:underline"
-                />
-              ) : null}
-              {record.reputation ? (
-                <span className="flex items-center gap-2 text-[13px] text-[var(--muted)]">
-                  <Star size={13} strokeWidth={1.5} className="text-[var(--accent)]" aria-hidden="true" />
-                  {record.reputation.rating.toFixed(1)} ({record.reputation.reviewCount})
-                </span>
-              ) : null}
-            </div>
+            <HeroSequence
+              steps={[
+                record.hero.eyebrow ? (
+                  <p key="eyebrow" className="mb-4 text-[11.5px] uppercase tracking-[0.32em] text-[var(--muted)]">
+                    {record.hero.eyebrow}
+                  </p>
+                ) : null,
+                <h1 key="headline" id="hero-heading" className="font-display text-4xl font-semibold leading-[1.15] text-[var(--text)] md:text-5xl">
+                  {record.hero.headline}
+                </h1>,
+                record.hero.subheadline ? (
+                  <p key="sub" className="mt-5 max-w-[48ch] text-[14.5px] leading-[1.9] text-[var(--muted)]">
+                    {record.hero.subheadline}
+                  </p>
+                ) : null,
+                <div key="actions" className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-4">
+                  {record.cta.primary ? (
+                    <ActionLink
+                      cta={record.cta.primary}
+                      className="border-b border-[var(--accent)] pb-1 text-[13px] font-medium tracking-[0.1em] text-[var(--text)] transition-colors hover:text-[var(--accent)]"
+                    />
+                  ) : null}
+                  {record.cta.secondary[0] ? (
+                    <ActionLink
+                      cta={record.cta.secondary[0]}
+                      className="text-[13px] tracking-[0.1em] text-[var(--muted)] underline-offset-4 hover:text-[var(--text)] hover:underline"
+                    />
+                  ) : null}
+                  {record.reputation ? (
+                    <span className="flex items-center gap-2 text-[13px] text-[var(--muted)]">
+                      <Star size={13} strokeWidth={1.5} className="text-[var(--accent)]" aria-hidden="true" />
+                      {record.reputation.rating.toFixed(1)} ({record.reputation.reviewCount})
+                    </span>
+                  ) : null}
+                </div>,
+              ]}
+            />
           </div>
         </div>
       </section>
 
       {record.about ? (
-        <section aria-labelledby="about-heading" className="poc-container border-t border-[var(--border)] pt-16 md:mt-24 fx-reveal">
-          <div className="grid gap-10 md:grid-cols-[200px_1fr]">
+        <section aria-labelledby="about-heading" className="poc-container border-t border-[var(--border)] pt-16 md:mt-24">
+          <Reveal className="grid gap-10 md:grid-cols-[200px_1fr]">
             <h2 id="about-heading" className="font-display text-xl font-semibold text-[var(--text)]">
               {record.about.title}
             </h2>
             <p className="max-w-[62ch] text-[14.5px] leading-[2] text-[var(--muted)]">{record.about.body}</p>
-          </div>
+          </Reveal>
         </section>
       ) : null}
 
       {record.menu ? (
-        <section id="menu" aria-labelledby="menu-heading" className="poc-container py-20 fx-reveal md:py-28">
-          <div className="mb-12 flex items-baseline justify-between border-b border-[var(--text)] pb-4">
+        <section id="menu" aria-labelledby="menu-heading" className="poc-container py-20 md:py-28">
+          <Reveal className="mb-12 flex items-baseline justify-between border-b border-[var(--text)] pb-4">
             <h2 id="menu-heading" className="font-display text-2xl font-semibold tracking-[0.12em] text-[var(--text)]">
               MENU
             </h2>
             {record.offering.priceRange ? (
               <p className="text-[12px] tracking-[0.1em] text-[var(--muted)]">{record.offering.priceRange}</p>
             ) : null}
-          </div>
+          </Reveal>
           {record.menu.notice ? (
             <p className="mb-10 border-l-2 border-[var(--accent)] pl-4 text-[13px] leading-relaxed text-[var(--muted)]" data-provenance={record.menu.mode === "sample" ? "sample menu" : undefined}>
               {record.menu.notice}
@@ -147,11 +157,11 @@ export default function MinimalJapaneseTheme({ record }: ThemeProps) {
                 {section.description ? (
                   <p className="mb-6 text-[12px] tracking-[0.06em] text-[var(--muted)]">{section.description}</p>
                 ) : (
-                  <div aria-hidden="true" className="mb-6 h-px bg-[var(--border)]" />
+                  <LineGrow className="mb-6 h-px bg-[var(--border)]" />
                 )}
-                <dl className="space-y-5">
+                <StaggerGroup as="dl" className="space-y-5" gap={0.07}>
                   {section.items.map((item) => (
-                    <div key={item.id} className="grid grid-cols-[1fr_auto] items-baseline gap-x-6">
+                    <StaggerItem key={item.id} customDistance={8} className="grid grid-cols-[1fr_auto] items-baseline gap-x-6">
                       <dt className="text-[14.5px] font-medium text-[var(--text)]">
                         {item.name}
                         {item.tags.length > 0 ? (
@@ -166,9 +176,9 @@ export default function MinimalJapaneseTheme({ record }: ThemeProps) {
                         ) : null}
                       </dt>
                       <dd className="text-[14.5px] tabular-nums text-[var(--text)]">{item.price ?? ""}</dd>
-                    </div>
+                    </StaggerItem>
                   ))}
-                </dl>
+                </StaggerGroup>
               </div>
             ))}
           </div>
@@ -176,13 +186,13 @@ export default function MinimalJapaneseTheme({ record }: ThemeProps) {
       ) : null}
 
       {record.gallery ? (
-        <section id="space" aria-labelledby="space-heading" className="poc-container pb-20 fx-reveal md:pb-28">
+        <section id="space" aria-labelledby="space-heading" className="poc-container pb-20 md:pb-28">
           <h2 id="space-heading" className="sr-only">
             {record.gallery.title ?? "The space"}
           </h2>
-          <div className="grid gap-4 md:grid-cols-3">
+          <StaggerGroup className="grid gap-4 md:grid-cols-3" gap={0.1}>
             {record.gallery.images.slice(0, 3).map((image, index) => (
-              <div key={image.url} className={index === 0 ? "md:col-span-2" : ""}>
+              <StaggerItem key={image.url} className={index === 0 ? "md:col-span-2" : ""}>
                 <SmartImage
                   image={image}
                   width={900}
@@ -191,9 +201,9 @@ export default function MinimalJapaneseTheme({ record }: ThemeProps) {
                   className="h-auto w-full object-cover"
                   attributionClassName="mt-2 text-[11px] tracking-[0.06em] text-[var(--muted)]"
                 />
-              </div>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
         </section>
       ) : null}
 
@@ -203,9 +213,9 @@ export default function MinimalJapaneseTheme({ record }: ThemeProps) {
             <h2 id="reviews-heading" className="mb-12 font-display text-2xl font-semibold tracking-[0.12em] text-[var(--text)]">
               GUEST BOOK
             </h2>
-            <div className="grid gap-12 md:grid-cols-2">
+            <StaggerGroup className="grid gap-12 md:grid-cols-2" gap={0.18}>
               {record.reputation.reviews.slice(0, 2).map((review) => (
-                <figure key={review.id}>
+                <StaggerItem as="figure" key={review.id}>
                   <blockquote className="font-display text-xl font-medium leading-[1.7] text-[var(--text)]">
                     {review.text}
                   </blockquote>
@@ -216,19 +226,20 @@ export default function MinimalJapaneseTheme({ record }: ThemeProps) {
                   {review.attribution ? (
                     <AttributionLine attribution={review.attribution} className="mt-1 text-[11px] text-[var(--muted)]" />
                   ) : null}
-                </figure>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
 
       {/* Ledger: hours, location, contact */}
-      <section id="visit" aria-labelledby="visit-heading" className="poc-container py-20 fx-reveal md:py-28">
+      <section id="visit" aria-labelledby="visit-heading" className="poc-container py-20 md:py-28">
         <h2 id="visit-heading" className="mb-12 font-display text-2xl font-semibold tracking-[0.12em] text-[var(--text)]">
           VISIT
         </h2>
         <div className="grid gap-14 lg:grid-cols-2">
+          <Reveal>
           <dl className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
             {record.hours ? (
               <div className="grid grid-cols-[110px_1fr] gap-6 py-4">
@@ -278,7 +289,9 @@ export default function MinimalJapaneseTheme({ record }: ThemeProps) {
               </div>
             ) : null}
           </dl>
+          </Reveal>
           {record.location ? (
+            <Reveal delay={0.14}>
             <MapSection
               location={record.location}
               businessName={record.identity.name}
@@ -287,7 +300,8 @@ export default function MinimalJapaneseTheme({ record }: ThemeProps) {
               cardClassName="border border-[var(--border)] p-8"
               addressClassName="sr-only"
               buttonClassName="inline-flex items-center gap-3 border border-[var(--text)] px-6 py-3 text-[12.5px] tracking-[0.14em] text-[var(--text)] transition-colors hover:bg-[var(--text)] hover:text-[var(--bg)]"
-            />
+              />
+            </Reveal>
           ) : null}
         </div>
       </section>

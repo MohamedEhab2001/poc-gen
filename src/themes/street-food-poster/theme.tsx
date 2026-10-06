@@ -8,14 +8,19 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { HeroSequence } from "@/components/poc/motion/HeroSequence";
+import { Reveal } from "@/components/poc/motion/Reveal";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { display, body } from "./fonts";
 
 /**
  * Street Food Poster: a food truck as a layered event poster. Irregular
  * color blocks, oversized type, cutout image treatment with thick borders
  * and offset shadows, sticker labels, halftone texture, price-forward menu,
- * and location/hours given top billing. Reading order stays logical despite
- * the visual noise.
+ * and location/hours given top billing. Energetic motion: fast poster-block
+ * entrances, stickers that rotate into place, punchy staggered panels —
+ * each effect plays once and the reading order stays logical despite the
+ * visual noise.
  */
 export default function StreetFoodPosterTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -68,42 +73,46 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
         />
         <div className="poc-container relative grid gap-0 py-14 lg:grid-cols-[1.25fr_1fr] lg:py-20">
           <div className="text-[var(--text)]">
-            {record.hero.eyebrow ? (
-              <p className="mb-5 inline-block -rotate-1 bg-[var(--accent)] px-3.5 py-1.5 text-[12px] font-bold uppercase tracking-[0.1em]">
-                {record.hero.eyebrow}
-              </p>
-            ) : null}
-            <h1 id="hero-heading" className="font-display text-[3.2rem] uppercase leading-[0.95] tracking-tight sm:text-7xl lg:text-[5.4rem] fx-rise">
-              {record.hero.headline}
-            </h1>
-            {record.hero.subheadline ? (
-              <p className="mt-6 max-w-[40ch] text-[16px] font-semibold leading-snug text-[var(--on-primary)]/85">
-                {record.hero.subheadline}
-              </p>
-            ) : null}
-            {record.reputation ? (
-              <p className="mt-5 inline-flex items-center gap-2 bg-[var(--text)] px-3.5 py-2 text-[13px] font-bold text-[var(--accent)]">
-                <Star size={14} strokeWidth={2} aria-hidden="true" />
-                {record.reputation.rating.toFixed(1)} · {record.reputation.reviewCount.toLocaleString("en-US")} reviews
-              </p>
-            ) : null}
-            <div className="mt-8 flex flex-wrap gap-4">
-              {record.cta.primary ? (
-                <ActionLink
-                  cta={record.cta.primary}
-                  className="border-2 border-[var(--text)] bg-[var(--accent)] px-7 py-3.5 text-[15px] font-extrabold uppercase tracking-[0.04em] shadow-[5px_5px_0_var(--text)] transition-transform hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_var(--text)]"
-                />
-              ) : null}
-              {record.cta.secondary[0] ? (
-                <ActionLink
-                  cta={record.cta.secondary[0]}
-                  className="border-2 border-[var(--text)] bg-[var(--bg)] px-6 py-3.5 text-[14px] font-extrabold uppercase tracking-[0.04em] transition-colors hover:bg-[var(--secondary)] hover:text-[var(--on-secondary)]"
-                />
-              ) : null}
-            </div>
+            <HeroSequence
+              steps={[
+                record.hero.eyebrow ? (
+                  <p key="eyebrow" className="mb-5 inline-block -rotate-1 bg-[var(--accent)] px-3.5 py-1.5 text-[12px] font-bold uppercase tracking-[0.1em]">
+                    {record.hero.eyebrow}
+                  </p>
+                ) : null,
+                <h1 key="headline" id="hero-heading" className="font-display text-[3.2rem] uppercase leading-[0.95] tracking-tight sm:text-7xl lg:text-[5.4rem]">
+                  {record.hero.headline}
+                </h1>,
+                record.hero.subheadline ? (
+                  <p key="sub" className="mt-6 max-w-[40ch] text-[16px] font-semibold leading-snug text-[var(--on-primary)]/85">
+                    {record.hero.subheadline}
+                  </p>
+                ) : null,
+                record.reputation ? (
+                  <p key="reputation" className="mt-5 inline-flex items-center gap-2 bg-[var(--text)] px-3.5 py-2 text-[13px] font-bold text-[var(--accent)]">
+                    <Star size={14} strokeWidth={2} aria-hidden="true" />
+                    {record.reputation.rating.toFixed(1)} · {record.reputation.reviewCount.toLocaleString("en-US")} reviews
+                  </p>
+                ) : null,
+                <div key="ctas" className="mt-8 flex flex-wrap gap-4">
+                  {record.cta.primary ? (
+                    <ActionLink
+                      cta={record.cta.primary}
+                      className="border-2 border-[var(--text)] bg-[var(--accent)] px-7 py-3.5 text-[15px] font-extrabold uppercase tracking-[0.04em] shadow-[5px_5px_0_var(--text)] transition-transform hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_var(--text)]"
+                    />
+                  ) : null}
+                  {record.cta.secondary[0] ? (
+                    <ActionLink
+                      cta={record.cta.secondary[0]}
+                      className="border-2 border-[var(--text)] bg-[var(--bg)] px-6 py-3.5 text-[14px] font-extrabold uppercase tracking-[0.04em] transition-colors hover:bg-[var(--secondary)] hover:text-[var(--on-secondary)]"
+                    />
+                  ) : null}
+                </div>,
+              ]}
+            />
           </div>
           {record.hero.image ? (
-            <div className="relative mt-10 lg:mt-0">
+            <Reveal media delay={0.12} className="relative mt-10 lg:mt-0">
               <div className="rotate-2 border-4 border-[var(--text)] bg-[var(--accent)] p-2 shadow-[8px_8px_0_var(--text)]">
                 <SmartImage
                   image={record.hero.image}
@@ -124,14 +133,14 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
                   {record.hours.openNow ? "OUT NOW" : "CLOSED TODAY"}
                 </p>
               ) : null}
-            </div>
+            </Reveal>
           ) : null}
         </div>
       </section>
 
       {/* Location and hours: prominent for street food */}
       <section id="find" aria-labelledby="find-heading" className="border-b-4 border-[var(--text)] bg-[var(--secondary)] text-[var(--on-secondary)]">
-        <div className="poc-container grid gap-8 py-12 md:grid-cols-[auto_1fr_auto] md:items-center md:gap-12">
+        <Reveal className="poc-container grid gap-8 py-12 md:grid-cols-[auto_1fr_auto] md:items-center md:gap-12">
           <div>
             <h2 id="find-heading" className="flex items-center gap-2.5 font-display text-2xl uppercase tracking-tight">
               <MapPin size={22} strokeWidth={2} aria-hidden="true" /> Find us
@@ -168,7 +177,7 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
               className="self-start border-2 border-[var(--text)] bg-[var(--accent)] px-6 py-3.5 text-[14px] font-extrabold uppercase tracking-wide text-[var(--text)] shadow-[5px_5px_0_var(--text)] transition-transform hover:-translate-y-0.5"
             />
           ) : null}
-        </div>
+        </Reveal>
       </section>
 
       {record.menu ? (
@@ -183,11 +192,11 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
               </p>
             ) : null}
           </div>
-          <div className="grid gap-6 md:grid-cols-2">
+          <StaggerGroup className="grid gap-6 md:grid-cols-2" gap={0.08}>
             {record.menu.sections.map((section, index) => (
+              <StaggerItem key={section.id} direction="none" customDistance={0}>
               <div
-                key={section.id}
-                className={`border-4 border-[var(--text)] p-6 md:p-8 fx-reveal ${
+                className={`h-full border-4 border-[var(--text)] p-6 md:p-8 ${
                   index % 2 === 0 ? "bg-[var(--surface)]" : "bg-[var(--accent)]/60"
                 }`}
                 style={index % 2 === 1 ? { transform: "rotate(-0.5deg)" } : undefined}
@@ -229,8 +238,9 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
                   ))}
                 </ul>
               </div>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
         </section>
       ) : null}
 
@@ -238,20 +248,22 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
         <section aria-label="About" className="border-y-4 border-[var(--text)] bg-[var(--text)] py-14 text-[var(--bg)] md:py-18">
           <div className="poc-container grid gap-10 md:grid-cols-[1.4fr_1fr]">
             {record.about ? (
-              <div className="fx-reveal">
+              <Reveal>
                 <h2 id="about-heading" className="font-display text-3xl uppercase tracking-tight text-[var(--accent)]">
                   {record.about.title}
                 </h2>
                 <p className="mt-5 max-w-[58ch] text-[14.5px] font-medium leading-relaxed text-[#d8d2c8]">
                   {record.about.body}
                 </p>
-              </div>
+              </Reveal>
             ) : null}
             {record.services.length + record.amenities.length > 0 ? (
-              <ul className="flex flex-wrap content-start gap-3 fx-reveal">
+              <StaggerGroup as="ul" className="flex flex-wrap content-start gap-3" gap={0.05}>
                 {[...record.services, ...record.amenities].slice(0, 6).map((item, index) => (
-                  <li
+                  <StaggerItem
+                    as="li"
                     key={item.key + item.label}
+                    settle
                     className={`px-3.5 py-2 text-[12px] font-extrabold uppercase tracking-wide ${
                       index % 2 === 0
                         ? "-rotate-2 bg-[var(--accent)] text-[var(--text)]"
@@ -259,9 +271,9 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
                     }`}
                   >
                     {item.label}
-                  </li>
+                  </StaggerItem>
                 ))}
-              </ul>
+              </StaggerGroup>
             ) : null}
           </div>
         </section>
@@ -272,11 +284,12 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
           <h2 id="gallery-heading" className="mb-8 font-display text-4xl uppercase tracking-tight text-[var(--text)]">
             {record.gallery.title ?? "Concept gallery"}
           </h2>
-          <ul className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+          <StaggerGroup as="ul" className="grid grid-cols-2 gap-5 lg:grid-cols-4" gap={0.06}>
             {record.gallery.images.slice(0, 4).map((image, index) => (
-              <li
+              <StaggerItem
+                as="li"
                 key={image.url}
-                className={`border-4 border-[var(--text)] bg-[var(--accent)] p-1.5 shadow-[5px_5px_0_var(--text)] fx-reveal ${
+                className={`border-4 border-[var(--text)] bg-[var(--accent)] p-1.5 shadow-[5px_5px_0_var(--text)] ${
                   index % 2 === 0 ? "-rotate-1" : "rotate-1"
                 }`}
               >
@@ -288,9 +301,9 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
                   className="h-auto w-full border-2 border-[var(--text)] object-cover"
                   attributionClassName="mt-1.5 text-[10px] font-bold uppercase text-[var(--muted)]"
                 />
-              </li>
+              </StaggerItem>
             ))}
-          </ul>
+          </StaggerGroup>
         </section>
       ) : null}
 
@@ -300,9 +313,10 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
             <h2 id="reviews-heading" className="mb-10 font-display text-4xl uppercase tracking-tight">
               Word on the street
             </h2>
-            <ul className="grid gap-6 md:grid-cols-3">
+            <StaggerGroup as="ul" className="grid gap-6 md:grid-cols-3" gap={0.07}>
               {record.reputation.reviews.slice(0, 3).map((review, index) => (
-                <li
+                <StaggerItem
+                  as="li"
                   key={review.id}
                   className={`border-3 border-[var(--text)] bg-[var(--bg)] p-6 ${
                     index === 1 ? "md:-translate-y-3" : ""
@@ -322,9 +336,9 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
                   {review.attribution ? (
                     <AttributionLine attribution={review.attribution} className="mt-2 block text-[10.5px] text-[var(--muted)]" />
                   ) : null}
-                </li>
+                </StaggerItem>
               ))}
-            </ul>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
@@ -355,6 +369,7 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
 
       {record.location ? (
         <section aria-label="Map" className="border-t-4 border-[var(--text)]">
+          <Reveal>
           <MapSection
             location={record.location}
             businessName={record.identity.name}
@@ -365,6 +380,7 @@ export default function StreetFoodPosterTheme({ record }: ThemeProps) {
             buttonClassName="inline-block border-2 border-[var(--text)] bg-[var(--accent)] px-5 py-2.5 text-[12.5px] font-extrabold uppercase tracking-wide text-[var(--on-accent)] shadow-[4px_4px_0_var(--text)]"
             detailsClassName="poc-container flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-6"
           />
+          </Reveal>
         </section>
       ) : null}
 

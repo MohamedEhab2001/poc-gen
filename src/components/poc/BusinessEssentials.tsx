@@ -1,19 +1,22 @@
 import { Clock3, Mail, MapPin, Phone, Store } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ActionLink } from "@/components/poc/ActionLink";
+import { Reveal } from "@/components/poc/motion/Reveal";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import type { ResolvedBusiness, ThemeId } from "@/lib/poc/types";
 
 type VisualVariant = "classic" | "dark" | "minimal" | "poster" | "playful";
 
 const variants: Record<
   VisualVariant,
-  { section: string; eyebrow: string; heading: string; grid: string; card: string; icon: string; label: string; value: string; note: string; action: string }
+  { section: string; eyebrow: string; heading: string; grid: (facts: number) => string; card: string; icon: string; label: string; value: string; note: string; action: string }
 > = {
   classic: {
     section: "border-y border-[var(--border)] bg-[var(--surface)] py-16 md:py-20",
     eyebrow: "text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--primary)]",
     heading: "mt-3 font-display text-4xl leading-tight text-[var(--text)] md:text-5xl",
-    grid: "mt-10 grid gap-px overflow-hidden border border-[var(--border)] bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-4",
+    grid: (facts) =>
+      `mt-10 grid gap-px overflow-hidden border border-[var(--border)] bg-[var(--border)] sm:grid-cols-2 ${columnsFor(facts)}`,
     card: "min-h-44 bg-[var(--bg)] p-6 md:p-7",
     icon: "text-[var(--primary)]",
     label: "mt-8 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]",
@@ -25,7 +28,7 @@ const variants: Record<
     section: "border-y border-[var(--border)] bg-[var(--surface)] py-16 text-[var(--text)] md:py-20",
     eyebrow: "text-[10.5px] font-semibold uppercase tracking-[0.26em] text-[var(--accent)]",
     heading: "mt-3 font-display text-4xl leading-tight text-[var(--text)] md:text-5xl",
-    grid: "mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4",
+    grid: (facts) => `mt-10 grid gap-4 sm:grid-cols-2 ${columnsFor(facts)}`,
     card: "min-h-44 border border-[var(--border)] bg-[var(--bg)] p-6",
     icon: "text-[var(--accent)]",
     label: "mt-8 text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]",
@@ -37,7 +40,8 @@ const variants: Record<
     section: "border-y border-[var(--border)] bg-[var(--bg)] py-20 md:py-24",
     eyebrow: "text-[10px] uppercase tracking-[0.28em] text-[var(--muted)]",
     heading: "mt-4 font-display text-4xl font-normal leading-tight text-[var(--text)] md:text-5xl",
-    grid: "mt-12 grid border-t border-l border-[var(--border)] sm:grid-cols-2 lg:grid-cols-4",
+    grid: (facts) =>
+      `mt-12 grid border-t border-l border-[var(--border)] sm:grid-cols-2 ${columnsFor(facts)}`,
     card: "min-h-48 border-b border-r border-[var(--border)] bg-[var(--bg)] p-7",
     icon: "text-[var(--accent)]",
     label: "mt-10 text-[9.5px] uppercase tracking-[0.24em] text-[var(--muted)]",
@@ -49,7 +53,7 @@ const variants: Record<
     section: "border-y-4 border-[var(--text)] bg-[var(--primary)] py-14 text-[var(--on-primary)] md:py-18",
     eyebrow: "inline-block -rotate-1 bg-[var(--accent)] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[var(--on-accent)]",
     heading: "mt-4 font-display text-5xl uppercase leading-none tracking-tight md:text-6xl",
-    grid: "mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4",
+    grid: (facts) => `mt-10 grid gap-5 sm:grid-cols-2 ${columnsFor(facts)}`,
     card: "min-h-44 border-4 border-[var(--text)] bg-[var(--bg)] p-6 text-[var(--text)] shadow-[6px_6px_0_var(--text)]",
     icon: "text-[var(--secondary)]",
     label: "mt-7 text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-[var(--muted)]",
@@ -61,7 +65,7 @@ const variants: Record<
     section: "border-y-2 border-dashed border-[var(--border)] bg-[var(--surface)] py-16 md:py-20",
     eyebrow: "inline-flex rounded-full bg-[var(--accent)] px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-[var(--on-accent)]",
     heading: "mt-4 font-display text-4xl font-bold leading-tight text-[var(--text)] md:text-5xl",
-    grid: "mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4",
+    grid: (facts) => `mt-10 grid gap-5 sm:grid-cols-2 ${columnsFor(facts)}`,
     card: "min-h-44 rounded-[var(--radius)] border-2 border-[var(--text)] bg-[var(--bg)] p-6 shadow-[0_5px_0_var(--text)]",
     icon: "text-[var(--primary)]",
     label: "mt-7 text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-[var(--muted)]",
@@ -70,6 +74,17 @@ const variants: Record<
     action: "rounded-full bg-[var(--primary)] px-6 py-3 text-[12px] font-bold text-[var(--on-primary)] shadow-[0_4px_0_var(--text)]",
   },
 };
+
+/**
+ * Desktop column count that matches the actual number of fact cards so a
+ * sparse record never renders an empty decorative column. 2 facts pair up,
+ * 3 facts get a balanced row of three, 4 facts use the full four columns.
+ */
+function columnsFor(facts: number): string {
+  if (facts >= 4) return "lg:grid-cols-4";
+  if (facts === 3) return "lg:grid-cols-3";
+  return "";
+}
 
 const visualFamily: Record<ThemeId, VisualVariant> = {
   "heritage-bistro": "classic",
@@ -146,8 +161,9 @@ export function BusinessEssentials({ record }: { record: ResolvedBusiness }) {
     });
   }
 
-  if (facts.length < 3) return null;
+  if (facts.length < 2) return null;
   const style = variants[visualFamily[record.themeId]];
+  const shown = facts.slice(0, 4);
   const actions = [
     record.cta.primary,
     ...record.cta.secondary.filter((action) => action.kind === "directions" || action.kind === "call" || action.kind === "email"),
@@ -158,25 +174,31 @@ export function BusinessEssentials({ record }: { record: ResolvedBusiness }) {
   return (
     <section aria-labelledby="essentials-heading" className={style.section}>
       <div className="poc-container">
-        <p className={style.eyebrow}>Verified essentials</p>
-        <h2 id="essentials-heading" className={style.heading}>At a glance</h2>
-        <div className={style.grid}>
-          {facts.slice(0, 4).map((fact) => {
+        <Reveal>
+          <p className={style.eyebrow}>Verified essentials</p>
+          <h2 id="essentials-heading" className={style.heading}>At a glance</h2>
+        </Reveal>
+        <StaggerGroup className={style.grid(shown.length)}>
+          {shown.map((fact) => {
             const Icon = fact.icon;
             return (
-              <article key={fact.key} className={style.card}>
-                <Icon size={22} strokeWidth={1.8} aria-hidden="true" className={style.icon} />
-                <p className={style.label}>{fact.label}</p>
-                <p className={style.value}>{fact.value}</p>
-                {fact.note ? <p className={style.note}>{fact.note}</p> : null}
-              </article>
+              <StaggerItem key={fact.key}>
+                <article className={style.card}>
+                  <Icon size={22} strokeWidth={1.8} aria-hidden="true" className={style.icon} />
+                  <p className={style.label}>{fact.label}</p>
+                  <p className={style.value}>{fact.value}</p>
+                  {fact.note ? <p className={style.note}>{fact.note}</p> : null}
+                </article>
+              </StaggerItem>
             );
           })}
-        </div>
+        </StaggerGroup>
         {actions.length > 0 ? (
-          <div className="mt-9 flex flex-wrap gap-4">
-            {actions.map((action) => <ActionLink key={action!.href} cta={action!} className={style.action} />)}
-          </div>
+          <Reveal delay={0.1}>
+            <div className="mt-9 flex flex-wrap gap-4">
+              {actions.map((action) => <ActionLink key={action!.href} cta={action!} className={style.action} />)}
+            </div>
+          </Reveal>
         ) : null}
       </div>
     </section>

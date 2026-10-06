@@ -7,13 +7,20 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { AnimatedWordmark } from "@/components/poc/motion/AnimatedWordmark";
+import { AnimeOrnament } from "@/components/poc/motion/AnimeOrnament";
+import { HeroSequence } from "@/components/poc/motion/HeroSequence";
+import { Reveal } from "@/components/poc/motion/Reveal";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { display, body } from "./fonts";
 
 /**
  * Neon Night: late-night café or dessert bar. Near-black canvas, condensed
  * display type, angled hero crop, glowing status chip, desktop side rail
  * navigation, mobile bottom dock, modular menu panels, review marquee.
- * Expressive motion that collapses under prefers-reduced-motion.
+ * Energetic motion: one short sign-flicker on entry (Anime.js), angled image
+ * reveals, quick staggered panels — all collapsing to static content under
+ * prefers-reduced-motion.
  */
 export default function NeonNightTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -108,76 +115,86 @@ export default function NeonNightTheme({ record }: ThemeProps) {
           {record.hero.image ? (
             <div className="grid lg:grid-cols-[1.15fr_1fr]">
               <div className="order-2 px-5 pb-14 pt-12 sm:px-10 lg:order-1 lg:py-24 lg:pr-4">
-                {record.hours?.statusLabel ? (
-                  <p
-                    className={`mb-6 inline-flex items-center gap-2 border px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-[0.18em] ${
-                      record.hours.openNow
-                        ? "border-[var(--accent)]/60 text-[var(--accent)]"
-                        : "border-[var(--border)] text-[var(--muted)]"
-                    }`}
-                  >
-                    <span aria-hidden="true" className="relative flex h-2 w-2">
-                      {record.hours.openNow ? (
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-60" />
-                      ) : null}
-                      <span
-                        className="relative inline-flex h-2 w-2 rounded-full"
-                        style={{ background: record.hours.openNow ? p.accent : p.muted }}
-                      />
-                    </span>
-                    {record.hours.statusLabel}
-                  </p>
-                ) : null}
-                <h1
-                  id="hero-heading"
-                  className="font-display text-[3.6rem] leading-[0.92] tracking-[0.01em] text-[var(--text)] fx-rise sm:text-[5rem] lg:text-[6.2rem]"
-                >
-                  {record.hero.headline}
-                </h1>
-                {record.hero.subheadline ? (
-                  <p className="mt-6 max-w-[44ch] text-[15px] leading-relaxed text-[var(--muted)]">
-                    {record.hero.subheadline}
-                  </p>
-                ) : null}
-                <div className="mt-9 flex flex-wrap items-center gap-4">
-                  {record.cta.primary ? (
-                    <ActionLink
-                      cta={record.cta.primary}
-                      className="inline-flex items-center gap-2 bg-[var(--accent)] px-7 py-3.5 font-display text-xl tracking-[0.08em] text-[var(--on-primary)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 active:translate-y-0"
+                <HeroSequence
+                  steps={[
+                    record.hours?.statusLabel ? (
+                      <AnimeOrnament key="status" variant="flicker" durationMs={900} className="mb-6">
+                        <p
+                          data-anime="flicker"
+                          className={`inline-flex items-center gap-2 border px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-[0.18em] ${
+                            record.hours.openNow
+                              ? "border-[var(--accent)]/60 text-[var(--accent)]"
+                              : "border-[var(--border)] text-[var(--muted)]"
+                          }`}
+                        >
+                          <span aria-hidden="true" className="relative flex h-2 w-2">
+                            {record.hours.openNow ? (
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-60" />
+                            ) : null}
+                            <span
+                              className="relative inline-flex h-2 w-2 rounded-full"
+                              style={{ background: record.hours.openNow ? p.accent : p.muted }}
+                            />
+                          </span>
+                          {record.hours.statusLabel}
+                        </p>
+                      </AnimeOrnament>
+                    ) : null,
+                    <h1
+                      key="headline"
+                      id="hero-heading"
+                      className="font-display text-[3.6rem] leading-[0.92] tracking-[0.01em] text-[var(--text)] sm:text-[5rem] lg:text-[6.2rem]"
                     >
-                      {record.cta.primary.label}
-                      <ArrowUpRight size={18} strokeWidth={2} aria-hidden="true" />
-                    </ActionLink>
-                  ) : null}
-                  {record.cta.secondary[0] ? (
-                    <ActionLink
-                      cta={record.cta.secondary[0]}
-                      className="border border-[var(--secondary)]/50 px-6 py-3 font-display text-xl tracking-[0.08em] text-[var(--secondary)] transition-colors hover:border-[var(--secondary)]"
-                    />
-                  ) : null}
-                </div>
-                {record.reputation ? (
-                  <p className="mt-8 flex items-center gap-2 text-sm text-[var(--muted)]">
-                    <Star size={15} strokeWidth={1.5} className="fill-[var(--accent)] text-[var(--accent)]" aria-hidden="true" />
-                    {record.reputation.rating.toFixed(1)} · {record.reputation.reviewCount.toLocaleString("en-US")} reviews
-                  </p>
-                ) : null}
+                      <AnimatedWordmark text={record.hero.headline} wordClassName="inline-block overflow-hidden align-baseline pb-[0.06em] -mb-[0.06em]" delay={0.08} />
+                    </h1>,
+                    record.hero.subheadline ? (
+                      <p key="sub" className="mt-6 max-w-[44ch] text-[15px] leading-relaxed text-[var(--muted)]">
+                        {record.hero.subheadline}
+                      </p>
+                    ) : null,
+                    <div key="ctas" className="mt-9 flex flex-wrap items-center gap-4">
+                      {record.cta.primary ? (
+                        <ActionLink
+                          cta={record.cta.primary}
+                          className="inline-flex items-center gap-2 bg-[var(--accent)] px-7 py-3.5 font-display text-xl tracking-[0.08em] text-[var(--on-primary)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 active:translate-y-0"
+                        >
+                          {record.cta.primary.label}
+                          <ArrowUpRight size={18} strokeWidth={2} aria-hidden="true" />
+                        </ActionLink>
+                      ) : null}
+                      {record.cta.secondary[0] ? (
+                        <ActionLink
+                          cta={record.cta.secondary[0]}
+                          className="border border-[var(--secondary)]/50 px-6 py-3 font-display text-xl tracking-[0.08em] text-[var(--secondary)] transition-colors hover:border-[var(--secondary)]"
+                        />
+                      ) : null}
+                    </div>,
+                    record.reputation ? (
+                      <p key="reputation" className="mt-8 flex items-center gap-2 text-sm text-[var(--muted)]">
+                        <Star size={15} strokeWidth={1.5} className="fill-[var(--accent)] text-[var(--accent)]" aria-hidden="true" />
+                        {record.reputation.rating.toFixed(1)} · {record.reputation.reviewCount.toLocaleString("en-US")} reviews
+                      </p>
+                    ) : null,
+                  ]}
+                />
               </div>
               <div className="order-1 lg:order-2">
-                <div
-                  className="h-64 overflow-hidden sm:h-80 lg:h-full lg:min-h-[640px]"
-                  style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%, 12% 100%)" }}
-                >
-                  {record.hero.image ? (
-                    <SmartImage
-                      image={record.hero.image}
-                      priority
-                      fill
-                      sizes="(min-width: 1024px) 45vw, 100vw"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : null}
-                </div>
+                <Reveal media direction="left" className="h-64 overflow-hidden sm:h-80 lg:h-full lg:min-h-[640px]" delay={0.1}>
+                  <div
+                    className="h-full w-full overflow-hidden"
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%, 12% 100%)" }}
+                  >
+                    {record.hero.image ? (
+                      <SmartImage
+                        image={record.hero.image}
+                        priority
+                        fill
+                        sizes="(min-width: 1024px) 45vw, 100vw"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : null}
+                  </div>
+                </Reveal>
               </div>
             </div>
           ) : null}
@@ -194,24 +211,29 @@ export default function NeonNightTheme({ record }: ThemeProps) {
         {record.about || record.services.length + record.amenities.length > 0 ? (
           <section aria-labelledby="about-heading" className="px-5 py-14 sm:px-10">
             <div className="grid gap-8 lg:grid-cols-[minmax(0,180px)_1fr]">
-              <h2 id="about-heading" className="font-display text-4xl tracking-[0.02em] text-[var(--text)]">
-                THE LOWDOWN
-              </h2>
+              <Reveal>
+                <h2 id="about-heading" className="font-display text-4xl tracking-[0.02em] text-[var(--text)]">
+                  THE LOWDOWN
+                </h2>
+              </Reveal>
               <div>
                 {record.about ? (
-                  <p className="max-w-[64ch] text-[15px] leading-relaxed text-[var(--muted)]">{record.about.body}</p>
+                  <Reveal delay={0.08}>
+                    <p className="max-w-[64ch] text-[15px] leading-relaxed text-[var(--muted)]">{record.about.body}</p>
+                  </Reveal>
                 ) : null}
                 {record.services.length + record.amenities.length > 0 ? (
-                  <ul className={`flex flex-wrap gap-2.5 ${record.about ? "mt-6" : ""}`}>
+                  <StaggerGroup as="ul" className={`flex flex-wrap gap-2.5 ${record.about ? "mt-6" : ""}`} gap={0.05}>
                     {[...record.services, ...record.amenities].slice(0, 6).map((item) => (
-                      <li
+                      <StaggerItem
+                        as="li"
                         key={item.key + item.label}
                         className="border border-[var(--secondary)]/50 px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-[var(--secondary)]"
                       >
                         {item.label}
-                      </li>
+                      </StaggerItem>
                     ))}
-                  </ul>
+                  </StaggerGroup>
                 ) : null}
               </div>
             </div>
@@ -230,11 +252,11 @@ export default function NeonNightTheme({ record }: ThemeProps) {
                 </p>
               ) : null}
             </div>
-            <div className="grid gap-5 md:grid-cols-2">
+            <StaggerGroup className="grid gap-5 md:grid-cols-2" gap={0.07}>
               {record.menu.sections.map((section, index) => (
+                <StaggerItem key={section.id}>
                 <div
-                  key={section.id}
-                  className="border border-[var(--border)] bg-[var(--surface)] p-7 fx-reveal"
+                  className="h-full border border-[var(--border)] bg-[var(--surface)] p-7"
                   style={index % 2 === 1 ? { borderTop: `3px solid ${p.primary}` } : { borderTop: `3px solid ${p.secondary}` }}
                 >
                   <h3 className="font-display text-3xl tracking-[0.04em] text-[var(--text)]">{section.name}</h3>
@@ -273,8 +295,9 @@ export default function NeonNightTheme({ record }: ThemeProps) {
                     ))}
                   </ul>
                 </div>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
           </section>
         ) : null}
 
@@ -315,11 +338,12 @@ export default function NeonNightTheme({ record }: ThemeProps) {
             <h2 id="gallery-heading" className="mb-8 font-display text-5xl text-[var(--text)]">
               {record.gallery.title ?? "AFTER DARK"}
             </h2>
-            <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StaggerGroup as="ul" className="grid grid-cols-2 gap-3 lg:grid-cols-4" gap={0.06}>
               {record.gallery.images.slice(0, 4).map((image, index) => (
-                <li
+                <StaggerItem
+                  as="li"
                   key={image.url}
-                  className={`overflow-hidden border border-[var(--border)] fx-reveal ${index % 2 === 1 ? "lg:translate-y-6" : ""}`}
+                  className={`overflow-hidden border border-[var(--border)] ${index % 2 === 1 ? "lg:translate-y-6" : ""}`}
                 >
                   <SmartImage
                     image={image}
@@ -329,15 +353,16 @@ export default function NeonNightTheme({ record }: ThemeProps) {
                     className="h-auto w-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:scale-105"
                     attributionClassName="px-2 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[var(--muted)]"
                   />
-                </li>
+                </StaggerItem>
               ))}
-            </ul>
+            </StaggerGroup>
           </section>
         ) : null}
 
         <section id="find" aria-labelledby="find-heading" className="border-t border-[var(--border)] px-5 py-16 sm:px-10 lg:py-24">
           <div className="grid gap-12 lg:grid-cols-2">
             <div>
+              <Reveal>
               <h2 id="find-heading" className="font-display text-5xl text-[var(--text)]">
                 FIND US
               </h2>
@@ -368,8 +393,10 @@ export default function NeonNightTheme({ record }: ThemeProps) {
                   ))}
                 </ul>
               ) : null}
+              </Reveal>
             </div>
             {record.location ? (
+              <Reveal delay={0.1}>
               <MapSection
                 location={record.location}
                 businessName={record.identity.name}
@@ -378,7 +405,8 @@ export default function NeonNightTheme({ record }: ThemeProps) {
                 cardClassName="border border-[var(--border)] bg-[var(--surface)] p-8"
                 addressClassName="text-sm text-[var(--text)]"
                 buttonClassName="inline-flex items-center gap-2 border border-[var(--primary)] px-5 py-2.5 font-display text-lg tracking-[0.08em] text-[var(--primary)] transition-colors hover:bg-[var(--primary)] hover:text-[var(--on-primary)]"
-              />
+                />
+              </Reveal>
             ) : null}
           </div>
         </section>
@@ -387,7 +415,9 @@ export default function NeonNightTheme({ record }: ThemeProps) {
 
         <footer className="border-t border-[var(--border)] px-5 py-10 sm:px-10">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
-            <p className="font-display text-4xl text-[var(--text)]">{record.wordmark.text}</p>
+            <p className="font-display text-4xl text-[var(--text)]">
+              <AnimatedWordmark text={record.wordmark.text} wordClassName="inline-block overflow-hidden align-baseline pb-[0.08em] -mb-[0.08em]" />
+            </p>
             <ConceptNotice
               record={record}
               labelClassName="text-[10.5px] uppercase tracking-[0.22em] text-[var(--secondary)]"

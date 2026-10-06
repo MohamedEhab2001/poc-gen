@@ -8,37 +8,46 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { AnimatedWordmark } from "@/components/poc/motion/AnimatedWordmark";
+import { AnimeOrnament } from "@/components/poc/motion/AnimeOrnament";
+import { EnterOnce } from "@/components/poc/motion/EnterOnce";
 import { LineGrow } from "@/components/poc/motion/LineGrow";
 import { Reveal } from "@/components/poc/motion/Reveal";
-import { StaggerGroup, StaggerItem } from "@/components/poc/motion/Stagger";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { display, body } from "./fonts";
 
-/** Slow-turning sunburst crest. Pure SVG; spins gently, stops under reduced motion. */
-function FanCrest({ size = 56, spin = true }: { size?: number; spin?: boolean }) {
+/**
+ * Sunburst crest. The rays and ring carry data-anime="draw" so Anime.js
+ * stroke-draws the crest once on entry (scoped, reverted on unmount); the
+ * crest is fully present in the SSR markup and never rotates continuously.
+ */
+function FanCrest({ size = 56 }: { size?: number }) {
   const rays = Array.from({ length: 12 }, (_, index) => index * 30);
   return (
-    <svg
-      viewBox="-50 -50 100 100"
-      width={size}
-      height={size}
-      aria-hidden="true"
-      className={spin ? "fan-spin" : undefined}
-    >
-      {rays.map((angle) => (
-        <line
-          key={angle}
-          x1="0"
-          y1="-10"
-          x2="0"
-          y2="-38"
-          stroke="var(--primary)"
-          strokeWidth={angle % 90 === 0 ? 3 : 1.6}
-          transform={`rotate(${angle})`}
-        />
-      ))}
-      <circle r="7" fill="none" stroke="var(--primary)" strokeWidth="2" />
-      <circle r="2.6" fill="var(--primary)" />
-    </svg>
+    <AnimeOrnament variant="draw" durationMs={1600} staggerMs={70} className="shrink-0">
+      <svg
+        viewBox="-50 -50 100 100"
+        width={size}
+        height={size}
+        aria-hidden="true"
+      >
+        {rays.map((angle) => (
+          <line
+            key={angle}
+            x1="0"
+            y1="-10"
+            x2="0"
+            y2="-38"
+            stroke="var(--primary)"
+            strokeWidth={angle % 90 === 0 ? 3 : 1.6}
+            transform={`rotate(${angle})`}
+            data-anime="draw"
+          />
+        ))}
+        <circle r="7" fill="none" stroke="var(--primary)" strokeWidth="2" data-anime="draw" />
+        <circle r="2.6" fill="var(--primary)" />
+      </svg>
+    </AnimeOrnament>
   );
 }
 
@@ -67,9 +76,10 @@ function DecoDivider() {
 }
 
 /**
- * Deco Supper Club: gilded-age nightlife. Symmetric marquee masthead with a
- * turning fan crest, champagne-gold rules that draw themselves in, stepped
- * deco frames, oxblood accents, and calm staggered entrances.
+ * Deco Supper Club: gilded-age nightlife. Symmetric marquee masthead whose
+ * fan crests stroke-draw once (Anime.js), champagne-gold rules that draw
+ * themselves in, stepped deco frames, oxblood accents, and slow symmetric
+ * ornamental entrances. Major ornaments never rotate continuously.
  */
 export default function DecoSupperClubTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -94,11 +104,11 @@ export default function DecoSupperClubTheme({ record }: ThemeProps) {
     <div id="main" style={style} className={`${display.variable} ${body.variable} theme-root`}>
       {/* Symmetric marquee masthead */}
       <header className="border-b border-[var(--primary)]/40">
-        <div className="poc-container flex flex-col items-center gap-3 pb-6 pt-8">
+        <EnterOnce from={{ y: -8 }} className="poc-container flex flex-col items-center gap-3 pb-6 pt-8">
           <div className="flex items-center gap-5">
             <FanCrest size={44} />
             <p className="font-display text-3xl uppercase tracking-[0.3em] text-[var(--text)] md:text-4xl">
-              {record.wordmark.text}
+              <AnimatedWordmark text={record.wordmark.text} wordClassName="inline-block overflow-hidden align-baseline" />
             </p>
             <FanCrest size={44} />
           </div>
@@ -112,7 +122,7 @@ export default function DecoSupperClubTheme({ record }: ThemeProps) {
               {record.hours.statusLabel}
             </p>
           ) : null}
-        </div>
+        </EnterOnce>
       </header>
 
       {/* Centered symmetric hero */}
@@ -131,7 +141,7 @@ export default function DecoSupperClubTheme({ record }: ThemeProps) {
               className="font-display text-[2.7rem] uppercase leading-[1.08] tracking-[0.06em] text-[var(--text)] md:text-6xl"
               style={{ textWrap: "balance" } as React.CSSProperties}
             >
-              {record.hero.headline}
+              <AnimatedWordmark text={record.hero.headline} wordClassName="inline-block overflow-hidden align-baseline pb-[0.12em] -mb-[0.12em]" delay={0.15} />
             </h1>
           </Reveal>
           <div className="mt-7">
@@ -418,7 +428,7 @@ export default function DecoSupperClubTheme({ record }: ThemeProps) {
 
       <footer className="border-t border-[var(--primary)]/30 py-12">
         <div className="poc-container flex flex-col items-center gap-6 text-center">
-          <FanCrest size={40} spin={false} />
+          <FanCrest size={40} />
           <p className="font-display text-2xl uppercase tracking-[0.3em] text-[var(--text)]">{record.wordmark.text}</p>
           <ConceptNotice
             record={record}

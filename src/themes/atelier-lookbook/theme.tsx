@@ -8,10 +8,11 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { AnimatedWordmark } from "@/components/poc/motion/AnimatedWordmark";
 import { LineGrow } from "@/components/poc/motion/LineGrow";
-import { ParallaxImage } from "@/components/poc/motion/ParallaxImage";
+import { ParallaxMedia } from "@/components/poc/motion/ParallaxMedia";
 import { Reveal } from "@/components/poc/motion/Reveal";
-import { StaggerGroup, StaggerItem } from "@/components/poc/motion/Stagger";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { display, body } from "./fonts";
 
 /** Tiny red chapter label with a growing hairline. */
@@ -29,7 +30,8 @@ function ChapterLabel({ children }: { children: React.ReactNode }) {
 /**
  * Atelier Lookbook: high-fashion gallery. Stark white, Bodoni display, one
  * fashion-red gesture. Parallax image chapters, hairline index rows, huge
- * whitespace, and gliding entrances.
+ * whitespace, and gliding entrances: large headings clip-reveal line by
+ * line, imagery drifts slowly with scroll, index rows travel on hairlines.
  */
 export default function AtelierLookbookTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -89,7 +91,7 @@ export default function AtelierLookbookTheme({ record }: ThemeProps) {
                 className="mt-6 font-display text-[3.2rem] font-medium leading-[0.98] tracking-[-0.01em] md:text-[4.6rem] lg:text-[5.2rem]"
                 style={{ textWrap: "balance" } as React.CSSProperties}
               >
-                {record.hero.headline}
+                <AnimatedWordmark text={record.hero.headline} wordClassName="inline-block overflow-hidden align-baseline pb-[0.08em] -mb-[0.08em]" />
               </h1>
             </Reveal>
             {record.hero.subheadline ? (
@@ -132,7 +134,7 @@ export default function AtelierLookbookTheme({ record }: ThemeProps) {
           </div>
           <div className="relative min-h-[420px] lg:col-span-6 lg:min-h-[86dvh]">
             {record.hero.image ? (
-              <ParallaxImage className="absolute inset-0" distance={56}>
+              <ParallaxMedia className="absolute inset-0" distance={56}>
                 <div className="h-[112%] w-full -translate-y-[6%]">
                   <SmartImage
                     image={record.hero.image}
@@ -142,7 +144,7 @@ export default function AtelierLookbookTheme({ record }: ThemeProps) {
                     className="h-full w-full object-cover"
                   />
                 </div>
-              </ParallaxImage>
+              </ParallaxMedia>
             ) : null}
             <p aria-hidden="true" className="absolute bottom-6 left-6 bg-[var(--bg)] px-3 py-1.5 font-display text-[13px] italic">
               {record.identity.primaryCategory}
@@ -258,7 +260,7 @@ export default function AtelierLookbookTheme({ record }: ThemeProps) {
             {gallery.slice(0, 4).map((image, index) => (
               <Reveal key={image.url} delay={index * 0.05}>
                 <figure className={index % 2 === 1 ? "md:pr-[18%]" : "md:pl-[18%]"}>
-                  <ParallaxImage className="h-[46vh] min-h-[300px] md:h-[58vh]" distance={34}>
+                  <ParallaxMedia className="h-[46vh] min-h-[300px] md:h-[58vh]" distance={34}>
                     <div className="h-[114%] w-full -translate-y-[7%]">
                       <SmartImage
                         image={image}
@@ -270,7 +272,7 @@ export default function AtelierLookbookTheme({ record }: ThemeProps) {
                         showAttribution={false}
                       />
                     </div>
-                  </ParallaxImage>
+                  </ParallaxMedia>
                   {image.attribution ? (
                     <AttributionLine attribution={image.attribution} className="mt-2 text-[11px] text-[var(--muted)]" />
                   ) : null}
@@ -378,7 +380,9 @@ export default function AtelierLookbookTheme({ record }: ThemeProps) {
 
       <footer className="border-t border-[var(--text)]">
         <div className="poc-container flex flex-col justify-between gap-8 py-12 md:flex-row md:items-end">
-          <p className="font-display text-[2.6rem] font-medium italic leading-none md:text-6xl">{record.wordmark.text}</p>
+          <p className="font-display text-[2.6rem] font-medium italic leading-none md:text-6xl">
+            <AnimatedWordmark text={record.wordmark.text} wordClassName="inline-block overflow-hidden align-baseline pb-[0.1em] -mb-[0.1em]" />
+          </p>
           <ConceptNotice
             record={record}
             labelClassName="text-[10px] font-semibold uppercase tracking-[0.3em] text-[var(--muted)]"

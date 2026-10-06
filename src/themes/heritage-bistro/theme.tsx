@@ -8,12 +8,20 @@ import { HoursList } from "@/components/poc/HoursList";
 import { MobileActionBar } from "@/components/poc/MobileActionBar";
 import { SmartImage } from "@/components/poc/media/SmartImage";
 import { MapSection } from "@/components/poc/map/MapSection";
+import { EnterOnce } from "@/components/poc/motion/EnterOnce";
+import { HeroSequence } from "@/components/poc/motion/HeroSequence";
+import { LineGrow } from "@/components/poc/motion/LineGrow";
+import { MotionCta } from "@/components/poc/motion/MotionCta";
+import { Reveal } from "@/components/poc/motion/Reveal";
+import { StaggerGroup, StaggerItem } from "@/components/poc/motion/StaggerGroup";
 import { display, body } from "./fonts";
 
 /**
  * Heritage Bistro: established neighborhood restaurant. Classic masthead,
  * framed split hero with an hours card, printed-menu typography with Roman
- * numerals, newspaper pull quotes, paper grain. Calm motion only.
+ * numerals, newspaper pull quotes, paper grain. Calm motion only: slow
+ * editorial fades, printed rules that draw in, very shallow image drift,
+ * and sections that turn like pages of a refined printed menu — no bounce.
  */
 export default function HeritageBistroTheme({ record }: ThemeProps) {
   const p = record.palette;
@@ -56,7 +64,7 @@ export default function HeritageBistroTheme({ record }: ThemeProps) {
       <div className="grain-overlay" aria-hidden="true" />
 
       <header className="border-b-[3px] border-double border-[var(--primary)]">
-        <div className="poc-container flex h-[76px] items-center justify-between gap-6">
+        <EnterOnce from={{ y: -8 }} className="poc-container flex h-[76px] items-center justify-between gap-6">
           <a href="#top" className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-[var(--primary)] font-display text-lg font-semibold text-[var(--primary)]">
               {initials}
@@ -82,12 +90,12 @@ export default function HeritageBistroTheme({ record }: ThemeProps) {
               {record.hours.statusLabel}
             </p>
           ) : null}
-        </div>
+        </EnterOnce>
       </header>
 
       {/* Split hero: framed image + copy + hours card */}
       <section aria-labelledby="hero-heading" className="poc-container grid gap-10 py-14 md:grid-cols-2 md:items-center md:py-20">
-        <div className="relative fx-rise">
+        <Reveal media delay={0.12} y={18} className="relative">
           <div aria-hidden="true" className="absolute -left-3 -top-3 h-full w-full border border-[var(--accent)]" />
           {record.hero.image ? (
             <SmartImage
@@ -100,63 +108,68 @@ export default function HeritageBistroTheme({ record }: ThemeProps) {
               attributionClassName="mt-2 text-right text-[11px] italic text-[var(--muted)]"
             />
           ) : null}
-        </div>
-        <div className="fx-rise">
-          {record.hero.eyebrow ? (
-            <p className="mb-4 text-[12px] uppercase tracking-[0.22em] text-[var(--accent)]">
-              {record.hero.eyebrow}
-            </p>
-          ) : null}
-          <h1
-            id="hero-heading"
-            className="font-display text-4xl font-semibold leading-[1.08] text-[var(--text)] md:text-[3.4rem]"
-          >
-            {record.hero.headline}
-          </h1>
-          {record.hero.subheadline ? (
-            <p className="mt-5 max-w-[46ch] text-[15px] leading-relaxed text-[var(--muted)]">
-              {record.hero.subheadline}
-            </p>
-          ) : null}
-          {record.reputation ? (
-            <p className="mt-5 flex items-center gap-2 text-sm text-[var(--muted)]">
-              <Star size={15} strokeWidth={1.5} className="text-[var(--accent)]" aria-hidden="true" />
-              <span>
-                {record.reputation.rating.toFixed(1)} from {record.reputation.reviewCount.toLocaleString("en-US")} reviews
-              </span>
-            </p>
-          ) : null}
-          {record.cta.primary || record.cta.secondary[0] ? (
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              {record.cta.primary ? (
-                <ActionLink
-                  cta={record.cta.primary}
-                  className="rounded-[var(--radius)] bg-[var(--primary)] px-7 py-3.5 text-[13px] font-semibold uppercase tracking-[0.1em] text-[var(--on-primary)] transition-opacity hover:opacity-90 active:translate-y-[1px]"
-                />
-              ) : null}
-              {record.cta.secondary[0] ? (
-                <ActionLink
-                  cta={record.cta.secondary[0]}
-                  className="rounded-[var(--radius)] border border-[var(--primary)] px-6 py-3 text-[13px] font-semibold uppercase tracking-[0.1em] text-[var(--primary)] transition-colors hover:bg-[var(--primary)] hover:text-[var(--on-primary)]"
-                />
-              ) : null}
-            </div>
-          ) : null}
-          {record.hours ? (
-            <div className="mt-9 border-t border-[var(--border)] pt-5">
-              <HoursList
-                hours={record.hours}
-                labelClassName="text-sm text-[var(--muted)]"
-                className="grid max-w-md grid-cols-1 gap-x-8 text-[13px] text-[var(--muted)] sm:grid-cols-2"
-              />
-            </div>
-          ) : null}
+        </Reveal>
+        <div>
+          <HeroSequence
+            steps={[
+              record.hero.eyebrow ? (
+                <p key="eyebrow" className="mb-4 text-[12px] uppercase tracking-[0.22em] text-[var(--accent)]">
+                  {record.hero.eyebrow}
+                </p>
+              ) : null,
+              <h1
+                key="headline"
+                id="hero-heading"
+                className="font-display text-4xl font-semibold leading-[1.08] text-[var(--text)] md:text-[3.4rem]"
+              >
+                {record.hero.headline}
+              </h1>,
+              record.hero.subheadline ? (
+                <p key="sub" className="mt-5 max-w-[46ch] text-[15px] leading-relaxed text-[var(--muted)]">
+                  {record.hero.subheadline}
+                </p>
+              ) : null,
+              record.reputation ? (
+                <p key="reputation" className="mt-5 flex items-center gap-2 text-sm text-[var(--muted)]">
+                  <Star size={15} strokeWidth={1.5} className="text-[var(--accent)]" aria-hidden="true" />
+                  <span>
+                    {record.reputation.rating.toFixed(1)} from {record.reputation.reviewCount.toLocaleString("en-US")} reviews
+                  </span>
+                </p>
+              ) : null,
+              record.cta.primary || record.cta.secondary[0] ? (
+                <div key="ctas" className="mt-8 flex flex-wrap items-center gap-4">
+                  {record.cta.primary ? (
+                    <MotionCta
+                      cta={record.cta.primary}
+                      className="rounded-[var(--radius)] bg-[var(--primary)] px-7 py-3.5 text-[13px] font-semibold uppercase tracking-[0.1em] text-[var(--on-primary)] transition-opacity hover:opacity-90 active:translate-y-[1px]"
+                    />
+                  ) : null}
+                  {record.cta.secondary[0] ? (
+                    <ActionLink
+                      cta={record.cta.secondary[0]}
+                      className="rounded-[var(--radius)] border border-[var(--primary)] px-6 py-3 text-[13px] font-semibold uppercase tracking-[0.1em] text-[var(--primary)] transition-colors hover:bg-[var(--primary)] hover:text-[var(--on-primary)]"
+                    />
+                  ) : null}
+                </div>
+              ) : null,
+              record.hours ? (
+                <div key="hours" className="mt-9 border-t border-[var(--border)] pt-5">
+                  <HoursList
+                    hours={record.hours}
+                    labelClassName="text-sm text-[var(--muted)]"
+                    className="grid max-w-md grid-cols-1 gap-x-8 text-[13px] text-[var(--muted)] sm:grid-cols-2"
+                  />
+                </div>
+              ) : null,
+            ]}
+          />
         </div>
       </section>
 
       {record.about || record.services.length + record.amenities.length > 0 ? (
-        <section id="story" aria-labelledby="story-heading" className="border-y border-[var(--border)] bg-[var(--surface)] fx-reveal">
-          <div className="poc-container max-w-3xl py-16 text-center md:py-20">
+        <section id="story" aria-labelledby="story-heading" className="border-y border-[var(--border)] bg-[var(--surface)]">
+          <Reveal className="poc-container max-w-3xl py-16 text-center md:py-20">
             <p className="mb-3 text-[12px] uppercase tracking-[0.24em] text-[var(--accent)]">Our story</p>
             <h2 id="story-heading" className="font-display text-3xl font-semibold text-[var(--text)] md:text-4xl">
               {record.about?.title ?? `About ${record.identity.shortName}`}
@@ -169,26 +182,26 @@ export default function HeritageBistroTheme({ record }: ThemeProps) {
                 {[...record.services, ...record.amenities].slice(0, 6).map((item) => item.label).join("  ·  ")}
               </p>
             ) : null}
-          </div>
+          </Reveal>
         </section>
       ) : null}
 
       {record.menu ? (
-        <section id="menu" aria-labelledby="menu-heading" className="poc-container py-16 fx-reveal md:py-24">
-          <div className="mb-10 text-center">
+        <section id="menu" aria-labelledby="menu-heading" className="poc-container py-16 md:py-24">
+          <Reveal className="mb-10 text-center">
             <h2 id="menu-heading" className="font-display text-4xl font-semibold text-[var(--text)]">
               The Menu
             </h2>
-            <div aria-hidden="true" className="mx-auto mt-4 h-px w-24 bg-[var(--accent)]" />
+            <LineGrow className="mx-auto mt-4 h-px w-24 bg-[var(--accent)]" origin="center" />
             {record.menu.notice ? (
               <p className="mx-auto mt-4 max-w-md text-[13px] italic text-[var(--muted)]" data-provenance={record.menu.mode === "sample" ? "sample menu" : undefined}>
                 {record.menu.notice}
               </p>
             ) : null}
-          </div>
-          <div className="grid gap-x-14 gap-y-12 md:grid-cols-2">
+          </Reveal>
+          <StaggerGroup className="grid gap-x-14 gap-y-12 md:grid-cols-2" gap={0.16}>
             {record.menu.sections.map((section, index) => (
-              <div key={section.id}>
+              <StaggerItem key={section.id}>
                 <div className="mb-5 flex items-baseline justify-between gap-4 border-b border-[var(--border)] pb-2">
                   <h3 className="font-display text-2xl font-semibold text-[var(--text)]">
                     <span className="mr-3 text-base text-[var(--accent)]">{roman(index + 1)}.</span>
@@ -203,9 +216,9 @@ export default function HeritageBistroTheme({ record }: ThemeProps) {
                 {section.description ? (
                   <p className="mb-4 font-display text-[15px] italic text-[var(--muted)]">{section.description}</p>
                 ) : null}
-                <ul className="space-y-4">
+                <StaggerGroup as="ul" className="space-y-4" gap={0.05}>
                   {section.items.map((item) => (
-                    <li key={item.id}>
+                    <StaggerItem as="li" key={item.id} customDistance={10}>
                       <div className="flex items-baseline gap-3">
                         <span className="font-display text-[17px] font-semibold text-[var(--text)]">
                           {item.name}
@@ -221,24 +234,24 @@ export default function HeritageBistroTheme({ record }: ThemeProps) {
                           {item.tags.length > 0 ? ` (${item.tags.join(", ")})` : ""}
                         </p>
                       ) : null}
-                    </li>
+                    </StaggerItem>
                   ))}
-                </ul>
-              </div>
+                </StaggerGroup>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
         </section>
       ) : null}
 
       {record.gallery ? (
-        <section id="gallery" aria-labelledby="gallery-heading" className="bg-[var(--surface)] py-16 fx-reveal">
+        <section id="gallery" aria-labelledby="gallery-heading" className="bg-[var(--surface)] py-16">
           <div className="poc-container">
             <h2 id="gallery-heading" className="mb-8 text-center font-display text-3xl font-semibold text-[var(--text)]">
               {record.gallery.title ?? "The room"}
             </h2>
-            <ul className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+            <StaggerGroup as="ul" className="grid grid-cols-2 gap-5 lg:grid-cols-4">
               {record.gallery.images.slice(0, 4).map((image) => (
-                <li key={image.url} className="bg-[var(--bg)] p-2.5 shadow-[0_10px_28px_-16px_rgba(42,33,24,0.4)]">
+                <StaggerItem as="li" key={image.url} className="bg-[var(--bg)] p-2.5 shadow-[0_10px_28px_-16px_rgba(42,33,24,0.4)]">
                   <SmartImage
                     image={image}
                     width={600}
@@ -247,36 +260,35 @@ export default function HeritageBistroTheme({ record }: ThemeProps) {
                     className="h-auto w-full object-cover"
                     attributionClassName="mt-2 text-[10.5px] text-[var(--muted)]"
                   />
-                </li>
+                </StaggerItem>
               ))}
-            </ul>
+            </StaggerGroup>
           </div>
         </section>
       ) : null}
 
       {record.reputation && record.reputation.reviews.length > 0 ? (
-        <section aria-labelledby="reviews-heading" className="poc-container py-16 fx-reveal md:py-24">
+        <section aria-labelledby="reviews-heading" className="poc-container py-16 md:py-24">
           <h2 id="reviews-heading" className="mb-10 text-center font-display text-3xl font-semibold text-[var(--text)]">
             What guests write
           </h2>
-          <div className="grid gap-10 md:grid-cols-3 md:gap-0">
+          <StaggerGroup className="grid gap-10 md:grid-cols-3 md:gap-0">
             {record.reputation.reviews.slice(0, 3).map((review, index) => (
-              <figure
-                key={review.id}
-                className={`px-0 md:px-8 ${index > 0 ? "md:border-l md:border-[var(--border)]" : ""}`}
-              >
-                <blockquote className="font-display text-[19px] font-medium italic leading-[1.5] text-[var(--text)]">
-                  &ldquo;{review.text}&rdquo;
-                </blockquote>
-                <figcaption className="mt-4 text-[12px] uppercase tracking-[0.16em] text-[var(--muted)]">
-                  {review.authorName}, {review.publishedAt ? new Date(review.publishedAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "recently"}
-                </figcaption>
-                {review.attribution ? (
-                  <AttributionLine attribution={review.attribution} className="mt-1 text-[11px] text-[var(--muted)]" />
-                ) : null}
-              </figure>
+              <StaggerItem key={review.id} className={`px-0 md:px-8 ${index > 0 ? "md:border-l md:border-[var(--border)]" : ""}`}>
+                <figure>
+                  <blockquote className="font-display text-[19px] font-medium italic leading-[1.5] text-[var(--text)]">
+                    &ldquo;{review.text}&rdquo;
+                  </blockquote>
+                  <figcaption className="mt-4 text-[12px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                    {review.authorName}, {review.publishedAt ? new Date(review.publishedAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "recently"}
+                  </figcaption>
+                  {review.attribution ? (
+                    <AttributionLine attribution={review.attribution} className="mt-1 text-[11px] text-[var(--muted)]" />
+                  ) : null}
+                </figure>
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGroup>
           {record.reputation.reviewsUrl ? (
             <p className="mt-10 text-center">
               <a
@@ -292,9 +304,9 @@ export default function HeritageBistroTheme({ record }: ThemeProps) {
         </section>
       ) : null}
 
-      <section id="visit" aria-labelledby="visit-heading" className="border-t border-[var(--border)] bg-[var(--surface)] py-16 fx-reveal md:py-24">
+      <section id="visit" aria-labelledby="visit-heading" className="border-t border-[var(--border)] bg-[var(--surface)] py-16 md:py-24">
         <div className="poc-container grid gap-12 lg:grid-cols-[1fr_1.2fr]">
-          <div>
+          <Reveal>
             <h2 id="visit-heading" className="font-display text-3xl font-semibold text-[var(--text)]">
               Visit us
             </h2>
@@ -324,17 +336,19 @@ export default function HeritageBistroTheme({ record }: ThemeProps) {
                 </p>
               ) : null}
             </div>
-          </div>
+          </Reveal>
           {record.location ? (
-            <MapSection
-              location={record.location}
-              businessName={record.identity.name}
-              directionsCta={record.cta.secondary.find((cta) => cta.kind === "directions") ?? null}
-              embedClassName="h-[360px] w-full border border-[var(--border)]"
-              cardClassName="border border-[var(--border)] bg-[var(--bg)] p-8"
-              addressClassName="text-[15px] text-[var(--text)]"
-              buttonClassName="inline-flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.1em] text-[var(--primary)] hover:underline"
-            />
+            <Reveal delay={0.12}>
+              <MapSection
+                location={record.location}
+                businessName={record.identity.name}
+                directionsCta={record.cta.secondary.find((cta) => cta.kind === "directions") ?? null}
+                embedClassName="h-[360px] w-full border border-[var(--border)]"
+                cardClassName="border border-[var(--border)] bg-[var(--bg)] p-8"
+                addressClassName="text-[15px] text-[var(--text)]"
+                buttonClassName="inline-flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.1em] text-[var(--primary)] hover:underline"
+              />
+            </Reveal>
           ) : null}
         </div>
       </section>
