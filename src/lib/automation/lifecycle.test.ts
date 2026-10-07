@@ -4,6 +4,7 @@ import {
   assertLeadTransition,
   canTransition,
   isLeadStatus,
+  POC_REVISION_PRESERVED_LEAD_STATUSES,
   isRetryRestorableStatus,
   isTerminalLeadStatus,
   LEAD_STATUSES,
@@ -92,5 +93,20 @@ describe("lead lifecycle transition table", () => {
   it("treats same-status writes as legal no-ops", () => {
     expect(canTransition("QUALIFIED", "QUALIFIED")).toBe(true);
     expect(canTransition("CONTACTED", "CONTACTED")).toBe(true);
+  });
+
+  it("preserves outreach and reply outcomes across POC-only revisions", () => {
+    expect([...POC_REVISION_PRESERVED_LEAD_STATUSES]).toEqual([
+      "CONTACTED",
+      "FOLLOW_UP_1",
+      "FOLLOW_UP_2",
+      "INTERESTED",
+      "NOT_INTERESTED",
+      "UNSUBSCRIBED",
+      "BOUNCED",
+      "SUPPRESSED",
+    ]);
+    expect(POC_REVISION_PRESERVED_LEAD_STATUSES.has("PUBLISHED")).toBe(false);
+    expect(POC_REVISION_PRESERVED_LEAD_STATUSES.has("REJECTED")).toBe(false);
   });
 });

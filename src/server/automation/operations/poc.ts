@@ -11,7 +11,11 @@ import { recordSchema, themeIds } from "@/lib/poc/schema";
 import { runDeterministicQa } from "@/lib/automation/qa";
 import { recordExternalProviders } from "@/lib/automation/evidence";
 import { AutomationError } from "@/lib/automation/outcomes";
-import { isLeadStatus, isRetryRestorableStatus } from "@/lib/automation/lifecycle";
+import {
+  isLeadStatus,
+  isRetryRestorableStatus,
+  POC_REVISION_PRESERVED_LEAD_STATUSES,
+} from "@/lib/automation/lifecycle";
 import type { LeadStatus } from "@/lib/automation/lifecycle";
 
 /** Narrows a stored status string to the lifecycle type or fails closed. */
@@ -67,7 +71,9 @@ import { PostgresShareLinkStore } from "@/server/share/store";
  * - Blocked facts never persist as renderable: the central render policy is
  *   re-run by the QA gate, and normalization hides blocked values at render
  *   time regardless.
- * - QA failures are terminal business failures (REJECTED / QUARANTINED).
+ * - QA failures are terminal business failures (REJECTED / QUARANTINED),
+ *   except presentation-only revisions after outreach, which preserve the
+ *   lead's reply/compliance state while leaving the revised POC unpublished.
  *   There is no override parameter and no manual review state.
  */
 
@@ -161,14 +167,18 @@ export async function upsertPocRecord(
       now: ctx.now,
     });
 
-    // Writing a new revision moves the lead to POC_GENERATED (a backwards
-    // transition from QA_PASSED/PUBLISHED is legal and invalidates the
-    // previous publication — fail closed until QA and publish re-run).
-    const updatedLead = await updateLeadStatus(tx, {
-      leadId: lead.id,
-      from: requireLeadStatus(lead.status),
-      to: "POC_GENERATED",
-    });
+    // Writing a new revision normally moves the lead to POC_GENERATED and
+    // invalidates the previous publication. Once outreach has happened, the
+    // lead's outreach/reply status is historical state and must not be erased;
+    // only the POC row goes back through draft -> QA -> published.
+    const currentLeadStatus = requireLeadStatus(lead.status);
+    const updatedLead = POC_REVISION_PRESERVED_LEAD_STATUSES.has(currentLeadStatus)
+      ? lead
+      : await updateLeadStatus(tx, {
+          leadId: lead.id,
+          from: currentLeadStatus,
+          to: "POC_GENERATED",
+        });
 
     await writeAuditTx(tx, {
       actor: ctx.principal,
@@ -244,11 +254,14 @@ export async function runPocQa(input: z.infer<typeof runQaInputSchema>, ctx: Cal
       const updated = await transitionPocState(tx, row.id, ["draft", "qa_passed"], "qa_passed", {
         qaReport: report,
       });
-      const updatedLead = await updateLeadStatus(tx, {
-        leadId: lead.id,
-        from: requireLeadStatus(lead.status),
-        to: "QA_PASSED",
-      });
+      const currentLeadStatus = requireLeadStatus(lead.status);
+      const updatedLead = POC_REVISION_PRESERVED_LEAD_STATUSES.has(currentLeadStatus)
+        ? lead
+        : await updateLeadStatus(tx, {
+            leadId: lead.id,
+            from: currentLeadStatus,
+            to: "QA_PASSED",
+          });
       await writeAuditTx(tx, {
         actor: ctx.principal,
         action: "run_poc_qa",
@@ -285,20 +298,30 @@ export async function runPocQa(input: z.infer<typeof runQaInputSchema>, ctx: Cal
     );
     const outcomeStatus = suspicious ? "QUARANTINED" : "REJECTED";
     await transitionPocState(tx, row.id, ["draft", "qa_passed"], "draft", { qaReport: report });
-    await updateLeadStatus(tx, {
-      leadId: lead.id,
-      from: requireLeadStatus(lead.status),
-      to: outcomeStatus,
-      outcomeReason: report.blockingFailures[0] ?? "qa_failed",
-      nextActionAt: null,
-    });
+    const currentLeadStatus = requireLeadStatus(lead.status);
+    const preserveLeadStatus = POC_REVISION_PRESERVED_LEAD_STATUSES.has(currentLeadStatus);
+    if (!preserveLeadStatus) {
+      await updateLeadStatus(tx, {
+        leadId: lead.id,
+        from: currentLeadStatus,
+        to: outcomeStatus,
+        outcomeReason: report.blockingFailures[0] ?? "qa_failed",
+        nextActionAt: null,
+      });
+    }
+    const resultingLeadStatus = preserveLeadStatus ? currentLeadStatus : outcomeStatus;
     await writeAuditTx(tx, {
       actor: ctx.principal,
       action: "run_poc_qa",
       targetType: "poc_record",
       targetId: row.id,
       runId: ctx.runId ?? null,
-      metadata: { passed: false, blockingFailures: report.blockingFailures, outcomeStatus },
+      metadata: {
+        passed: false,
+        blockingFailures: report.blockingFailures,
+        outcomeStatus: resultingLeadStatus,
+        preservedOutreachState: preserveLeadStatus,
+      },
     });
     if (ctx.runId) {
       await addRunStep(tx, {
@@ -318,7 +341,7 @@ export async function runPocQa(input: z.infer<typeof runQaInputSchema>, ctx: Cal
       passed: false,
       blockingFailures: report.blockingFailures,
       checks: report.checks,
-      leadStatus: outcomeStatus,
+      leadStatus: resultingLeadStatus,
       pocState: "draft",
     };
   });
@@ -356,7 +379,9 @@ export async function publishPoc(input: z.infer<typeof publishPocInputSchema>, c
         { pocState: row.state },
       );
     }
-    if (lead.status !== "QA_PASSED") {
+    const currentLeadStatus = requireLeadStatus(lead.status);
+    const preserveLeadStatus = POC_REVISION_PRESERVED_LEAD_STATUSES.has(currentLeadStatus);
+    if (currentLeadStatus !== "QA_PASSED" && !preserveLeadStatus) {
       throw new AutomationError("qa_not_passed", "The lead has not passed QA.", "REJECTED", undefined, {
         leadStatus: lead.status,
       });
@@ -377,11 +402,13 @@ export async function publishPoc(input: z.infer<typeof publishPocInputSchema>, c
     await transitionPocState(tx, row.id, ["qa_passed"], "published", {
       publishedAt: ctx.now,
     });
-    await updateLeadStatus(tx, {
-      leadId: lead.id,
-      from: requireLeadStatus(lead.status),
-      to: "PUBLISHED",
-    });
+    if (!preserveLeadStatus) {
+      await updateLeadStatus(tx, {
+        leadId: lead.id,
+        from: currentLeadStatus,
+        to: "PUBLISHED",
+      });
+    }
 
     // Link creation inside the transaction; refusal or failure rolls back
     // the transitions above.

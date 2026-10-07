@@ -49,6 +49,25 @@ export const OUTREACH_ELIGIBLE_STATUSES: ReadonlySet<LeadStatus> = new Set([
 ]);
 
 /**
+ * Outreach/reply states that must survive a presentation-only POC revision.
+ *
+ * A POC has its own draft -> qa_passed -> published lifecycle. Re-authoring
+ * that page after outreach must not rewind the lead to POC_GENERATED or erase
+ * reply/suppression history. The POC gates still run in full; only the lead's
+ * already-established outreach state is preserved.
+ */
+export const POC_REVISION_PRESERVED_LEAD_STATUSES: ReadonlySet<LeadStatus> = new Set([
+  "CONTACTED",
+  "FOLLOW_UP_1",
+  "FOLLOW_UP_2",
+  "INTERESTED",
+  "NOT_INTERESTED",
+  "UNSUBSCRIBED",
+  "BOUNCED",
+  "SUPPRESSED",
+]);
+
+/**
  * Transitions. Empty/absent means the status is terminal (or, for FAILED,
  * retryable only through the explicit audited retry operation).
  *
