@@ -1,0 +1,15 @@
+{
+  "business": "Magnolia Filling Station",
+  "asset": "Official Facebook profile logo",
+  "source": "official_social",
+  "sourcePage": "https://www.facebook.com/magnoliafillingstation/",
+  "retrievedAt": "2026-10-07T12:29:00.000Z",
+  "dimensions": {
+    "width": 480,
+    "height": 480
+  },
+  "brandColors": {
+    "primary": "#111111",
+    "background": "#FFFFFF"
+  }
+}
