@@ -73,8 +73,19 @@ export default function CoffeeEditorialTheme({ record }: ThemeProps) {
       {/* Masthead: print-style double rule, issue metadata, one quiet CTA */}
       <header className="sticky top-0 z-40 border-b border-[var(--text)] bg-[var(--bg)]/94 backdrop-blur">
         <div className="poc-container flex h-[64px] items-center justify-between gap-6">
-          <a href="#cover" className="font-display text-[24px] font-semibold leading-none tracking-tight">
-            {record.wordmark.text}
+          <a href="#cover" className="flex min-w-0 items-center gap-3 font-display text-[24px] font-semibold leading-none tracking-tight">
+            {record.wordmark.image ? (
+              <SmartImage
+                image={record.wordmark.image}
+                width={44}
+                height={44}
+                sizes="44px"
+                priority
+                showAttribution={false}
+                className="h-11 w-11 shrink-0 rounded-full object-contain"
+              />
+            ) : null}
+            <span className="truncate">{record.wordmark.text}</span>
           </a>
           <nav aria-label="Primary" className="hidden items-center gap-7 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--muted)] md:flex">
             {nav.map((item) => (
